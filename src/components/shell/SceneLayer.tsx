@@ -1,17 +1,28 @@
 'use client';
-// 낮/밤 장면의 배경 — 그라데이션 색만 깐다 (꾸밈 요소 없음).
+// 낮/밤 장면의 배경 — 그라데이션 색 + 은은한 빛 (밤: 위쪽 별빛 / 낮: 아래쪽 들판의 점 같은 빛).
 // 두 장면을 같이 두고 <html data-scene>으로 한쪽만 보이게 해, 전환할 때 색이 천천히 섞이며 바뀐다.
 import React from 'react';
 import { DAY_THEME, NIGHT_THEME } from '@/lib/theme';
 import { useTheme } from '@/lib/ThemeProvider';
+
+/** 장면의 은은한 빛 — 홈 배경과 대문이 같이 쓴다 */
+export function SceneGlow({ scene }: { scene: 'day' | 'night' }) {
+  return scene === 'night'
+    ? <><div className="sky-stars" /><div className="sky-stars s2" /></>
+    : <><div className="field-glow" /><div className="field-glow s2" /></>;
+}
 
 export function SceneLayer() {
   const { sceneDecor } = useTheme();
   if (!sceneDecor) return null;
   return (
     <div className="scene" aria-hidden>
-      <div className="scene-day" style={{ '--sc-g1': DAY_THEME.bgG1, '--sc-g2': DAY_THEME.bgG2 } as React.CSSProperties} />
-      <div className="scene-night" style={{ '--sc-g1': NIGHT_THEME.bgG1, '--sc-g2': NIGHT_THEME.bgG2 } as React.CSSProperties} />
+      <div className="scene-day" style={{ '--sc-g1': DAY_THEME.bgG1, '--sc-g2': DAY_THEME.bgG2 } as React.CSSProperties}>
+        <SceneGlow scene="day" />
+      </div>
+      <div className="scene-night" style={{ '--sc-g1': NIGHT_THEME.bgG1, '--sc-g2': NIGHT_THEME.bgG2 } as React.CSSProperties}>
+        <SceneGlow scene="night" />
+      </div>
     </div>
   );
 }

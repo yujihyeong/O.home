@@ -5,6 +5,7 @@
 // 한 번 들어가면 이 탭을 닫기 전까지는 다시 뜨지 않는다 (sessionStorage — layout 인라인 스크립트가 첫 페인트 전에 확인).
 import React, { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
+import { SceneGlow } from '@/components/shell/SceneLayer';
 
 const KEY = 'ohome.gate.seen';
 const PICKS = ['day', 'night'] as const;
@@ -50,6 +51,7 @@ export function EntryGate() {
           <img src={`/gate/${pick}-pc.webp`} alt="" />
         </picture>
       )}
+      {pick && <SceneGlow scene={pick} />}
       <button type="button" className="gate-enter" onClick={e => { e.stopPropagation(); enter(); }}>
         ENTER
       </button>

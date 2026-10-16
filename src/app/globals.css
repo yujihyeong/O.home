@@ -1912,3 +1912,110 @@ html.gate-seen .gate{display:none}
 .gate-enter:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
 @keyframes gate-breathe{0%,100%{opacity:.75}50%{opacity:1}}
 @media (prefers-reduced-motion:reduce){.gate,.gate img,.gate-enter{animation:none;transition:none}}
+
+/* 장면 배경의 은은한 빛 — 밤: 위쪽 별빛 / 낮: 아래쪽 들판의 점 같은 빛 (홈 배경 · 대문 공통)
+   점 무늬를 크기가 다른 판 여러 장으로 겹쳐 줄지어 보이지 않게 한다 */
+.sky-stars,.field-glow{position:absolute;inset:0;pointer-events:none}
+.sky-stars{
+  background-image:
+    radial-gradient(1.1px 1.1px at 463px 286px,rgba(222,230,255,.85) 99%,transparent),
+    radial-gradient(1px 1px at 520px 300px,rgba(255,240,248,.85) 99%,transparent),
+    radial-gradient(1.6px 1.6px at 524px 243px,rgba(255,240,248,.85) 99%,transparent),
+    radial-gradient(1px 1px at 96px 228px,rgba(255,240,248,.85) 99%,transparent),
+    radial-gradient(1.6px 1.6px at 92px 275px,rgba(255,255,255,.9) 99%,transparent),
+    radial-gradient(1.6px 1.6px at 405px 231px,rgba(255,240,248,.85) 99%,transparent),
+    radial-gradient(0.8px 0.8px at 15px 270px,rgba(255,255,255,.9) 99%,transparent),
+    radial-gradient(1px 1px at 36px 97px,rgba(255,255,255,.9) 99%,transparent),
+    radial-gradient(1.1px 1.1px at 475px 167px,rgba(255,240,248,.85) 99%,transparent),
+    radial-gradient(1.6px 1.6px at 531px 119px,rgba(255,247,215,.85) 99%,transparent),
+    radial-gradient(1.6px 1.6px at 511px 2px,rgba(255,255,255,.9) 99%,transparent),
+    radial-gradient(1px 1px at 468px 335px,rgba(222,230,255,.85) 99%,transparent),
+    radial-gradient(1px 1px at 85px 362px,rgba(255,247,215,.85) 99%,transparent),
+    radial-gradient(1px 1px at 235px 262px,rgba(255,255,255,.9) 99%,transparent),
+    radial-gradient(0.8px 0.8px at 71px 288px,rgba(222,230,255,.85) 99%,transparent),
+    radial-gradient(1.1px 1.1px at 110px 148px,rgba(255,255,255,.9) 99%,transparent),
+    radial-gradient(0.8px 0.8px at 17px 350px,rgba(255,240,248,.85) 99%,transparent),
+    radial-gradient(1.1px 1.1px at 214px 26px,rgba(222,230,255,.85) 99%,transparent),
+    radial-gradient(0.8px 0.8px at 406px 214px,rgba(255,240,248,.85) 99%,transparent),
+    radial-gradient(0.8px 0.8px at 276px 172px,rgba(255,247,215,.85) 99%,transparent),
+    radial-gradient(1.1px 1.1px at 340px 7px,rgba(255,255,255,.9) 99%,transparent),
+    radial-gradient(1.6px 1.6px at 137px 126px,rgba(255,255,255,.9) 99%,transparent);
+  background-size:560px 400px;opacity:.75;
+  -webkit-mask-image:linear-gradient(180deg,#000 0%,rgba(0,0,0,.5) 26%,transparent 50%);
+  mask-image:linear-gradient(180deg,#000 0%,rgba(0,0,0,.5) 26%,transparent 50%)}
+.sky-stars.s2{
+  background-image:
+    radial-gradient(1.1px 1.1px at 11px 30px,rgba(222,230,255,.85) 99%,transparent),
+    radial-gradient(1.3px 1.3px at 181px 349px,rgba(255,240,248,.85) 99%,transparent),
+    radial-gradient(1px 1px at 458px 260px,rgba(255,240,248,.85) 99%,transparent),
+    radial-gradient(1.1px 1.1px at 429px 329px,rgba(255,255,255,.9) 99%,transparent),
+    radial-gradient(1px 1px at 404px 215px,rgba(255,255,255,.9) 99%,transparent),
+    radial-gradient(1.3px 1.3px at 276px 442px,rgba(255,247,215,.85) 99%,transparent),
+    radial-gradient(1px 1px at 20px 107px,rgba(222,230,255,.85) 99%,transparent),
+    radial-gradient(1.3px 1.3px at 616px 328px,rgba(255,255,255,.9) 99%,transparent),
+    radial-gradient(1px 1px at 43px 74px,rgba(222,230,255,.85) 99%,transparent),
+    radial-gradient(1.3px 1.3px at 264px 4px,rgba(255,247,215,.85) 99%,transparent),
+    radial-gradient(0.8px 0.8px at 303px 197px,rgba(255,255,255,.9) 99%,transparent),
+    radial-gradient(1.3px 1.3px at 92px 106px,rgba(255,240,248,.85) 99%,transparent),
+    radial-gradient(1px 1px at 15px 307px,rgba(255,247,215,.85) 99%,transparent),
+    radial-gradient(1px 1px at 637px 232px,rgba(222,230,255,.85) 99%,transparent);
+  background-size:730px 470px;background-position:260px 130px;opacity:.6;
+  animation:sky-twinkle 6s ease-in-out infinite alternate}
+@keyframes sky-twinkle{from{opacity:.2}to{opacity:.7}}
+.field-glow{
+  background-image:
+    radial-gradient(circle at 296px 42px,rgba(255,224,206,.9) 0,transparent 1.8px),
+    radial-gradient(circle at 314px 216px,rgba(255,224,206,.9) 0,transparent 3px),
+    radial-gradient(circle at 366px 66px,rgba(255,236,150,.95) 0,transparent 2.2px),
+    radial-gradient(circle at 455px 7px,rgba(255,224,206,.9) 0,transparent 2.2px),
+    radial-gradient(circle at 465px 12px,rgba(255,255,250,1) 0,transparent 1.8px),
+    radial-gradient(circle at 510px 215px,rgba(255,224,206,.9) 0,transparent 1.8px),
+    radial-gradient(circle at 441px 183px,rgba(255,246,196,1) 0,transparent 1.8px),
+    radial-gradient(circle at 36px 188px,rgba(255,224,206,.9) 0,transparent 2.2px),
+    radial-gradient(circle at 221px 185px,rgba(255,224,206,.9) 0,transparent 2.6px),
+    radial-gradient(circle at 288px 160px,rgba(250,255,222,1) 0,transparent 1.8px),
+    radial-gradient(circle at 181px 247px,rgba(255,246,196,1) 0,transparent 3px),
+    radial-gradient(circle at 186px 91px,rgba(255,224,206,.9) 0,transparent 2.6px),
+    radial-gradient(circle at 200px 298px,rgba(255,255,250,1) 0,transparent 1.8px),
+    radial-gradient(circle at 100px 218px,rgba(255,224,206,.9) 0,transparent 1.8px),
+    radial-gradient(circle at 282px 293px,rgba(255,224,206,.9) 0,transparent 2.6px),
+    radial-gradient(circle at 338px 55px,rgba(255,236,150,.95) 0,transparent 2.6px),
+    radial-gradient(circle at 555px 156px,rgba(255,224,206,.9) 0,transparent 3px),
+    radial-gradient(circle at 223px 132px,rgba(255,255,250,1) 0,transparent 2.2px),
+    radial-gradient(circle at 122px 252px,rgba(255,236,150,.95) 0,transparent 2.2px),
+    radial-gradient(circle at 558px 72px,rgba(250,255,222,1) 0,transparent 1.8px),
+    radial-gradient(circle at 171px 230px,rgba(255,255,250,1) 0,transparent 1.8px),
+    radial-gradient(circle at 426px 201px,rgba(255,246,196,1) 0,transparent 1.8px),
+    radial-gradient(circle at 231px 6px,rgba(255,255,250,1) 0,transparent 2.2px),
+    radial-gradient(circle at 551px 227px,rgba(255,236,150,.95) 0,transparent 1.8px),
+    radial-gradient(circle at 16px 193px,rgba(255,246,196,1) 0,transparent 3px),
+    radial-gradient(circle at 37px 38px,rgba(250,255,222,1) 0,transparent 2.6px),
+    radial-gradient(circle at 561px 100px,rgba(255,236,150,.95) 0,transparent 3px),
+    radial-gradient(circle at 221px 46px,rgba(255,224,206,.9) 0,transparent 1.8px),
+    radial-gradient(circle at 541px 86px,rgba(255,236,150,.95) 0,transparent 2.2px),
+    radial-gradient(circle at 102px 215px,rgba(255,255,250,1) 0,transparent 2.2px);
+  background-size:620px 300px;background-position:0 100%;opacity:.95;
+  filter:drop-shadow(0 0 2px rgba(255,244,190,.9));
+  -webkit-mask-image:linear-gradient(0deg,#000 0%,rgba(0,0,0,.7) 18%,transparent 40%);
+  mask-image:linear-gradient(0deg,#000 0%,rgba(0,0,0,.7) 18%,transparent 40%)}
+.field-glow.s2{
+  background-image:
+    radial-gradient(circle at 455px 175px,rgba(255,240,170,.6) 0,transparent 10px),
+    radial-gradient(circle at 169px 211px,rgba(255,255,255,.7) 0,transparent 6px),
+    radial-gradient(circle at 654px 122px,rgba(255,240,170,.6) 0,transparent 10px),
+    radial-gradient(circle at 435px 209px,rgba(255,255,255,.7) 0,transparent 8px),
+    radial-gradient(circle at 624px 26px,rgba(255,250,214,.75) 0,transparent 8px),
+    radial-gradient(circle at 25px 71px,rgba(255,255,255,.7) 0,transparent 8px),
+    radial-gradient(circle at 746px 220px,rgba(255,250,214,.75) 0,transparent 6px),
+    radial-gradient(circle at 676px 40px,rgba(255,255,255,.7) 0,transparent 8px),
+    radial-gradient(circle at 705px 58px,rgba(255,255,255,.7) 0,transparent 6px),
+    radial-gradient(circle at 482px 230px,rgba(255,240,170,.6) 0,transparent 10px),
+    radial-gradient(circle at 4px 173px,rgba(255,250,214,.75) 0,transparent 8px),
+    radial-gradient(circle at 804px 72px,rgba(255,240,170,.6) 0,transparent 10px),
+    radial-gradient(circle at 208px 15px,rgba(255,255,255,.7) 0,transparent 6px),
+    radial-gradient(circle at 460px 216px,rgba(255,240,170,.6) 0,transparent 6px),
+    radial-gradient(circle at 716px 141px,rgba(255,255,255,.7) 0,transparent 8px),
+    radial-gradient(circle at 705px 90px,rgba(255,255,255,.7) 0,transparent 10px);
+  background-size:810px 260px;background-position:330px 100%;opacity:.8;filter:blur(2px);
+  -webkit-mask-image:linear-gradient(0deg,#000 0%,transparent 30%);mask-image:linear-gradient(0deg,#000 0%,transparent 30%)}
+@media (prefers-reduced-motion:reduce){.sky-stars.s2{animation:none}}
