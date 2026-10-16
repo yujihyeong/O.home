@@ -86,9 +86,25 @@ export async function createSupabaseBackend(
       return error ? { ok: false, error: error.message } : { ok: true };
     },
 
-    async signUp(id, password, nickname) {
-      const { error } = await sb.auth.signUp({ email: id, password, options: { data: { nickname } } });
+    async signUp(id, password, nickname, invite) {
+      // 가입코드는 서버 트리거(handle_new_user)가 비공개 표와 비교한다 — 틀리면 계정 자체가 만들어지지 않는다
+      const { error } = await sb.auth.signUp({ email: id, password, options: { data: { nickname, invite } } });
+      if (error && /database error/i.test(error.message)) return { ok: false, error: '가입코드가 올바르지 않습니다.' };
       return error ? { ok: false, error: error.message } : { ok: true };
+    },
+
+    async getInvite() {
+      const { data, error } = await sb.from('private_settings').select('value').eq('key', 'invite').maybeSingle();
+      if (error) return null;
+      return (data as { value?: string } | null)?.value ?? null;
+    },
+
+    async setInvite(code) {
+      const { error } = await sb.from('private_settings')
+        .upsert({ key: 'invite', value: code, updated_at: new Date().toISOString() }, { onConflict: 'key' });
+      return error
+        ? { ok: false, error: /private_settings/.test(error.message) ? '서버 스키마를 최신으로 다시 실행해 주세요 (private_settings 표가 없습니다)' : error.message }
+        : { ok: true };
     },
 
     async signOut() { await sb.auth.signOut(); },

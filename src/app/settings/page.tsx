@@ -981,7 +981,13 @@ function MemberPane() {
   const [codeLoaded, setCodeLoaded] = useState(false);
   const [regVer, setRegVer] = useState(0);   // 가입 계정 삭제 후 목록 갱신용
   const [removedIds, setRemovedIds] = useState<string[]>([]);   // 서버 모드에서 방금 지운 회원
-  useEffect(() => { setCode(inviteCode()); setCodeLoaded(true); }, []);
+  /* 가입코드 — 서버 모드에서는 관리자만 읽는 비공개 저장소에 둔다 (보안 강화).
+     예전엔 공개 설정에 있어서 방문자가 F12로 그대로 볼 수 있었다 */
+  useEffect(() => {
+    const be = backend();
+    if (!be) { setCode(inviteCode()); setCodeLoaded(true); return; }
+    void be.getInvite().then(c => { setCode(c ?? 'WELCOME'); setCodeLoaded(true); });
+  }, []);
   void regVer;
 
   const members = useMembers();
@@ -1047,8 +1053,14 @@ function MemberPane() {
           <button className="btn btn-dark" disabled={!codeLoaded}
             onClick={() => {
               if (!code.trim()) { toast('가입코드를 입력해 주세요'); return; }
-              setInviteCode(code);
-              toast('가입코드가 변경되었습니다');
+              const be = backend();
+              if (!be) { setInviteCode(code); toast('가입코드가 변경되었습니다'); return; }
+              void be.setInvite(code.trim()).then(r => {
+                if (!r.ok) { toast(`저장하지 못했습니다 — ${r.error}`); return; }
+                // 예전 공개 설정에 남아 있던 가입코드는 서버에서 지운다 (방문자에게 보이지 않게)
+                void be.saveSetting('ohome.invite.v1', null).catch(() => { /* 무시 */ });
+                toast('가입코드가 변경되었습니다');
+              });
             }}>SAVE</button>
         </div>
       </div>
@@ -2083,7 +2095,8 @@ function MenuPane() {
       let n = 0;
       for (const coll of CONTENT_COLLECTIONS) {
         const rows = await be.fetchList(coll);
-        const targets = rows.filter(r => visFloorOf(coll, r) !== 'public');
+        // 비공개 메뉴에 걸린 글 + 비밀글(서버에서도 작성자·관리자만 보이게, 보안 강화)
+        const targets = rows.filter(r => visFloorOf(coll, r) !== 'public' || r.secret === true);
         if (targets.length) n += await be.refreshVis(coll, targets, user?.id ?? null);
       }
       toast(n ? `글 ${n}건을 서버에서도 가렸습니다` : '비공개로 둔 메뉴에 글이 없습니다');

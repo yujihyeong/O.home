@@ -48,7 +48,11 @@ export interface Backend {
   currentUser(): Promise<BackendUser | null>;
   onAuthChange(cb: (u: BackendUser | null) => void): () => void;
   signIn(id: string, password: string): Promise<{ ok: boolean; error?: string }>;
-  signUp(id: string, password: string, nickname: string): Promise<{ ok: boolean; error?: string }>;
+  /** invite: 가입코드 — 서버가 직접 검사한다 (보안 강화, 화면 비교만으로는 API를 직접 부르면 뚫렸다) */
+  signUp(id: string, password: string, nickname: string, invite: string): Promise<{ ok: boolean; error?: string }>;
+  /** 가입코드 — 관리자만 읽고 쓴다 (공개 설정이 아니라 비공개 저장소에) */
+  getInvite(): Promise<string | null>;
+  setInvite(code: string): Promise<{ ok: boolean; error?: string }>;
   signOut(): Promise<void>;
   resetPassword(email: string): Promise<{ ok: boolean; error?: string }>;
   updateProfile(patch: { nickname?: string; avatarUrl?: string | null; avatarColor?: string | null; currentPassword?: string; newPassword?: string }): Promise<{ ok: boolean; error?: string }>;
@@ -163,9 +167,13 @@ export function metaOf(item: ListItem, uid: string | null, floor = 'public') {
   const rawAuthor = typeof item.authorId === 'string' ? item.authorId : '';
   const authorId = rawAuthor || uid || null;
   const hasListHidden = typeof item.listHidden === 'boolean';
-  const own = hasListHidden
-    ? (item.listHidden ? 'private' : 'public')
-    : (typeof item.visibility === 'string' ? item.visibility : 'public');
+  /* 비밀글(게시판·방명록·댓글의 secret)은 서버에서도 비공개로 — 작성자·관리자만 행을 받는다.
+     예전에는 화면에서만 「비밀글입니다」로 가렸고 행은 공개로 저장돼, F12(네트워크 탭)로 본문이 그대로 보였다 */
+  const own = item.secret === true
+    ? 'private'
+    : hasListHidden
+      ? (item.listHidden ? 'private' : 'public')
+      : (typeof item.visibility === 'string' ? item.visibility : 'public');
   /* 메뉴를 비공개로 둔 곳의 글은 그 기준까지 좁혀 저장한다 (v2.0 사용자 요청 — visFloor 참조).
      **좁히기만 한다** — 글이 이미 더 좁으면 그대로다. 게시판 글처럼 visibility 칸이 아예 없는
      종류도 여기서 정해지므로, 서버가 내주지 않는 것은 화면과 무관하게 보장된다. */

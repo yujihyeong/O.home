@@ -7,12 +7,12 @@ import { useHrefBlock } from '@/components/shell/MenuGuard';
 import { sectionHref, MAIN_SEC, secStamp, useSectionTitle } from '@/lib/sectionStore';
 import { useAuth } from '@/lib/auth';
 import { useLocalList } from '@/lib/postStore';
-import { TrpgLog, TRPG_SEED, TrpgLogBody, TRPG_BODY_SEED, bodyVisibility, showAsHtml, decodeLogText, logNo, saveLogBody } from '@/lib/galleryStore';
+import { TrpgLog, TRPG_SEED, TrpgLogBody, TRPG_BODY_SEED, bodyVisibility, showAsHtml, decodeLogText, logNo, saveLogBody, hasLogLock, encryptLog, decryptLog, ENC_SUFFIX } from '@/lib/galleryStore';
 import { Relation, REL_SEED, Character, CHAR_SEED, charGrant } from '@/lib/charStore';
 import { Modal, ConfirmModal } from '@/components/ui/Modal';
 import { getBlob, putBlob, useBlobUrl } from '@/lib/blobStore';
 import { PageTitle, EditableDesc } from '@/components/ui/PageText';
-import { KInput, KSelect, KDate, KTextarea } from '@/components/ui/Kit';
+import { KInput, KSelect, KDate, KTextarea, KCheck } from '@/components/ui/Kit';
 import { ColorField } from '@/components/ui/ColorField';
 import { CropEditor, CropImg, CropValue } from '@/components/ui/CropEditor';
 import { useToast } from '@/components/ui/Toast';
@@ -63,6 +63,8 @@ export default function TrpgDetailPage() {
   // 큰 글씨 — 추가 섹션이면 그 이름, 눌렀을 때도 그 목록으로 (v2.0 사용자 제보)
   const tt = useSectionTitle('trpg', l?.secId, 'TRPG LOG');
   const bd = bodies.find(x => x.id === id);   // 분리 저장된 본문 — 권한이 없으면 애초에 안 온다 (undefined)
+  // 비밀번호 열람용 사본 — 비밀번호로 암호화된 본문만 공개된다 (보안 강화)
+  const bdEnc = bodies.find(x => x.id === id + ENC_SUFFIX);
 
   // 접근권한 (4.3) — 관리자 / 공개범위 충족 / 비밀번호 입력자 /
   // 연동 자관의 상대방(멤버 캐릭터에 권한이 부여된 회원)은 무조건 열람 (3차 회원-캐릭터 연결, v1.9)
@@ -77,6 +79,8 @@ export default function TrpgDetailPage() {
   // 비밀번호 열람 (4.3) — 세션 동안 유지
   const [unlocked, setUnlocked] = useState(false);
   const [pwTry, setPwTry] = useState('');
+  const [decText, setDecText] = useState<string | null>(null);   // 비밀번호로 푼 본문 (메모리에만)
+  const [pwBusy, setPwBusy] = useState(false);
   useEffect(() => {
     try { if (sessionStorage.getItem(`trpg-unlock:${id}`) === '1') setUnlocked(true); } catch { /* 무시 */ }
   }, [id]);
@@ -87,15 +91,30 @@ export default function TrpgDetailPage() {
   useEffect(() => {
     if (!loaded) return;
     if (!l) { router.replace('/'); return; }
-    if (!baseAllowed && !unlocked && !l.password) router.replace('/');
+    if (!baseAllowed && !unlocked && !hasLogLock(l)) router.replace('/');
   }, [loaded, l, baseAllowed, unlocked, router]);
-  const tryUnlock = () => {
-    if (l?.password && pwTry === l.password) {
-      setUnlocked(true);
-      try { sessionStorage.setItem(`trpg-unlock:${id}`, '1'); } catch { /* 무시 */ }
-    } else {
-      toast('비밀번호가 올바르지 않습니다');
+  const tryUnlock = async () => {
+    if (!l) return;
+    // 옛 평문 비밀번호 로그 — 다시 저장하기 전까지는 예전 방식 그대로
+    if (l.password) {
+      if (pwTry === l.password) {
+        setUnlocked(true);
+        try { sessionStorage.setItem(`trpg-unlock:${id}`, '1'); } catch { /* 무시 */ }
+      } else toast('비밀번호가 올바르지 않습니다');
+      return;
     }
+    // 암호화 방식 — 공개된 암호문을 입력한 비밀번호로 풀어 본다 (틀리면 풀리지 않는다)
+    if (!bdEnc) { toast('본문을 불러오지 못했습니다'); return; }
+    setPwBusy(true);
+    let payload = bdEnc.body;
+    if (!payload && bdEnc.bodyId) {
+      try { payload = (await (await getBlob(bdEnc.bodyId))?.text()) ?? ''; } catch { payload = ''; }
+    }
+    const dec = await decryptLog(payload, pwTry);
+    setPwBusy(false);
+    if (dec === null) { toast('비밀번호가 올바르지 않습니다'); return; }
+    setDecText(dec);
+    setUnlocked(true);
   };
 
   // 로그 정보 수정 — 메타 + 본문 교체(파일/직접 입력) + 썸네일 교체(이미지 크롭/단색·그라데이션)
@@ -103,6 +122,7 @@ export default function TrpgDetailPage() {
   const [e, setE] = useState({
     noText: '', title: '', catchphrase: '', writer: '', withText: '',
     relId: 'none', date: '', visibility: 'public' as TrpgLog['visibility'], password: '',
+    unlock: false,   // 비밀번호 해제
     listHidden: false,   // 목록 표시 여부 (v2.0 — 접근권한과 별개)
   });
   // 본문 교체
@@ -128,14 +148,27 @@ export default function TrpgDetailPage() {
     if (!e.title.trim()) { toast('시나리오 타이틀을 입력해 주세요'); return; }
     // 본문 교체 준비 — 본문은 목록과 분리 저장이라(v2.0) 이제 TrpgLogBody 조각으로 만든다
     let bodyPatch: Partial<TrpgLogBody> = {};
+    let newPlain: string | null = null;   // 본문을 바꿨으면 새 본문 (비밀번호 사본을 다시 잠그는 데 쓴다)
     if (bodyMode === 'file' && eFile) {
       const text = await decodeLogText(eFile);
+      newPlain = text;
       bodyPatch = {
         ...(await saveLogBody(text)),
         originalFileId: await putBlob(eFile), originalName: eFile.name,
       };
     } else if (bodyMode === 'text' && eText.trim()) {
+      newPlain = eText;
       bodyPatch = await saveLogBody(eText);
+    }
+    /* 열람 비밀번호 (보안 강화) — 비밀번호는 저장하지 않고, 그 비밀번호로 잠근 본문 사본만 공개한다.
+       새 비밀번호를 적으면 그걸로 잠그고, 비워 두면 지금 잠금을 유지한다(옛 평문 로그는 그 비밀번호로 옮겨 잠근다).
+       유지하면서 본문을 바꾸면 새 본문을 잠글 비밀번호가 필요하다 */
+    const newPw = e.password.trim();
+    const lock = !e.unlock && (!!newPw || hasLogLock(l as TrpgLog));
+    const pwForEnc = newPw || l?.password || '';
+    if (lock && !pwForEnc && newPlain !== null) {
+      toast('본문을 바꾸려면 열람 비밀번호를 다시 입력해 주세요');
+      return;
     }
     // 썸네일 교체 준비
     let thumbPatch: Partial<TrpgLog> = {};
@@ -154,7 +187,7 @@ export default function TrpgDetailPage() {
       writer: e.writer.trim(), withText: e.withText.trim(),
       relId: e.relId === 'none' ? undefined : e.relId,
       date: e.date || undefined,
-      visibility: e.visibility, password: e.password.trim() || undefined,
+      visibility: e.visibility, password: undefined, pwLock: lock || undefined,
       listHidden: e.listHidden,
       ...thumbPatch,
       // 예전엔 본문이 이 문서에 있었다 — 저장할 때마다 확실히 비워서(구버전 잔재 정리),
@@ -178,7 +211,22 @@ export default function TrpgDetailPage() {
     };
     // 새 본문 문서는 뒤에 붙인다 (v2.0 포크 제보) — 앞에 끼우면 기존 본문 전체의 자리가 밀려
     // 재저장 대상이 되고, 큰 본문이 쌓인 홈에서는 그 합이 쓰기 한도를 넘어 저장이 실패했다
-    setBodies(bd ? bodies.map(x => x.id === id ? nextBody : x) : [...bodies, nextBody]);
+    let nextBodies = bd ? bodies.map(x => x.id === id ? nextBody : x) : [...bodies, nextBody];
+    if (!lock) nextBodies = nextBodies.filter(x => x.id !== id + ENC_SUFFIX);
+    else if (pwForEnc) {
+      const plain = newPlain ?? bodyText ?? '';
+      const encBody: TrpgLogBody = {
+        id: id + ENC_SUFFIX,
+        ...(await saveLogBody(await encryptLog(plain, pwForEnc))),
+        bodyHtml: nextBody.bodyHtml,
+        visibility: 'public',
+        ...secStamp(nextLog.secId ?? MAIN_SEC),
+      };
+      nextBodies = nextBodies.some(x => x.id === encBody.id)
+        ? nextBodies.map(x => (x.id === encBody.id ? encBody : x))
+        : [...nextBodies, encBody];
+    }
+    setBodies(nextBodies);
     if (bodyMode !== 'keep') setBodyText(null); // 본문 다시 로드
     setEOpen(false);
     setBodyMode('keep'); setEFile(null); setEText('');
@@ -237,8 +285,9 @@ export default function TrpgDetailPage() {
   // 막힌 곳이면 여기서 되돌아간다 — 훅을 모두 부른 뒤여야 렌더마다 개수가 같다
   if (blocked) return blocked;
   if (!loaded || !l) return <section className="page" />;
-  if (!baseAllowed && !unlocked) {
-    if (!l.password) return <section className="page" />;
+  // 암호화 로그는 실제로 풀린 본문이 있어야 열린 것 (세션 표시만으로는 열지 않는다)
+  if (!baseAllowed && (!unlocked || (!l.password && decText === null))) {
+    if (!hasLogLock(l)) return <section className="page" />;
     // 비밀번호 게이트 — 맞으면 이 세션 동안 열람 유지
     return (
       <section className="page">
@@ -247,15 +296,16 @@ export default function TrpgDetailPage() {
           <EditableDesc k="trpg-lock-desc" def="비밀번호를 입력하면 열람할 수 있습니다" always /></div>
         <div className="panel" style={{ maxWidth: 420, margin: '0 auto', padding: 26, display: 'grid', gap: 10 }}>
           <KInput type="password" placeholder="비밀번호" value={pwTry} onChange={e => setPwTry(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter') tryUnlock(); }} />
-          <button className="btn btn-dark" style={{ justifyContent: 'center', padding: 9 }} onClick={tryUnlock}>확인</button>
+            onKeyDown={e => { if (e.key === 'Enter') void tryUnlock(); }} />
+          <button className="btn btn-dark" style={{ justifyContent: 'center', padding: 9 }} disabled={pwBusy}
+            onClick={() => void tryUnlock()}>{pwBusy ? '확인 중…' : '확인'}</button>
         </div>
       </section>
     );
   }
 
   const rel = rels.find(r => r.id === l.relId);
-  const body = bodyText ?? '';
+  const body = (!baseAllowed && decText !== null ? decText : bodyText) ?? '';
   // 지정값이 있으면 그대로 — 직접 쓴 글이 태그처럼 보이는 문자 때문에 HTML로 오판되던 것 방지
   const html = showAsHtml({ bodyHtml: bd?.bodyHtml ?? l.bodyHtml }, body);
   // 원본 파일도 분리 저장된 쪽 우선, 없으면 구버전 로그의 내장 값 (v2.0)
@@ -329,7 +379,7 @@ html,body{margin:0!important;padding:0!important;height:auto!important;min-heigh
             setE({
               noText: l.noText ?? '', title: l.title, catchphrase: l.catchphrase ?? '', writer: l.writer,
               withText: l.withText, relId: l.relId ?? 'none', date: l.date ?? '',
-              visibility: l.visibility, password: l.password ?? '', listHidden: !!l.listHidden,
+              visibility: l.visibility, password: '', unlock: false, listHidden: !!l.listHidden,
             });
             // 본문·썸네일 교체 상태 초기화 (기본: 현재 것 유지)
             setBodyMode('keep'); setEFile(null); setEText(bodyText ?? '');
@@ -440,7 +490,12 @@ html,body{margin:0!important;padding:0!important;height:auto!important;min-heigh
                 { value: 'member', label: '멤버공개' },
                 { value: 'private', label: '나만보기' },
               ]} />
-            <KInput placeholder="열람 비밀번호 (선택)" value={e.password} onChange={ev => setE(s => ({ ...s, password: ev.target.value }))} style={{ flex: 1 }} />
+            <KInput type="password" autoComplete="new-password" disabled={e.unlock}
+              placeholder={hasLogLock(l) ? '비밀번호 유지 — 바꾸려면 새로 입력' : '열람 비밀번호 (선택)'}
+              value={e.password} onChange={ev => setE(s => ({ ...s, password: ev.target.value }))} style={{ flex: 1 }} />
+            {hasLogLock(l) && (
+              <KCheck label="비밀번호 해제" checked={e.unlock} onChange={v => setE(s => ({ ...s, unlock: v, password: '' }))} />
+            )}
           </div>
           {/* 목록 표시 — 접근권한과 별개 (v2.0 사용자 요청) */}
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', justifyContent: 'flex-end' }}>
@@ -568,7 +623,8 @@ html,body{margin:0!important;padding:0!important;height:auto!important;min-heigh
         buttons={[
           { label: 'DELETE', kind: 'accent', onClick: () => {
             setLogs(logs.filter(x => x.id !== l.id));
-            setBodies(bodies.filter(x => x.id !== l.id));   // 분리 저장된 본문도 함께 삭제 (v2.0)
+            // 분리 저장된 본문(+비밀번호 사본)도 함께 삭제 (v2.0)
+            setBodies(bodies.filter(x => x.id !== l.id && x.id !== l.id + ENC_SUFFIX));
             router.push(tt.href);
           } },
           { label: 'CANCEL', kind: 'ghost', onClick: () => setDelAsk(false) },
