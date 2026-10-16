@@ -370,8 +370,6 @@ export function BannerEditor({ conf, onSaved, onClose }: {
   const saved = stored.length > 0 ? stored : DEMO_SLIDES;
   const [draft, setDraft] = useState<SlideDraft[]>(() => saved.map(x => ({ ...x })));
   const [interval, setIntervalSec] = useState((conf.settings.interval as number) ?? 4);
-  // 낮/밤 일러스트 커버 (접속할 때마다 둘 중 하나) — 정한 적 없으면 올린 슬라이드가 없을 때 켜짐
-  const [cover, setCover] = useState((conf.settings.cover as boolean | undefined) ?? stored.length === 0);
   const [cropFor, setCropFor] = useState<string | null>(null);   // 위치 조정 중인 슬라이드 id
   const [fileFor, setFileFor] = useState<string | null>(null);   // 파일 선택 대상 슬라이드 id
 
@@ -428,10 +426,6 @@ export function BannerEditor({ conf, onSaved, onClose }: {
       <p className="hint" style={{ marginTop: 8 }}>
         이미지는 원본 그대로 저장되고 <b>보이는 위치·확대만</b> 기록됩니다 — 편집모드에서 배너 크기가 바뀌어도 원본이 잘리지 않고, [✂ 위치]로 언제든 다시 조정할 수 있습니다
       </p>
-      <div style={{ marginTop: 12 }}>
-        <KCheck label="낮/밤 일러스트 커버 쓰기 — 접속할 때마다 둘 중 하나가 랜덤으로 (켜면 위 슬라이드 대신 커버가 보입니다)"
-          checked={cover} onChange={setCover} />
-      </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 10, flexWrap: 'wrap', gap: 8 }}>
         <button className="btn btn-ghost" onClick={() =>
           setDraft(list => [...list, { id: `s-${Date.now().toString(36)}`, img: '', cap: '', sub: '', link: '' }])}>
@@ -447,7 +441,7 @@ export function BannerEditor({ conf, onSaved, onClose }: {
                 imgId: d.file ? await putBlob(d.file) : d.imgId,
                 crop: d.crop,
               })));
-            updateWidget(conf.id, { settings: { ...conf.settings, slides, interval, cover } }, { persist: true });
+            updateWidget(conf.id, { settings: { ...conf.settings, slides, interval } }, { persist: true });
             toast('배너가 저장되었습니다');
             onSaved?.();
           }}>SAVE</button>

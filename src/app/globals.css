@@ -1893,6 +1893,22 @@ html[data-scene="day"] .topbar{color:var(--top-fg)}
   .sp-panel li{grid-template-columns:1fr}
   .sp-acts{grid-column:1;grid-row:auto}
 }
-/* 배너 커버 — 낮/밤 일러스트 (가운데 기준으로 채움) */
-.banner picture{position:absolute;inset:0}
-.banner .cover-img{width:100%;height:100%;object-fit:cover;object-position:center;animation:fade .4s}
+
+/* ---------- 대문 — 홈에 처음 들어오면 화면 전체 (누르면 입장) ---------- */
+.gate{position:fixed;inset:0;z-index:3000;cursor:var(--cur-pointer,pointer);
+  background:linear-gradient(180deg,#f6f3e7,#d6e2c6);transition:opacity .6s ease,transform .6s ease}
+.gate.night{background:linear-gradient(180deg,#161a2e,#2d2236)}
+.gate.out{opacity:0;transform:scale(1.03);pointer-events:none}
+html.gate-seen .gate{display:none}
+.gate picture,.gate img{position:absolute;inset:0;width:100%;height:100%}
+.gate img{object-fit:cover;object-position:center 46%;animation:fade .6s ease}
+.gate-enter{position:absolute;left:50%;bottom:9vh;transform:translateX(-50%);
+  padding:10px 30px;border-radius:999px;font-family:var(--serif);font-size:calc(14px*var(--fs,1));letter-spacing:.42em;text-indent:.42em;
+  color:#5f6c56;background:rgba(255,253,246,.7);border:1.5px solid rgba(125,116,137,.45);backdrop-filter:blur(4px);
+  animation:gate-breathe 2.6s ease-in-out infinite;transition:background .2s}
+.gate.night .gate-enter{color:#f1e8ef;background:rgba(40,36,64,.55);border-color:rgba(231,168,191,.4)}
+.gate-enter:hover{background:rgba(255,255,255,.9)}
+.gate.night .gate-enter:hover{background:rgba(60,54,92,.75)}
+.gate-enter:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+@keyframes gate-breathe{0%,100%{opacity:.75}50%{opacity:1}}
+@media (prefers-reduced-motion:reduce){.gate,.gate img,.gate-enter{animation:none;transition:none}}
