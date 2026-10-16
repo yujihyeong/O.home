@@ -18,6 +18,8 @@ import { SettingSync } from '@/components/shell/SettingSync';
 import { ListSync } from '@/components/shell/ListSync';
 import { UploadBusy } from '@/components/shell/UploadBusy';
 import { SpellCheck } from '@/components/shell/SpellCheck';
+import { SceneLayer } from '@/components/shell/SceneLayer';
+import { EntryGate } from '@/components/shell/EntryGate';
 import { PageFrame } from '@/lib/pageRefresh';
 import { MenuGuard } from '@/components/shell/MenuGuard';
 import { ServerBoot } from '@/components/shell/ServerBoot';
@@ -65,10 +67,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             있다(사용자 발견 — "처음 접속할 때 기본 다크모드가 깜빡") — body 자체가 파싱되는 순간 CSS만으로도
             그려질 수 있기 때문. <head> 맨 앞으로 옮겨 렌더 차단 구간(첫 페인트 전) 안에서 먼저 실행되게 한다 (v2.0) */}
         <script dangerouslySetInnerHTML={{
-          __html: `(function(){try{var m=JSON.parse(localStorage.getItem('ohome.themeCss.v1'));if(m){var s=document.documentElement.style;for(var k in m)s.setProperty(k,m[k]);}
+          __html: `(function(){try{var m=JSON.parse(localStorage.getItem('ohome.themeCss.v1'));
+/* 낮/밤 장면 (방문자 선택) — 사이트 기본과 다른 장면을 골라 뒀으면 그 장면의 맵으로 첫 페인트 */
+var sm=JSON.parse(localStorage.getItem('ohome.themeCss.scene.v1')||'null'),sp=localStorage.getItem('ohome.scene.v1');
+if(sm){var sc=(sp==='day'||sp==='night')?sp:sm.mode;if(sm[sc]){m=sm[sc];document.documentElement.setAttribute('data-scene',sc);}}
+if(m){var s=document.documentElement.style;for(var k in m)s.setProperty(k,m[k]);}
 /* 웨일 전용 (v2.0 사용자 제보) — 웨일의 「웹 콘텐츠 다크 모드」는 only light 옵트아웃을 무시한다.
    자체 다크 엔진은 「다크를 지원하는 사이트」는 건너뛰므로, 웨일에서만 다크 지원을 선언한다.
    다른 브라우저는 검증된 only light 유지 — 영향 범위를 웨일로 좁힌다 */
+/* 대문을 이미 지나왔으면 첫 페인트부터 숨긴다 — 새로고침 때 대문이 번쩍이지 않게 */
+try{if(sessionStorage.getItem('ohome.gate.seen'))document.documentElement.classList.add('gate-seen');}catch(e){}
 if(navigator.userAgent.indexOf('Whale/')>-1){document.documentElement.style.colorScheme='light dark';}}catch(e){}})();`,
         }} />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -87,6 +95,10 @@ if(navigator.userAgent.indexOf('Whale/')>-1){document.documentElement.style.colo
               <MainStoreProvider>
                 <BgmStoreProvider>
                   {/* 설치 초기 화면 — 첫 실행이면 관리자·게스트 설정/백업 복원만 표시 (v1.9) */}
+                  {/* 낮/밤 장면 배경 — 그라데이션 색만 */}
+                  <SceneLayer />
+                  {/* 대문 — 홈에 처음 들어오면 낮/밤 일러스트 중 하나가 화면 전체에 (누르면 입장) */}
+                  <EntryGate />
                   <SetupGate>
                   <TopBar />
                   {/* 앱 셸: 스크롤은 이 영역 안에서만 (7장) */}

@@ -24,11 +24,11 @@
   --sans:var(--sans-base);
   /* 역할 폰트 크기 배율 — 모든 font-size는 calc(Npx*var(--fs,1)) 형태, --fs는 영역별로 재지정 */
   --fs:var(--fs-body,1);
-  /* 테마 변수 — 환경설정 > 디자인에서 변경 (기본 = 다크 모드) */
-  --bg-g1:#2b3038; --bg-g2:#121418;
-  --top-bg:rgba(20,22,27,.82); --top-fg:#aab0ba; --top-hv:#ffffff; --top-brand:#f2f3f5;
-  --dd-bg:rgba(28,31,37,.97); --dd-fg:#c6cad1; --dd-hv:rgba(255,255,255,.1);
-  --page-title:#eceef1; --page-desc:#9aa0a9;
+  /* 테마 변수 — 환경설정 > 디자인에서 변경 (기본 = 낮 모드 — 첫 페인트가 저장본 없는 방문자에게도 낮으로) */
+  --bg-g1:#f6f3e7; --bg-g2:#d6e2c6;
+  --top-bg:rgba(251,249,240,.84); --top-fg:#5f6c56; --top-hv:#5d7f43; --top-brand:#36432f;
+  --dd-bg:rgba(255,253,246,.97); --dd-fg:#46523f; --dd-hv:rgba(61,90,42,.09);
+  --page-title:#34412d; --page-desc:#7a8670;
   --bgm-bg:rgba(22,24,29,.9); --bgm-fg:#eef0f3; --bgm-ic:#cfd3da; --bgm-vol:#e8eaee;
   --sb-thumb:#565d68; --sb-bd:#1a1d22;
   --search-bg:#232830; --search-fg:#e8eaee; --search-ic:#8b919b; --search-bd:#3a404a;
@@ -1811,3 +1811,211 @@ body.edit-on .main-grid.gridlines .wgt{outline-offset:0}
 .up-busy{position:fixed;bottom:76px;left:50%;transform:translateX(-50%);z-index:121;display:flex;align-items:center;gap:9px;padding:10px 18px;border-radius:999px;background:var(--dd-bg);color:var(--dd-fg);font-size:calc(12.5px*var(--fs,1));box-shadow:0 10px 30px rgba(0,0,0,.3);border:1px solid var(--line-dark);backdrop-filter:blur(8px)}
 .up-spin{width:12px;height:12px;border-radius:50%;border:2px solid var(--line-dark);border-top-color:var(--accent);animation:upSpin .7s linear infinite;flex-shrink:0}
 @keyframes upSpin{to{transform:rotate(360deg)}}
+
+/* ==========================================================
+   낮 / 밤 장면 — 배경은 그라데이션 색만.
+   두 장면의 그라데이션을 겹쳐 두고 <html data-scene>으로 한쪽만 드러내,
+   전환할 때 색이 천천히 섞이며 바뀐다.
+   ========================================================== */
+.scene{position:fixed;inset:0;z-index:-1;pointer-events:none}
+.scene>div{position:absolute;inset:0;opacity:0;transition:opacity 1s ease;
+  background:linear-gradient(180deg,var(--sc-g1) 0%,var(--sc-g2) 100%)}
+html[data-scene="day"] .scene-day,html[data-scene="night"] .scene-night{opacity:1}
+
+/* 상단바 낮/밤 스위치 — 일러스트풍 알약. 크레용 같은 둥근 테두리 안에서
+   해(왼쪽 · 낮)와 달(오른쪽 · 밤)이 굴러가듯 옮겨 간다. 판에는 낮엔 구름, 밤엔 별 */
+.scene-tg{position:relative;flex-shrink:0;width:64px;height:32px;border-radius:999px;padding:0;overflow:hidden;
+  background:#cfe9f7;border:2px solid #7d7489;
+  box-shadow:inset 0 -3px 0 rgba(255,255,255,.55),inset 0 2px 4px rgba(60,50,80,.12),0 2px 0 rgba(125,116,137,.25);
+  transition:background .5s ease,transform .15s}
+.scene-tg.night{background:#3d4173;box-shadow:inset 0 -3px 0 rgba(255,255,255,.12),inset 0 2px 4px rgba(0,0,0,.25),0 2px 0 rgba(0,0,0,.25)}
+.scene-tg:hover{transform:translateY(-1px)}
+.scene-tg:active{transform:translateY(1px) scale(.97)}
+.scene-tg .tg-art{position:absolute;inset:0;width:100%;height:100%;display:block}
+.scene-tg .tg-art g{transition:opacity .45s,transform .5s cubic-bezier(.34,1.56,.64,1)}
+.scene-tg.day .art-night{opacity:0;transform:translateY(6px)}
+.scene-tg.night .art-day{opacity:0;transform:translateY(6px)}
+.scene-tg .tg-knob{position:absolute;top:1px;left:2px;width:26px;height:26px;border-radius:50%;
+  filter:drop-shadow(0 1.5px 0 rgba(125,116,137,.35));
+  transition:transform .55s cubic-bezier(.34,1.4,.64,1)}
+.scene-tg.night .tg-knob{transform:translateX(32px) rotate(360deg)}
+.scene-tg .tg-knob>span{position:absolute;inset:0;transition:opacity .3s}
+.scene-tg .tg-knob svg{width:100%;height:100%;display:block}
+.scene-tg.day .k-moon,.scene-tg.night .k-sun{opacity:0}
+.scene-tg:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+@media (prefers-reduced-motion:reduce){.scene-tg .tg-knob,.scene-tg .tg-art g,.scene>div{transition:none}}
+@media (max-width:620px){
+  .scene-tg{margin-left:auto}
+  .scene-tg + .user-wrap,.scene-tg + .login-link{margin-left:0}
+}
+
+/* 낮의 밝은 상단바 — 어두운 헤더용 흰 반투명 호버·구분선이 묻히지 않게 */
+html[data-scene="day"]{--line-dark:rgba(64,84,48,.13)}
+html[data-scene="day"] .gnb button:hover,html[data-scene="day"] .gnb a.gnb-link:hover{background:rgba(93,127,67,.08)}
+html[data-scene="day"] .gnb button.on,html[data-scene="day"] .gnb a.gnb-link.on{background:rgba(93,127,67,.13)}
+html[data-scene="day"] .user-chip:hover{background:rgba(93,127,67,.08)}
+html[data-scene="day"] .brand small,html[data-scene="day"] .grp>button::after{color:#8e9a83}
+html[data-scene="day"] .topbar{color:var(--top-fg)}
+
+/* ---------- 글쓰기 도구 — 로그 정리 · 맞춤법 검사 ---------- */
+.wt-wrap{display:grid;gap:8px}
+.wt-bar{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.wt-bar button{height:28px;padding:0 11px;border-radius:999px;border:1px solid var(--line);background:var(--panel-solid);
+  font-size:calc(11.5px*var(--fs,1));color:var(--sub);transition:.15s;white-space:nowrap}
+.wt-bar button:hover{color:var(--ink);border-color:var(--accent-soft);background:color-mix(in srgb,var(--accent-soft) 10%,var(--panel-solid))}
+.wt-bar small{font-size:calc(10.5px*var(--fs,1));color:var(--faint);margin-left:4px}
+.sp-panel{border:1px solid var(--line);border-radius:var(--radius-s);background:var(--panel-solid);overflow:hidden;animation:fade .15s}
+.re-wrap .sp-panel{border-width:0 0 1px;border-radius:0}
+.sp-head{display:flex;align-items:center;gap:10px;padding:8px 12px;border-bottom:1px solid var(--line);
+  background:color-mix(in srgb,var(--accent-soft) 8%,var(--panel-solid));font-size:calc(12px*var(--fs,1))}
+.sp-head span{color:var(--faint);font-size:calc(11px*var(--fs,1))}
+.sp-head .sp-all{margin-left:auto;padding:4px 11px;border-radius:999px;background:var(--btn-dark);color:var(--btn-dark-fg);font-size:calc(11px*var(--fs,1))}
+.sp-head .sp-all:hover{background:var(--btn-dark-hv)}
+.sp-head .sp-x{margin-left:auto;color:var(--faint);width:22px;height:22px;border-radius:6px}
+.sp-head .sp-all + .sp-x{margin-left:0}
+.sp-head .sp-x:hover{color:var(--ink);background:color-mix(in srgb,var(--ink) 7%,transparent)}
+.sp-panel ul{list-style:none;max-height:260px;overflow-y:auto}
+.sp-panel li{display:grid;grid-template-columns:1fr auto;gap:2px 12px;padding:8px 12px;border-bottom:1px dashed var(--line);align-items:center}
+.sp-panel li:last-child{border-bottom:none}
+.sp-line{font-size:calc(12.5px*var(--fs,1));line-height:1.6;cursor:var(--cur-pointer,pointer);word-break:break-all}
+.sp-line s{color:#b0565e;text-decoration-color:#d48a90;background:rgba(214,120,128,.1);border-radius:3px;padding:0 2px}
+.sp-line b{color:#4f7a3c;background:rgba(110,160,90,.12);border-radius:3px;padding:0 2px;font-weight:600}
+.sp-line .sp-ctx{color:var(--faint)}
+.sp-line .sp-arrow{color:var(--faint);margin:0 4px}
+.sp-panel li small{grid-column:1;font-size:calc(10.5px*var(--fs,1));color:var(--sub)}
+.sp-acts{grid-column:2;grid-row:1 / span 2;display:flex;gap:5px}
+.sp-acts button{padding:4px 10px;border-radius:7px;font-size:calc(11px*var(--fs,1));background:var(--btn-dark);color:var(--btn-dark-fg)}
+.sp-acts button:hover{background:var(--btn-dark-hv)}
+.sp-acts button.ghost{background:transparent;color:var(--sub);border:1px solid var(--line)}
+.sp-acts button.ghost:hover{color:var(--ink)}
+@media (max-width:620px){
+  .wt-bar small{display:none}
+  .sp-panel li{grid-template-columns:1fr}
+  .sp-acts{grid-column:1;grid-row:auto}
+}
+
+/* ---------- 대문 — 홈에 처음 들어오면 화면 전체 (누르면 입장) ---------- */
+.gate{position:fixed;inset:0;z-index:3000;cursor:var(--cur-pointer,pointer);
+  background:linear-gradient(180deg,#f6f3e7,#d6e2c6);transition:opacity .6s ease,transform .6s ease}
+.gate.night{background:linear-gradient(180deg,#161a2e,#2d2236)}
+.gate.out{opacity:0;transform:scale(1.03);pointer-events:none}
+html.gate-seen .gate{display:none}
+.gate picture,.gate img{position:absolute;inset:0;width:100%;height:100%}
+.gate img{object-fit:cover;object-position:center 46%;animation:fade .6s ease}
+.gate-enter{position:absolute;left:50%;bottom:9vh;transform:translateX(-50%);
+  padding:10px 30px;border-radius:999px;font-family:var(--serif);font-size:calc(14px*var(--fs,1));letter-spacing:.42em;text-indent:.42em;
+  color:#5f6c56;background:rgba(255,253,246,.7);border:1.5px solid rgba(125,116,137,.45);backdrop-filter:blur(4px);
+  animation:gate-breathe 2.6s ease-in-out infinite;transition:background .2s}
+.gate.night .gate-enter{color:#f1e8ef;background:rgba(40,36,64,.55);border-color:rgba(231,168,191,.4)}
+.gate-enter:hover{background:rgba(255,255,255,.9)}
+.gate.night .gate-enter:hover{background:rgba(60,54,92,.75)}
+.gate-enter:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+@keyframes gate-breathe{0%,100%{opacity:.75}50%{opacity:1}}
+@media (prefers-reduced-motion:reduce){.gate,.gate img,.gate-enter{animation:none;transition:none}}
+
+/* 장면 배경의 은은한 빛 — 밤: 위쪽 별빛 / 낮: 아래쪽 들판의 점 같은 빛 (홈 배경 · 대문 공통)
+   점 무늬를 크기가 다른 판 여러 장으로 겹쳐 줄지어 보이지 않게 한다 */
+.sky-stars,.field-glow{position:absolute;inset:0;pointer-events:none}
+.sky-stars{
+  background-image:
+    radial-gradient(1.1px 1.1px at 463px 286px,rgba(222,230,255,.85) 99%,transparent),
+    radial-gradient(1px 1px at 520px 300px,rgba(255,240,248,.85) 99%,transparent),
+    radial-gradient(1.6px 1.6px at 524px 243px,rgba(255,240,248,.85) 99%,transparent),
+    radial-gradient(1px 1px at 96px 228px,rgba(255,240,248,.85) 99%,transparent),
+    radial-gradient(1.6px 1.6px at 92px 275px,rgba(255,255,255,.9) 99%,transparent),
+    radial-gradient(1.6px 1.6px at 405px 231px,rgba(255,240,248,.85) 99%,transparent),
+    radial-gradient(0.8px 0.8px at 15px 270px,rgba(255,255,255,.9) 99%,transparent),
+    radial-gradient(1px 1px at 36px 97px,rgba(255,255,255,.9) 99%,transparent),
+    radial-gradient(1.1px 1.1px at 475px 167px,rgba(255,240,248,.85) 99%,transparent),
+    radial-gradient(1.6px 1.6px at 531px 119px,rgba(255,247,215,.85) 99%,transparent),
+    radial-gradient(1.6px 1.6px at 511px 2px,rgba(255,255,255,.9) 99%,transparent),
+    radial-gradient(1px 1px at 468px 335px,rgba(222,230,255,.85) 99%,transparent),
+    radial-gradient(1px 1px at 85px 362px,rgba(255,247,215,.85) 99%,transparent),
+    radial-gradient(1px 1px at 235px 262px,rgba(255,255,255,.9) 99%,transparent),
+    radial-gradient(0.8px 0.8px at 71px 288px,rgba(222,230,255,.85) 99%,transparent),
+    radial-gradient(1.1px 1.1px at 110px 148px,rgba(255,255,255,.9) 99%,transparent),
+    radial-gradient(0.8px 0.8px at 17px 350px,rgba(255,240,248,.85) 99%,transparent),
+    radial-gradient(1.1px 1.1px at 214px 26px,rgba(222,230,255,.85) 99%,transparent),
+    radial-gradient(0.8px 0.8px at 406px 214px,rgba(255,240,248,.85) 99%,transparent),
+    radial-gradient(0.8px 0.8px at 276px 172px,rgba(255,247,215,.85) 99%,transparent),
+    radial-gradient(1.1px 1.1px at 340px 7px,rgba(255,255,255,.9) 99%,transparent),
+    radial-gradient(1.6px 1.6px at 137px 126px,rgba(255,255,255,.9) 99%,transparent);
+  background-size:560px 400px;opacity:.75;
+  -webkit-mask-image:linear-gradient(180deg,#000 0%,rgba(0,0,0,.5) 26%,transparent 50%);
+  mask-image:linear-gradient(180deg,#000 0%,rgba(0,0,0,.5) 26%,transparent 50%)}
+.sky-stars.s2{
+  background-image:
+    radial-gradient(1.1px 1.1px at 11px 30px,rgba(222,230,255,.85) 99%,transparent),
+    radial-gradient(1.3px 1.3px at 181px 349px,rgba(255,240,248,.85) 99%,transparent),
+    radial-gradient(1px 1px at 458px 260px,rgba(255,240,248,.85) 99%,transparent),
+    radial-gradient(1.1px 1.1px at 429px 329px,rgba(255,255,255,.9) 99%,transparent),
+    radial-gradient(1px 1px at 404px 215px,rgba(255,255,255,.9) 99%,transparent),
+    radial-gradient(1.3px 1.3px at 276px 442px,rgba(255,247,215,.85) 99%,transparent),
+    radial-gradient(1px 1px at 20px 107px,rgba(222,230,255,.85) 99%,transparent),
+    radial-gradient(1.3px 1.3px at 616px 328px,rgba(255,255,255,.9) 99%,transparent),
+    radial-gradient(1px 1px at 43px 74px,rgba(222,230,255,.85) 99%,transparent),
+    radial-gradient(1.3px 1.3px at 264px 4px,rgba(255,247,215,.85) 99%,transparent),
+    radial-gradient(0.8px 0.8px at 303px 197px,rgba(255,255,255,.9) 99%,transparent),
+    radial-gradient(1.3px 1.3px at 92px 106px,rgba(255,240,248,.85) 99%,transparent),
+    radial-gradient(1px 1px at 15px 307px,rgba(255,247,215,.85) 99%,transparent),
+    radial-gradient(1px 1px at 637px 232px,rgba(222,230,255,.85) 99%,transparent);
+  background-size:730px 470px;background-position:260px 130px;opacity:.6;
+  animation:sky-twinkle 6s ease-in-out infinite alternate}
+@keyframes sky-twinkle{from{opacity:.2}to{opacity:.7}}
+.field-glow{
+  background-image:
+    radial-gradient(circle at 296px 42px,rgba(255,224,206,.9) 0,transparent 1.8px),
+    radial-gradient(circle at 314px 216px,rgba(255,224,206,.9) 0,transparent 3px),
+    radial-gradient(circle at 366px 66px,rgba(255,236,150,.95) 0,transparent 2.2px),
+    radial-gradient(circle at 455px 7px,rgba(255,224,206,.9) 0,transparent 2.2px),
+    radial-gradient(circle at 465px 12px,rgba(255,255,250,1) 0,transparent 1.8px),
+    radial-gradient(circle at 510px 215px,rgba(255,224,206,.9) 0,transparent 1.8px),
+    radial-gradient(circle at 441px 183px,rgba(255,246,196,1) 0,transparent 1.8px),
+    radial-gradient(circle at 36px 188px,rgba(255,224,206,.9) 0,transparent 2.2px),
+    radial-gradient(circle at 221px 185px,rgba(255,224,206,.9) 0,transparent 2.6px),
+    radial-gradient(circle at 288px 160px,rgba(250,255,222,1) 0,transparent 1.8px),
+    radial-gradient(circle at 181px 247px,rgba(255,246,196,1) 0,transparent 3px),
+    radial-gradient(circle at 186px 91px,rgba(255,224,206,.9) 0,transparent 2.6px),
+    radial-gradient(circle at 200px 298px,rgba(255,255,250,1) 0,transparent 1.8px),
+    radial-gradient(circle at 100px 218px,rgba(255,224,206,.9) 0,transparent 1.8px),
+    radial-gradient(circle at 282px 293px,rgba(255,224,206,.9) 0,transparent 2.6px),
+    radial-gradient(circle at 338px 55px,rgba(255,236,150,.95) 0,transparent 2.6px),
+    radial-gradient(circle at 555px 156px,rgba(255,224,206,.9) 0,transparent 3px),
+    radial-gradient(circle at 223px 132px,rgba(255,255,250,1) 0,transparent 2.2px),
+    radial-gradient(circle at 122px 252px,rgba(255,236,150,.95) 0,transparent 2.2px),
+    radial-gradient(circle at 558px 72px,rgba(250,255,222,1) 0,transparent 1.8px),
+    radial-gradient(circle at 171px 230px,rgba(255,255,250,1) 0,transparent 1.8px),
+    radial-gradient(circle at 426px 201px,rgba(255,246,196,1) 0,transparent 1.8px),
+    radial-gradient(circle at 231px 6px,rgba(255,255,250,1) 0,transparent 2.2px),
+    radial-gradient(circle at 551px 227px,rgba(255,236,150,.95) 0,transparent 1.8px),
+    radial-gradient(circle at 16px 193px,rgba(255,246,196,1) 0,transparent 3px),
+    radial-gradient(circle at 37px 38px,rgba(250,255,222,1) 0,transparent 2.6px),
+    radial-gradient(circle at 561px 100px,rgba(255,236,150,.95) 0,transparent 3px),
+    radial-gradient(circle at 221px 46px,rgba(255,224,206,.9) 0,transparent 1.8px),
+    radial-gradient(circle at 541px 86px,rgba(255,236,150,.95) 0,transparent 2.2px),
+    radial-gradient(circle at 102px 215px,rgba(255,255,250,1) 0,transparent 2.2px);
+  background-size:620px 300px;background-position:0 100%;opacity:.95;
+  filter:drop-shadow(0 0 2px rgba(255,244,190,.9));
+  -webkit-mask-image:linear-gradient(0deg,#000 0%,rgba(0,0,0,.7) 18%,transparent 40%);
+  mask-image:linear-gradient(0deg,#000 0%,rgba(0,0,0,.7) 18%,transparent 40%)}
+.field-glow.s2{
+  background-image:
+    radial-gradient(circle at 455px 175px,rgba(255,240,170,.6) 0,transparent 10px),
+    radial-gradient(circle at 169px 211px,rgba(255,255,255,.7) 0,transparent 6px),
+    radial-gradient(circle at 654px 122px,rgba(255,240,170,.6) 0,transparent 10px),
+    radial-gradient(circle at 435px 209px,rgba(255,255,255,.7) 0,transparent 8px),
+    radial-gradient(circle at 624px 26px,rgba(255,250,214,.75) 0,transparent 8px),
+    radial-gradient(circle at 25px 71px,rgba(255,255,255,.7) 0,transparent 8px),
+    radial-gradient(circle at 746px 220px,rgba(255,250,214,.75) 0,transparent 6px),
+    radial-gradient(circle at 676px 40px,rgba(255,255,255,.7) 0,transparent 8px),
+    radial-gradient(circle at 705px 58px,rgba(255,255,255,.7) 0,transparent 6px),
+    radial-gradient(circle at 482px 230px,rgba(255,240,170,.6) 0,transparent 10px),
+    radial-gradient(circle at 4px 173px,rgba(255,250,214,.75) 0,transparent 8px),
+    radial-gradient(circle at 804px 72px,rgba(255,240,170,.6) 0,transparent 10px),
+    radial-gradient(circle at 208px 15px,rgba(255,255,255,.7) 0,transparent 6px),
+    radial-gradient(circle at 460px 216px,rgba(255,240,170,.6) 0,transparent 6px),
+    radial-gradient(circle at 716px 141px,rgba(255,255,255,.7) 0,transparent 8px),
+    radial-gradient(circle at 705px 90px,rgba(255,255,255,.7) 0,transparent 10px);
+  background-size:810px 260px;background-position:330px 100%;opacity:.8;filter:blur(2px);
+  -webkit-mask-image:linear-gradient(0deg,#000 0%,transparent 30%);mask-image:linear-gradient(0deg,#000 0%,transparent 30%)}
+@media (prefers-reduced-motion:reduce){.sky-stars.s2{animation:none}}

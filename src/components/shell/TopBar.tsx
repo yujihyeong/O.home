@@ -15,6 +15,8 @@ import { useBlobUrl } from '@/lib/blobStore';
 import { refreshPage } from '@/lib/pageRefresh';
 import { useToast } from '@/components/ui/Toast';
 import { KToggle } from '@/components/ui/Kit';
+import { SceneToggle } from '@/components/shell/SceneLayer';
+import { useTheme } from '@/lib/ThemeProvider';
 import {
   Notif, NotifType, NOTIF_EVENT, NOTIF_TYPE_LABEL,
   readNotifs, markRead, markAllRead, clearReadNotifs, notifSettings, setNotifSetting, syncNotifs, selfTestNotif,
@@ -42,8 +44,9 @@ export function TopBar() {
   const { links } = useCustomLinks();                    // 커스텀 링크 (v2.0 사용자 요청)                 // 여러 개로 만든 섹션 (v2.0) — 갤러리·다이어리 등
   // 저장 설정 로드 전에는 메뉴·로고를 그리지 않음 — 새로고침 시 기본 구성이 깜빡이는 것 방지 (v1.9)
   const ready = menuLoaded && boardsLoaded;
+  const { scene } = useTheme();   // 낮/밤마다 다른 메뉴 (장면 모드일 때)
   const menu = ready
-    ? buildMenu(menuSet, [...boardEntries(boards), ...sectionMenuEntries(secMap), ...linkEntries(links)], { loggedIn: !!user, isAdmin, id: user?.id })
+    ? buildMenu(menuSet, [...boardEntries(boards), ...sectionMenuEntries(secMap), ...linkEntries(links)], { loggedIn: !!user, isAdmin, id: user?.id }, scene)
     : [];
   const [site, , siteLoaded] = useSiteSettings();    // 로고 텍스트/서브/정렬 (5.2)
   const avatarSrc = useBlobUrl(user?.avatarUrl);     // 프로필 이미지 (마이페이지, v1.9)
@@ -109,7 +112,7 @@ export function TopBar() {
   const gnbRef = useRef<HTMLElement>(null);
   const measureRef = useRef<HTMLDivElement>(null);
   const [visCount, setVisCount] = useState(menu.length);
-  const menuKey = menu.map(m => m.label).join('|');
+  const menuKey = menu.map(m => m.label).join('|') + (scene ?? '');
   useEffect(() => {
     const gnbEl = gnbRef.current, mEl = measureRef.current;
     if (!gnbEl || !mEl) return;
@@ -227,6 +230,9 @@ export function TopBar() {
       <span className={`edit-flag ${editOn ? 'show' : ''}`} onClick={() => requestExit()}>
         ✎ 편집중
       </span>
+
+      {/* 낮/밤 스위치 — 누르면 배경색과 메뉴가 함께 바뀐다 (사이트 모드가 낮·밤일 때만) */}
+      <SceneToggle />
 
       {/* 사용자 영역 — 비로그인: 로그인 버튼 / 로그인: 프로필 드롭다운 (3장 주석, 4.0) */}
       {user ? (

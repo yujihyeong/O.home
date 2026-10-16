@@ -6,8 +6,8 @@
 // TODO(0차→): Supabase 연결 시 site_settings 테이블로 저장 위치 이동
 import React, { createContext, useContext, useEffect, useMemo, useState, useCallback } from 'react';
 import {
-  ThemeMode, PointTone, ThemeVars, ThemeState, ThemeStore, ThemePreset,
-  DARK_THEME, DEFAULT_THEME_STORE, defaultVarsFor, derivePointTheme, themeToCssVars,
+  ThemeMode, PointTone, ThemeVars, ThemeState, ThemeStore, ThemePreset, Scene,
+  DARK_THEME, DEFAULT_THEME_STORE, defaultVarsFor, derivePointTheme, themeToCssVars, isScene,
 } from './theme';
 import { newId } from './postStore';
 import { getBlob } from './blobStore';
@@ -36,6 +36,12 @@ interface ThemeCtx {
   savePreset: (name: string) => void;          // 현재 모드의 드래프트 값을 프리셋으로 저장 (즉시 저장)
   applyPreset: (id: string) => void;           // 프리셋 → 커스텀 모드에 적용 (드래프트)
   removePreset: (id: string) => void;
+  /** 지금 보이는 장면 — 사이트 모드가 낮/밤일 때만 값이 있다 (그 외 모드면 null → 전환 버튼 숨김) */
+  scene: Scene | null;
+  /** 방문자 장면 전환 (상단바 버튼) — 이 브라우저에만 기억, 사이트 설정은 그대로 */
+  setScene: (s: Scene) => void;
+  /** 장면 장식(잔디·꽃잎)을 그려도 되는가 — 캐릭터·자관 테마컬러가 덮은 페이지에서는 끈다 */
+  sceneDecor: boolean;
 }
 
 const Ctx = createContext<ThemeCtx | null>(null);
@@ -44,11 +50,27 @@ const LEGACY_KEY = 'ohome.theme.v1';
 /** 첫 페인트 전에 적용할 CSS 변수 맵 (layout.tsx 인라인 스크립트가 읽음 — FOUC 방지) */
 const CSS_KEY = 'ohome.themeCss.v1';
 const PRESET_KEY = 'ohome.themePresets.v1';
+/** 방문자가 고른 장면 (낮/밤) — 사람마다 다른 값이라 사이트 설정이 아니라 브라우저에만 둔다 */
+const SCENE_KEY = 'ohome.scene.v1';
+/** 장면별 첫 페인트 맵 — 방문자가 사이트 기본과 다른 장면을 골라 뒀을 때 깜빡이지 않게 (layout 인라인 스크립트가 읽음) */
+const SCENE_CSS_KEY = 'ohome.themeCss.scene.v1';
+
+function writeSceneCss(st: ThemeStore) {
+  try {
+    if (isScene(st.mode)) {
+      localStorage.setItem(SCENE_CSS_KEY, JSON.stringify({
+        mode: st.mode, day: themeToCssVars(st.perMode.day), night: themeToCssVars(st.perMode.night),
+      }));
+    } else localStorage.removeItem(SCENE_CSS_KEY);
+  } catch { /* 무시 */ }
+}
 
 const normalize = (s: Partial<ThemeStore> | null | undefined): ThemeStore => ({
   ...DEFAULT_THEME_STORE,
   ...(s ?? {}),
   perMode: {
+    day: { ...DEFAULT_THEME_STORE.perMode.day, ...(s?.perMode?.day ?? {}) },
+    night: { ...DEFAULT_THEME_STORE.perMode.night, ...(s?.perMode?.night ?? {}) },
     light: { ...DEFAULT_THEME_STORE.perMode.light, ...(s?.perMode?.light ?? {}) },
     dark: { ...DEFAULT_THEME_STORE.perMode.dark, ...(s?.perMode?.dark ?? {}) },
     point: { ...DEFAULT_THEME_STORE.perMode.point, ...(s?.perMode?.point ?? {}) },
@@ -69,6 +91,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [pageColor, setPageColor] = useState<{ color: string; tone?: PointTone } | null>(null);
   const [pageBg, setPageBgState] = useState<PageBg | null>(null);   // 자관별 배경 (v2.0)
   const [loaded, setLoaded] = useState(false);   // 저장본 로드 전 기본 다크를 DOM에 쓰지 않기 (FOUC 방지)
+  const [scenePref, setScenePref] = useState<Scene | null>(null);   // 방문자가 고른 장면
 
   // 최초 로드 — v2 우선, 없으면 v1 마이그레이션 (기존 vars를 해당 모드의 수정본으로 승계)
   useEffect(() => {
@@ -78,6 +101,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
         const st = normalize(JSON.parse(raw));
         setSaved(st); setDraft(st);
         try { setSetting(CSS_KEY, themeToCssVars(st.perMode[st.mode])); } catch { /* 무시 */ }
+        writeSceneCss(st);
       } else {
         const legacy = getRawSetting(LEGACY_KEY);
         if (legacy) {
@@ -93,13 +117,33 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
             setSetting(STORAGE_KEY, st);
             setSetting(CSS_KEY, themeToCssVars(st.perMode[st.mode]));
           } catch { /* 무시 */ }
-        }
+          writeSceneCss(st);
+        } else writeSceneCss(DEFAULT_THEME_STORE);   // 아직 아무것도 저장 안 한 홈 — 기본 낮/밤
       }
       const pr = getRawSetting(PRESET_KEY);
       if (pr) setPresets(JSON.parse(pr));
     } catch { /* 무시하고 기본 테마 */ }
+    try {
+      const sp = localStorage.getItem(SCENE_KEY);
+      if (isScene(sp)) setScenePref(sp);
+    } catch { /* 무시 */ }
     setLoaded(true);
   }, []);
+
+  /* 지금 보이는 장면 — 사이트 모드가 낮/밤이면 방문자 선택(없으면 사이트 모드), 그 외 모드면 없음 */
+  const scene: Scene | null = isScene(draft.mode) ? (scenePref ?? draft.mode) : null;
+  const shownMode: ThemeMode = scene ?? draft.mode;
+  const sceneDecor = !!scene && !pageColor && !pageBg;
+  const shownRef = React.useRef<ThemeMode>(shownMode);
+  shownRef.current = shownMode;
+
+  // 장면 표식 — CSS(장식 레이어·꽃잎)가 <html data-scene>을 보고 그린다
+  useEffect(() => {
+    if (!loaded) return;
+    const root = document.documentElement;
+    if (sceneDecor && scene) root.dataset.scene = scene;
+    else delete root.dataset.scene;
+  }, [scene, sceneDecor, loaded]);
 
   // 드래프트 변경 시 DOM 즉시 반영 (미리보기) — 저장은 save()에서만.
   // 로드 전에는 건드리지 않음 — 첫 페인트의 인라인 FOUC 맵을 기본 다크로 덮어써 깜빡이는 것 방지 (v1.9)
@@ -108,7 +152,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     /* 캐릭터·자관 테마컬러는 색만 바꾸는 것 — 파생 팔레트가 ThemeVars를 통째로 새로 만들어
        **표시 옵션까지 기본값으로 리셋**되던 것을 사이트 설정에서 이어받는다 (v2.0 사용자 제보 —
        「헤더 설명을 껐는데 커스텀 테마 캐릭터 상세에서만 다시 보인다」) */
-    const site = draft.perMode[draft.mode];
+    const site = draft.perMode[shownMode];
     applyToDom(pageColor
       ? {
         ...derivePointTheme(pageColor.color, pageColor.tone ?? draft.pointTone),
@@ -124,12 +168,12 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       root.style.setProperty('--bg-angle', `${pageBg.angle}deg`);
       root.style.setProperty('--bg-image', 'none');   // 사이트 배경 이미지가 덮지 않게
     }
-  }, [draft, pageColor, pageBg, loaded]);
+  }, [draft, shownMode, pageColor, pageBg, loaded]);
 
   // 배경 이미지 (v1.9) — IndexedDB 파일을 blob URL로 풀어 --bg-image 적용 (그라데이션 모드면 해제)
   useEffect(() => {
     if (!loaded) return;
-    const vars = draft.perMode[draft.mode];
+    const vars = draft.perMode[shownMode];
     const root = document.documentElement;
     if (vars.bgType === 'image' && vars.bgImageId && !pageColor && !pageBg) {
       const ref = vars.bgImageId;
@@ -157,12 +201,21 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       };
     }
     root.style.removeProperty('--bg-image');
-  }, [draft, pageColor, pageBg, loaded]);
+  }, [draft, shownMode, pageColor, pageBg, loaded]);
 
   const dirty = useMemo(() => JSON.stringify(saved) !== JSON.stringify(draft), [saved, draft]);
 
-  const setMode = useCallback((mode: ThemeMode) =>
-    setDraft(d => ({ ...d, mode })), []);
+  /* 장면 고르기 — 이 브라우저에만 기억한다 */
+  const setScene = useCallback((sc: Scene) => {
+    setScenePref(sc);
+    try { localStorage.setItem(SCENE_KEY, sc); } catch { /* 무시 */ }
+  }, []);
+
+  // 환경설정에서 낮/밤을 고르면 미리보기도 그 장면으로 — 방문자 선택이 남아 다른 장면이 보이지 않게
+  const setMode = useCallback((mode: ThemeMode) => {
+    setDraft(d => ({ ...d, mode }));
+    if (isScene(mode)) setScene(mode);
+  }, [setScene]);
 
   const setPointAccent = useCallback((hex: string) =>
     setDraft(d => ({
@@ -183,8 +236,9 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     setDraft(d => (d.mode === 'custom'
       ? { ...d, perMode: { ...d.perMode, custom: { ...d.perMode.custom, [key]: value } } }
       : {
+        // 낮/밤에서는 지금 보이는 장면을 기준으로 복사한다 — 사이트 모드와 방문자 장면이 다를 수 있다
         ...d, mode: 'custom',
-        perMode: { ...d.perMode, custom: { ...d.perMode[d.mode], [key]: value } },
+        perMode: { ...d.perMode, custom: { ...d.perMode[isScene(d.mode) ? shownRef.current : d.mode], [key]: value } },
       })), []);
 
   // 선택 리셋 — 지정한 모드만 초기값으로 (드래프트, 저장은 SAVE에서)
@@ -201,6 +255,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
         setSetting(STORAGE_KEY, d);
         setSetting(CSS_KEY, themeToCssVars(d.perMode[d.mode])); // FOUC 맵 동기화
       } catch { /* quota 등 무시 */ }
+      writeSceneCss(d);
       return d;
     });
   }, []);
@@ -214,7 +269,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   };
   const savePreset = useCallback((name: string) => {
     setDraft(d => {
-      persistPresets([...presets, { id: newId(), name, vars: d.perMode[d.mode] }]);
+      persistPresets([...presets, { id: newId(), name, vars: d.perMode[isScene(d.mode) ? shownRef.current : d.mode] }]);
       return d;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -235,13 +290,14 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   // 기존 소비자 호환 — state.vars = 현재 모드의 드래프트 값
   const state: ThemeState = useMemo(() => ({
-    mode: draft.mode, pointTone: draft.pointTone, vars: draft.perMode[draft.mode],
-  }), [draft]);
+    mode: shownMode, pointTone: draft.pointTone, vars: draft.perMode[shownMode],
+  }), [draft, shownMode]);
 
   return (
     <Ctx.Provider value={{
       state, dirty, setMode, setPointAccent, setPointTone, setVar,
       resetMode, save, discard, presets, savePreset, applyPreset, removePreset, setPageTheme, setPageBg,
+      scene, setScene, sceneDecor,
     }}>
       {children}
     </Ctx.Provider>

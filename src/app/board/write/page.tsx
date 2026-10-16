@@ -11,6 +11,7 @@ import { KInput, KTextarea, KSelect, KCheck } from '@/components/ui/Kit';
 import { CropEditor, CropImg, CropValue } from '@/components/ui/CropEditor';
 import { ConfirmModal } from '@/components/ui/Modal';
 import { RichEditor } from '@/components/ui/RichEditor';
+import { TextTools } from '@/components/ui/WriteTools';
 import { useToast } from '@/components/ui/Toast';
 import { PageTitle, EditableDesc } from '@/components/ui/PageText';
 
@@ -31,7 +32,9 @@ function WriteInner() {
   const { boards } = useBoards();
   const board = boards.find(b => b.id === bid) ?? boards[0];
   const [title, setTitle] = useState('');
-  const [writeMode, setWriteMode] = useState<'editor' | 'md' | 'html'>('editor'); // 에디터가 기본
+  // 에디터가 기본 · log = 로그 정리 모드 (마크다운 + 앞뒤에 마크다운이 없는 문장을 ""로) — 저장은 마크다운으로
+  const [writeMode, setWriteMode] = useState<'editor' | 'md' | 'html' | 'log'>('editor');
+  const isMd = writeMode === 'md' || writeMode === 'log';
   const [body, setBody] = useState('');
   // HTML 모드 안의 보기 (v2.0 사용자 요청) — 코드 그대로 / 미리보기에서 바로 편집
   const [htmlView, setHtmlView] = useState<'code' | 'preview'>('code');
@@ -74,7 +77,7 @@ function WriteInner() {
     setTitle(p.title); setBody(p.body);
     // 에디터로 쓴 글은 에디터로 다시 연다 — 예전에는 무조건 HTML 소스가 떠서
     // 에디터로 쓴 글을 수정하면 갑자기 태그가 보였다 (authored 없는 옛 글은 지금까지대로 HTML)
-    setWriteMode(p.mode === 'md' ? 'md' : (p.authored === 'editor' ? 'editor' : 'html'));
+    setWriteMode(p.mode === 'md' ? (p.authored === 'log' ? 'log' : 'md') : (p.authored === 'editor' ? 'editor' : 'html'));
     setCategory(p.category);
     setSecret(p.secret); setNotice(p.notice);
     setFoldType(p.fold?.type ?? 'none'); setFoldLabel(p.fold?.label ?? '');
@@ -83,7 +86,7 @@ function WriteInner() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editPid, postsLoaded, posts]);
 
-  const preview = useMemo(() => renderBody(writeMode === 'md' ? 'md' : 'html', body), [writeMode, body]);
+  const preview = useMemo(() => renderBody(isMd ? 'md' : 'html', body), [isMd, body]);
 
   if (!user) {
     return (
@@ -101,8 +104,8 @@ function WriteInner() {
       setPosts(posts.map(p => (p.id === editing.id ? {
         ...p,
         title: title.trim(), body,
-        mode: writeMode === 'md' ? 'md' : 'html',
-        authored: writeMode === 'editor' ? 'editor' : undefined,
+        mode: isMd ? 'md' : 'html',
+        authored: writeMode === 'editor' ? 'editor' : writeMode === 'log' ? 'log' : undefined,
         category,
         secret, notice: isAdmin ? notice : p.notice,
         tags: parseTags(tagsText),
@@ -115,7 +118,8 @@ function WriteInner() {
     }
     const p: Post = {
       id: newId(), title: title.trim(), body,
-      mode: writeMode === 'md' ? 'md' : 'html', category,
+      mode: isMd ? 'md' : 'html', category,
+      ...(writeMode === 'editor' ? { authored: 'editor' as const } : writeMode === 'log' ? { authored: 'log' as const } : {}),
       author: user.nickname, authorId: user.id, date: new Date().toISOString(),
       secret, notice: isAdmin && notice,
       tags: parseTags(tagsText),
@@ -133,7 +137,7 @@ function WriteInner() {
     <section className="page">
       {/* 큰 글씨 — 추가 게시판이면 그 이름(메뉴 관리 타이틀·이름이 우선), 누르면 그 게시판으로 복귀
           (v2.0 사용자 제보 — 「글쓰기에서 큰제목을 눌러도 안 돌아가고, 제목도 원래 것이 뜬다」) */}
-      <div className="page-head"><PageTitle href={boardHref(board.id)}>{board.id === MAIN_BOARD_ID ? (editing ? 'EDIT' : 'WRITE') : board.name}</PageTitle><EditableDesc k="board-write-desc" def="에디터 / Markdown / HTML — 스크립트는 저장 시 자동 제거" /></div>
+      <div className="page-head"><PageTitle href={boardHref(board.id)}>{board.id === MAIN_BOARD_ID ? (editing ? 'EDIT' : 'WRITE') : board.name}</PageTitle><EditableDesc k="board-write-desc" def="에디터 / Markdown / 로그 정리 / HTML — 스크립트는 저장 시 자동 제거" /></div>
       <div className="write-grid">
         {/* 좌: 본문 */}
         <div className="panel" style={{ padding: 24 }}>
@@ -150,6 +154,8 @@ function WriteInner() {
                 setWriteMode('editor');
               }}>에디터</button>
               <button className={writeMode === 'md' ? 'on' : ''} onClick={() => { setWriteMode('md'); setHtmlView('code'); }}>Markdown</button>
+              <button className={writeMode === 'log' ? 'on' : ''} onClick={() => { setWriteMode('log'); setHtmlView('code'); }}
+                data-tip="로그를 붙여넣고 [로그 정리] — 마크다운으로 저장">로그 정리</button>
               <button className={writeMode === 'html' ? 'on' : ''} onClick={() => setWriteMode('html')}>HTML</button>
             </div>
             {/* HTML 모드 안 보기 전환 (v2.0 사용자 요청) — 코드 그대로 / 미리보기에서 바로 편집 */}
@@ -168,11 +174,21 @@ function WriteInner() {
             <RichEditor value={body} onChange={setBody} placeholder='내용을 작성하세요 — 이미지 삽입 가능 (스크립트 불허 6.3)' />
           ) : (
             <>
-              <KTextarea
-                style={{ minHeight: 220, fontFamily: writeMode === 'html' ? 'ui-monospace, Consolas, monospace' : undefined }}
-                placeholder={writeMode === 'md' ? '마크다운으로 작성...' : '<div>HTML 코드를 작성/붙여넣기...</div>'}
-                value={body} onChange={e => setBody(e.target.value)}
-              />
+              {(() => {
+                const ta = (
+                  <KTextarea
+                    style={{ minHeight: 220, fontFamily: writeMode === 'html' ? 'ui-monospace, Consolas, monospace' : undefined }}
+                    placeholder={writeMode === 'log'
+                      ? '로그를 붙여넣고 [로그 정리]를 누르세요 — *지문*처럼 마크다운이 있는 줄은 그대로, 나머지 문장은 ""로 감쌉니다'
+                      : writeMode === 'md' ? '마크다운으로 작성...' : '<div>HTML 코드를 작성/붙여넣기...</div>'}
+                    value={body} onChange={e => setBody(e.target.value)}
+                  />
+                );
+                // HTML 코드에는 맞춤법 검사를 걸지 않는다 — 태그가 걸린다 (미리보기 편집은 에디터 쪽 검사를 쓴다)
+                return isMd
+                  ? <TextTools value={body} onChange={setBody} log={writeMode === 'log'}>{ta}</TextTools>
+                  : ta;
+              })()}
               <div className="preview-box" style={{ marginTop: 14 }}>
                 <div className="pv-label">PREVIEW — 실시간 미리보기</div>
                 <div className="post-body" dangerouslySetInnerHTML={{ __html: preview }} />
