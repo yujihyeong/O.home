@@ -2,7 +2,8 @@
 // 일반 게시판 목록 (4.2 / 5.2 다중 게시판) — 말머리 필터 · 검색 · 비밀글 마스킹 · 접기 표시 · 페이지네이션
 // ?b=<게시판 id> 로 게시판 구분 (없으면 기본 게시판) · 리스트 스킨: 기본형 / 티켓형 (5.2 v1.9)
 import React, { Suspense, useMemo, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
+import { useRouteSearch } from '@/lib/routeParams';
 import { useAuth } from '@/lib/auth';
 import {
   useLocalList, BOARD_SEED, Post, fmtDate, kindOf,
@@ -28,7 +29,7 @@ function firstImage(body: string): string | null {
 function BoardInner() {
   const router = useRouter();
   const { user, isAdmin } = useAuth();
-  const params = useSearchParams();
+  const params = useRouteSearch();   // 짧은 주소(/LOG 등) 안에서는 연결된 게시판의 ?b=
   const bid = params.get('b') ?? MAIN_BOARD_ID;
   const { boards, loaded: boardsLoaded } = useBoards();
   const board = boards.find(b => b.id === bid) ?? boards[0];
