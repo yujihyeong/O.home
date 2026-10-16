@@ -2019,3 +2019,48 @@ html.gate-seen .gate{display:none}
   background-size:810px 260px;background-position:330px 100%;opacity:.8;filter:blur(2px);
   -webkit-mask-image:linear-gradient(0deg,#000 0%,transparent 30%);mask-image:linear-gradient(0deg,#000 0%,transparent 30%)}
 @media (prefers-reduced-motion:reduce){.sky-stars.s2{animation:none}}
+
+/* ---------- 게시글 종류 — 갤러리 / 로그 ---------- */
+.kind-tabs{margin-bottom:12px}
+/* 글쓰기 — 갤러리 이미지 올리기 */
+.gw-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px}
+.gw-item{position:relative;aspect-ratio:1;border-radius:var(--radius-s);overflow:hidden;background:var(--crop-bg);border:1px solid var(--line)}
+.gw-item img{width:100%;height:100%;object-fit:cover}
+.gw-acts{position:absolute;top:5px;right:5px;display:flex;gap:4px;opacity:0;transition:opacity .15s}
+.gw-item:hover .gw-acts{opacity:1}
+.gw-acts button{width:24px;height:24px;border-radius:50%;background:rgba(20,20,30,.6);color:#fff;font-size:12px;display:grid;place-items:center}
+.gw-add{aspect-ratio:1;border-radius:var(--radius-s);border:1.5px dashed var(--line);color:var(--sub);font-size:calc(12px*var(--fs,1));transition:.15s}
+.gw-add:hover{border-color:var(--accent-soft);color:var(--ink)}
+@media (hover:none){.gw-acts{opacity:1}}
+/* 목록 — 갤러리 탭 격자 */
+.gal-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px}
+.gal-card{background:var(--panel);border-radius:var(--radius);overflow:hidden;box-shadow:var(--sh-sm);cursor:var(--cur-pointer,pointer);transition:transform .2s}
+.gal-card:hover{transform:translateY(-3px)}
+.gal-thumb{position:relative;aspect-ratio:4/3;overflow:hidden;background:var(--crop-bg)}
+.gal-thumb .bt-ph{position:absolute;inset:0;display:grid;place-items:center;font-size:26px}
+.gal-n{position:absolute;right:8px;top:8px;background:rgba(20,20,30,.55);color:#fff;font-size:10.5px;padding:2px 8px;border-radius:999px}
+.gal-cap{padding:10px 13px 12px;display:grid;gap:3px}
+.gal-cap b{font-size:calc(13px*var(--fs,1));white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gal-cap small{font-size:calc(10.5px*var(--fs,1));color:var(--faint)}
+@media (max-width:620px){.gal-grid{grid-template-columns:repeat(2,1fr);gap:10px}}
+
+/* ---------- 발췌 — 로그 글에서 문단을 눌러 고르기 ---------- */
+.post-body.ex-mode .ex-able{cursor:var(--cur-pointer,pointer);border-radius:8px;transition:background .15s,box-shadow .15s;
+  padding-left:12px;padding-right:8px}
+.post-body.ex-mode .ex-able:hover{background:color-mix(in srgb,var(--accent-soft) 10%,transparent)}
+.post-body.ex-mode .ex-on,.post-body.ex-mode .ex-on:hover{background:color-mix(in srgb,var(--accent-soft) 32%,transparent);box-shadow:inset 3px 0 0 var(--accent)}
+.post-body.ex-mode li.ex-able{list-style-position:inside}
+/* 화면 아래에 떠 있는 막대 — 본문을 감싼 접기 상자(overflow:hidden)에 잘리지 않게 fixed */
+.ex-bar{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(22px + var(--bgm-h,0px));width:min(560px,calc(100% - 32px));z-index:85;display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+  padding:10px 14px;border-radius:999px;background:var(--panel-solid);border:1px solid var(--line);box-shadow:var(--sh-md);font-size:calc(12px*var(--fs,1))}
+.ex-bar span{flex:1;min-width:140px;color:var(--sub)}
+.ex-bar b{color:var(--accent)}
+.ex-bar button{padding:6px 13px;border-radius:999px;background:var(--btn-dark);color:var(--btn-dark-fg);font-size:calc(11.5px*var(--fs,1))}
+.ex-bar button:hover:not(:disabled){background:var(--btn-dark-hv)}
+.ex-bar button.ghost{background:transparent;color:var(--sub);border:1px solid var(--line)}
+.ex-bar button:disabled{opacity:.4;cursor:default}
+.ex-card{background:color-mix(in srgb,var(--accent-soft) 7%,var(--panel-solid));border:1px solid var(--line);border-radius:var(--radius-s);
+  padding:18px 20px;max-height:55vh;overflow-y:auto;font-size:calc(13.5px*var(--fs,1));line-height:1.85;white-space:pre-wrap}
+.ex-card p+p{margin-top:12px}
+.ex-src{margin-top:16px;text-align:right;font-size:calc(11px*var(--fs,1));color:var(--faint)}
+@media (max-width:620px){.ex-bar{border-radius:16px}}

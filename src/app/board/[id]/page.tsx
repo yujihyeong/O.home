@@ -16,6 +16,7 @@ import { Modal, ConfirmModal } from '@/components/ui/Modal';
 import { GuestIdBar } from '@/components/ui/GuestId';
 import { useToast } from '@/components/ui/Toast';
 import { PageTitle } from '@/components/ui/PageText';
+import { ExcerptBody } from '@/components/ui/Excerpt';
 import { pushNotif } from '@/lib/notifStore';
 
 const FOLD_LABEL = { spoiler: '스포일러 주의', adult: '수위 주의' };
@@ -43,6 +44,7 @@ export default function BoardDetailPage() {
   const bid = post?.boardId ?? MAIN_BOARD_ID;
   const blocked = useHrefBlock(post && (bid === MAIN_BOARD_ID ? '/board' : extraBoardHref(bid)));
   // loaded 이후에만 본문 렌더 (SSR/하이드레이션 불일치 방지)
+  const [exOn, setExOn] = useState(false);   // 발췌 모드 (로그 글)
   const html = useMemo(() => (post && loaded ? renderBody(post.mode, post.body) : ''), [post, loaded]);
 
   // 막힌 곳이면 여기서 되돌아간다 — 훅을 모두 부른 뒤여야 렌더마다 개수가 같다
@@ -164,11 +166,18 @@ export default function BoardDetailPage() {
       </div>
 
       <div className="panel" style={{ padding: '26px 28px' }}>
-        <h2 style={{ fontSize: 19, marginBottom: 4 }}>
-          {post.secret && '🔒 '}{post.title}
-        </h2>
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+          <h2 style={{ fontSize: 19, marginBottom: 4, flex: 1 }}>
+            {post.secret && '🔒 '}{post.title}
+          </h2>
+          {/* 로그 글 — 원하는 문단을 눌러 골라 발췌 */}
+          {post.kind !== 'gallery' && (!post.fold || open) && (
+            <button className={`btn ${exOn ? 'btn-dark' : 'btn-ghost'}`} style={{ padding: '6px 13px', fontSize: 11.5, flexShrink: 0 }}
+              onClick={() => setExOn(v => !v)}>✂ 발췌하기</button>
+          )}
+        </div>
         <p style={{ fontSize: 11, color: 'var(--faint)', marginBottom: 18 }}>
-          {post.author} · {fmtDate(post.date)} · {post.mode.toUpperCase()}
+          {post.author} · {fmtDate(post.date)} · {post.kind === 'gallery' ? '갤러리' : '로그'}
           {/* 태그 (v2.0 사용자 요청) — 목록과 같은 표기 */}
           {(post.tags ?? []).map(t => (
             <span key={t} style={{ marginLeft: 7, color: 'color-mix(in srgb,var(--accent) 65%,var(--faint))' }}>#{t}</span>
@@ -185,8 +194,8 @@ export default function BoardDetailPage() {
               </div>
             </div>
           )}
-          <div className="post-body" style={post.fold && !open ? { minHeight: 120, filter: 'blur(6px)' } : undefined}
-            dangerouslySetInnerHTML={{ __html: html }} />
+          <ExcerptBody html={html} active={exOn} onExit={() => setExOn(false)} title={post.title} author={post.author}
+            style={post.fold && !open ? { minHeight: 120, filter: 'blur(6px)' } : undefined} />
         </div>
       </div>
 

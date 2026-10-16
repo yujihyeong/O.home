@@ -2,10 +2,12 @@
 // 대문 — 홈에 처음 들어오면 화면 전체에 뜨는 일러스트 (누르면 들어간다).
 // 1번 그림은 낮 배경색, 2번 그림은 밤 배경색 위에 — 접속할 때마다 둘 중 하나가 랜덤.
 // PC(가로 1920×1080)와 모바일(세로 1080×1920) 이미지를 따로 두고 화면 비율로 고른다.
+// 대문 그림이 낮이면 입장한 홈도 낮, 밤이면 밤으로 시작한다 (사이트 모드가 낮/밤일 때).
 // 한 번 들어가면 이 탭을 닫기 전까지는 다시 뜨지 않는다 (sessionStorage — layout 인라인 스크립트가 첫 페인트 전에 확인).
 import React, { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { SceneGlow } from '@/components/shell/SceneLayer';
+import { useTheme } from '@/lib/ThemeProvider';
 
 const KEY = 'ohome.gate.seen';
 const PICKS = ['day', 'night'] as const;
@@ -15,6 +17,7 @@ export function EntryGate() {
   // 첫 화면이 홈일 때만 — 다른 페이지로 바로 들어온 링크는 막지 않는다
   const [state, setState] = useState<'hidden' | 'open' | 'leaving'>(() => (pathname === '/' ? 'open' : 'hidden'));
   const [pick, setPick] = useState<(typeof PICKS)[number] | null>(null);
+  const { scene, setScene } = useTheme();
 
   useEffect(() => {
     if (state !== 'open') return;
@@ -24,6 +27,13 @@ export function EntryGate() {
     setPick(PICKS[Math.floor(Math.random() * PICKS.length)]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // 대문 그림과 같은 장면으로 — 대문이 걷히면 그 장면의 홈이 보이게 (뒤에서 미리 바꿔 둔다)
+  // 그림이 정해질 때 한 번만 — 입장한 뒤 방문자가 스위치로 바꾸는 것은 막지 않는다
+  useEffect(() => {
+    if (pick && scene && scene !== pick) setScene(pick);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pick]);
 
   // 키보드로도 — Enter·Space·Esc
   useEffect(() => {
