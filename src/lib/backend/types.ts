@@ -179,7 +179,14 @@ export function metaOf(item: ListItem, uid: string | null, floor = 'public') {
      종류도 여기서 정해지므로, 서버가 내주지 않는 것은 화면과 무관하게 보장된다. */
   const rank: Record<string, number> = { public: 0, member: 1, private: 2 };
   const visibility = (rank[floor] ?? 0) > (rank[own] ?? 0) ? floor : own;
-  return { authorId, visibility, editorIds: editorIdsOf(item) };
+  return { authorId, visibility, editorIds: editorIdsOf(item), readerIds: readerIdsOf(item) };
+}
+
+/** 비공개 행이어도 읽을 수 있는 회원 (보안 강화) — 비밀글에 달린 댓글을 그 글의 작성자가 볼 수 있게.
+ *  항목의 readerIds(회원 id 문자열 배열)를 그대로 평평한 칸으로 저장해 서버 규칙이 확인한다 */
+export function readerIdsOf(item: ListItem): string[] {
+  const r = item.readerIds;
+  return Array.isArray(r) ? r.filter((x): x is string => typeof x === 'string' && !!x) : [];
 }
 
 /**

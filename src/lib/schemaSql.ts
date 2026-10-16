@@ -156,6 +156,11 @@ begin
       alter table public.%I add column if not exists editor_ids text[] not null default '{}'::text[]
     $f$, t);
 
+    -- 비공개여도 읽을 수 있는 회원 (보안 강화) — 비밀글에 달린 댓글을 그 글 작성자가 볼 수 있게
+    execute format($f$
+      alter table public.%I add column if not exists reader_ids text[] not null default '{}'::text[]
+    $f$, t);
+
     execute format('alter table public.%I enable row level security', t);
     execute format('create index if not exists %I on public.%I (sort)', t || '_sort_idx', t);
 
@@ -166,6 +171,7 @@ begin
         visibility = 'public'
         or (visibility = 'member' and auth.uid() is not null)
         or author_id = auth.uid()
+        or auth.uid()::text = any(reader_ids)
         or public.is_admin()
       )$p$, t);
 
@@ -262,8 +268,11 @@ insert into storage.buckets (id, name, public)
 values ('ohome', 'ohome', true)
 on conflict (id) do nothing;
 
+-- 파일 목록 조회는 관리자만 (보안 강화) — 예전엔 누구나 저장소 전체 목록을 받아
+-- 비공개 글에만 쓰인 이미지 주소까지 찾아낼 수 있었다. 공개 주소로 그림을 보는 것은 그대로 된다
 drop policy if exists "ohome_read" on storage.objects;
-create policy "ohome_read" on storage.objects for select using (bucket_id = 'ohome');
+create policy "ohome_read" on storage.objects for select to authenticated
+  using (bucket_id = 'ohome' and public.is_admin());
 drop policy if exists "ohome_write" on storage.objects;
 create policy "ohome_write" on storage.objects for insert to authenticated with check (bucket_id = 'ohome');
 -- 남이 올린 파일을 덮어쓰지 못하게 (보안 강화) — 예전엔 로그인한 누구나 아무 파일이나 바꿀 수 있었다

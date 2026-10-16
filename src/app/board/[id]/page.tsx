@@ -1,6 +1,6 @@
 'use client';
 // 게시글 상세 (4.2) — 본문 렌더(격리 새니타이즈) · 접기 · 댓글+대댓글
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useHrefBlock } from '@/components/shell/MenuGuard';
 import { extraBoardHref } from '@/lib/menuStore';
@@ -47,6 +47,19 @@ export default function BoardDetailPage() {
   const [exOn, setExOn] = useState(false);   // 발췌 모드 (로그 글)
   const html = useMemo(() => (post && loaded ? renderBody(post.mode, post.body) : ''), [post, loaded]);
 
+  /* 이미 달린 댓글도 글의 비밀 여부에 맞춘다 (보안 강화) — 관리자가 글을 열면 정리된다.
+     비밀글로 바꾸면 댓글도 가리고, 비밀글을 풀면 댓글도 다시 보이게 */
+  useEffect(() => {
+    if (!isAdmin || !post || !loaded) return;
+    const want = !!post.secret;
+    const off = (c: CommentRow) => c.target === 'post' && c.targetId === post.id && !!c.secret !== want;
+    if (!cmtRows.some(off)) return;
+    setCmtRows(cmtRows.map(c => (off(c)
+      ? { ...c, secret: want || undefined, readerIds: want && post.authorId ? [post.authorId] : undefined }
+      : c)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAdmin, post?.id, post?.secret, cmtRows]);
+
   // 막힌 곳이면 여기서 되돌아간다 — 훅을 모두 부른 뒤여야 렌더마다 개수가 같다
   if (blocked) return blocked;
   if (!loaded) return <section className="page" />;
@@ -87,9 +100,11 @@ export default function BoardDetailPage() {
     if (!cmt.trim()) return;
     if (guestMode && !gName.trim()) { toast('닉네임을 입력해 주세요'); return; }
     const base = { id: newId(), text: cmt.trim(), date: new Date().toISOString(), parentId: replyTo ?? undefined };
+    // 비밀글의 댓글은 서버에서도 비공개 — 댓글 쓴 사람·관리자 + 글 작성자만 받는다 (보안 강화)
+    const hide = post.secret ? { secret: true, ...(post.authorId ? { readerIds: [post.authorId] } : {}) } : {};
     const c: CommentRow = user
-      ? { ...base, target: 'post', targetId: post.id, author: user.nickname, authorId: user.id }
-      : { ...base, target: 'post', targetId: post.id, author: gName.trim(), authorId: '' };
+      ? { ...base, ...hide, target: 'post', targetId: post.id, author: user.nickname, authorId: user.id }
+      : { ...base, ...hide, target: 'post', targetId: post.id, author: gName.trim(), authorId: '' };
     setCmtRows([...cmtRows, c]);
     /* 알림 (v2.0 포크 제보 — 「댓글을 달아도 알림이 안 와요」): 게시판 댓글은 여태 알림을
        **만들지도 않았다** (로드비·방명록·역극만 있었다). 글쓴이에게, 답글이면 그 댓글 주인에게도. */

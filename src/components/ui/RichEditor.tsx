@@ -6,12 +6,13 @@ import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Image from '@tiptap/extension-image';
 import { putBlob } from '@/lib/blobStore';
+import { stripImageMeta } from '@/lib/imageMeta';
 import { useToast } from '@/components/ui/Toast';
 import { SpellPanel, SpellSession, shiftAfter } from '@/components/ui/WriteTools';
 import { findSpelling, SpellIssue } from '@/lib/writeTools';
 
 /** 로컬 모드용 — 파일을 그대로 본문에 심는다 (서버가 없어 올릴 곳이 없을 때) */
-function toDataUrl(f: File): Promise<string> {
+function toDataUrl(f: Blob): Promise<string> {
   return new Promise((res, rej) => {
     const r = new FileReader();
     r.onload = () => res(String(r.result));
@@ -66,8 +67,9 @@ export function RichEditor({ value, onChange, placeholder }: {
     if (!f) return;
     setBusy(true);
     try {
-      const ref = await putBlob(f);
-      const src = /^https?:/.test(ref) ? ref : await toDataUrl(f);
+      const clean = await stripImageMeta(f);   // 본문에 바로 심는 로컬 모드도 메타데이터 없이
+      const ref = await putBlob(clean);
+      const src = /^https?:/.test(ref) ? ref : await toDataUrl(clean);
       editor.chain().focus().setImage({ src }).run();
     } catch (e) {
       // 조용히 실패하면 「올렸는데 왜 안 들어가지」가 된다 — 사유를 그대로 보여 준다

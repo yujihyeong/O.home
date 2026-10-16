@@ -6,6 +6,7 @@
 //   ② 대상 저장소에 그대로 밀어 넣는다.
 // 저장소가 바뀌면 이미지 주소도 바뀌므로, 옮긴 파일의 새 주소로 데이터 안의 참조를 치환한다.
 // (문자열이 정확히 같을 때만 바꾸므로 엉뚱한 값이 변형될 일이 없다)
+import { stripImageMeta } from './imageMeta';
 import { backend, COLLECTION_OF, CONTENT_COLLECTIONS } from './backend';
 import type { Backend, ListItem } from './backend';
 import { allBlobs, getBlob, putBlobAs, putBlob } from './blobStore';
@@ -178,8 +179,9 @@ export async function loadAll(
     idx += 1;
     onProgress?.('이미지 옮기는 중', idx, refs.size);
     try {
-      const blob = await getFile(ref);
-      if (!blob) continue;
+      const got = await getFile(ref);
+      if (!got) continue;
+      const blob = await stripImageMeta(got);   // 옮기는 김에 이미지 메타데이터도 지운다 (보안 강화)
       const next = target
         ? await target.uploadFile(blob, extOfRef(ref, blob))
         : await putSameOrNew(ref, blob);

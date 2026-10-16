@@ -3,6 +3,7 @@
 //  · 서버 모드: Supabase Storage 버킷(ohome)에 올리고, 저장하는 값은 공개 URL
 //  · 로컬 모드: IndexedDB (파일 id만 데이터에 저장)
 // 화면 코드는 항상 "참조 문자열"만 다루므로 두 모드가 같은 코드로 동작한다.
+import { stripImageMeta } from './imageMeta';
 import React, { useEffect, useState } from 'react';
 import { newId } from './postStore';
 import { backend, isServerMode } from './backend';
@@ -72,7 +73,9 @@ async function hashOf(blob: Blob): Promise<string | null> {
 }
 
 /** Blob 저장 → 참조 문자열 반환 (서버 모드: 공개 URL · 로컬 모드: 파일 id) */
-export async function putBlob(blob: Blob): Promise<string> {
+export async function putBlob(raw: Blob): Promise<string> {
+  // 이미지 메타데이터(위치·기기·생성 정보 등)는 올리기 전에 지운다 (보안 강화) — 그림 자체는 그대로
+  const blob = await stripImageMeta(raw);
   const key = await hashOf(blob);
   const hit = key ? sent.get(key) : undefined;
   if (hit) return hit;

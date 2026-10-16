@@ -38,6 +38,9 @@ export interface CommentRow extends Comment {
   targetId: string;                 // 달린 대상(글·로드뷰 항목·감상타래·방명록)의 id
   /** 대상 종류 — 같은 컬렉션을 나눠 쓴다 (thread·guest: v2.0 사용자 요청) */
   target: 'post' | 'road' | 'thread' | 'guest';
+  /** 비밀글에 달린 댓글 (보안 강화) — 서버에서도 비공개. 댓글 쓴 사람·관리자 + readerIds(글 작성자)만 받는다 */
+  secret?: boolean;
+  readerIds?: string[];
 }
 
 export const COMMENT_SEED: CommentRow[] = [];

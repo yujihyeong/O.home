@@ -103,6 +103,8 @@ service cloud.firestore {
         resource.data.visibility == 'public'
         || (resource.data.visibility == 'member' && isMember())
         || (signedIn() && resource.data.authorId == request.auth.uid)
+        || (signedIn() && resource.data.keys().hasAny(['readerIds'])
+            && request.auth.uid in resource.data.readerIds)
         || isAdmin()
       );
 

@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
 import { useLocalList, BOARD_SEED, Post, newId, FoldType, PostKind, kindOf } from '@/lib/postStore';
 import { putBlob } from '@/lib/blobStore';
+import { stripImageMeta } from '@/lib/imageMeta';
 import { useBoards, boardHref, MAIN_BOARD_ID } from '@/lib/boardStore';
 import { renderBody } from '@/lib/sanitize';
 import { KInput, KTextarea, KSelect, KCheck } from '@/components/ui/Kit';
@@ -17,7 +18,7 @@ import { useToast } from '@/components/ui/Toast';
 import { PageTitle, EditableDesc } from '@/components/ui/PageText';
 
 /** 로컬 모드용 — 올릴 서버가 없으면 이미지를 본문에 그대로 심는다 (에디터와 같은 규칙) */
-function toDataUrl(f: File): Promise<string> {
+function toDataUrl(f: Blob): Promise<string> {
   return new Promise((res, rej) => {
     const r = new FileReader();
     r.onload = () => res(String(r.result));
@@ -129,8 +130,9 @@ function WriteInner() {
     try {
       const added: string[] = [];
       for (const f of Array.from(files)) {
-        const ref = await putBlob(f);
-        added.push(/^https?:/.test(ref) ? ref : await toDataUrl(f));
+        const clean = await stripImageMeta(f);   // 메타데이터 없이 (보안 강화)
+        const ref = await putBlob(clean);
+        added.push(/^https?:/.test(ref) ? ref : await toDataUrl(clean));
       }
       setImages(l => [...l, ...added]);
     } catch (e) {

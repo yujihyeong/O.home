@@ -97,7 +97,12 @@ export async function createFirebaseBackend(cfg: FirebaseCfg): Promise<Backend> 
     if (!u) return [[where('visibility', '==', 'public')]];
     if (await isAdminNow()) return [[]];                    // 관리자는 전부
     // 회원: 전체공개+회원공개, 그리고 내가 쓴 것(비공개 포함)은 따로 받아 합친다
-    return [[where('visibility', 'in', ['public', 'member'])], [where('authorId', '==', u.uid)]];
+    // 비공개여도 읽기를 허락받은 것(비밀글의 댓글 등 — readerIds)도 따로 받는다
+    return [
+      [where('visibility', 'in', ['public', 'member'])],
+      [where('authorId', '==', u.uid)],
+      [where('readerIds', 'array-contains', u.uid)],
+    ];
   };
 
   const listQuery = (coll: string, cs: Cons[]) =>
@@ -351,9 +356,9 @@ export async function createFirebaseBackend(cfg: FirebaseCfg): Promise<Backend> 
       for (const part of parts) {
         const batch = writeBatch(db);
         part.forEach(({ item, sort }) => {
-          const { authorId, visibility, editorIds } = metaOf(item, uid, visFloorOf(coll, item));
+          const { authorId, visibility, editorIds, readerIds } = metaOf(item, uid, visFloorOf(coll, item));
           batch.set(doc(db, coll, item.id), {
-            data: item, authorId, visibility, editorIds, sort, updatedAt: Date.now(),
+            data: item, authorId, visibility, editorIds, readerIds, sort, updatedAt: Date.now(),
           });
         });
         await batch.commit();
@@ -382,8 +387,8 @@ export async function createFirebaseBackend(cfg: FirebaseCfg): Promise<Backend> 
         const part = items.slice(i, i + 400);
         const batch = writeBatch(db);
         part.forEach(it => {
-          const { visibility, editorIds } = metaOf(it, uid, visFloorOf(coll, it));
-          batch.update(doc(db, coll, it.id), { visibility, editorIds, updatedAt: Date.now() });
+          const { visibility, editorIds, readerIds } = metaOf(it, uid, visFloorOf(coll, it));
+          batch.update(doc(db, coll, it.id), { visibility, editorIds, readerIds, updatedAt: Date.now() });
         });
         await batch.commit();
         n += part.length;
