@@ -1,41 +1,67 @@
 'use client';
 // 없는 주소 안내 (v1.9) — 개발 마일스톤 문구 제거, 일반 방문자용 안내만
 //
-// 짧은 주소로 게시판·섹션 찾아가기 (사용자 제보 — 커스텀 링크에 `LOG2`처럼 게시판 이름만 적었더니
-// `/LOG2`라는 없는 페이지로 가서 「주소가 잘못되었거나」가 떴다). 게시판 주소는 원래 `/board?b=<id>`라
-// 이름만으로는 갈 수 없었다. 한 단어 주소가 게시판·섹션의 이름·별명·id와 같으면 그곳으로 바로 옮겨 준다.
-import React, { useEffect, useMemo } from 'react';
+// 짧은 주소로 찾아가기 (사용자 제보 — 커스텀 링크에 `/LOG`, `/OOC2`처럼 직접 지은 주소를 적었더니
+// 그런 페이지가 없어 「주소가 잘못되었거나」가 떴다. 게시판 주소는 원래 `/board?b=<id>`).
+//  ① 관리자가 연결해 둔 곳(aliasStore)이 있으면 그리로
+//  ② 없으면 게시판·섹션의 이름·별명·id(또는 그 주소를 건 커스텀 링크의 이름)가 같은 곳으로
+//  ③ 그래도 없으면 안내 — 관리자에게는 「이 주소를 어디로 연결할지」 고르는 칸을 보여 준다
+import React, { useEffect, useMemo, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { PageTitle } from '@/components/ui/PageText';
+import { KSelect } from '@/components/ui/Kit';
+import { useToast } from '@/components/ui/Toast';
 import { useBoards, boardHref } from '@/lib/boardStore';
-import { useSections, SECTION_KINDS, sectionsOf, sectionHref, MAIN_SEC } from '@/lib/sectionStore';
+import { useSections, SECTION_KINDS, SECTION_META, sectionsOf, sectionHref, MAIN_SEC } from '@/lib/sectionStore';
 import { useAuth } from '@/lib/auth';
 import { useCustomLinks } from '@/lib/linkStore';
+import { useAliases, aliasKey } from '@/lib/aliasStore';
+import { FEATURES } from '@/lib/menu';
 
-/** 비교용 — 대소문자·공백·하이픈·밑줄 무시 */
-const norm = (s: string) => s.normalize('NFC').toLowerCase().replace(/[\s_-]+/g, '');
+const norm = aliasKey;
 
 export default function NotFoundPage() {
   const router = useRouter();
   const pathname = usePathname();
+  const toast = useToast();
   const { isAdmin } = useAuth();
   const { boards, loaded: boardsLoaded } = useBoards();
   const { map: secMap, loaded: secLoaded } = useSections();
   const { links } = useCustomLinks();
+  const [aliases, setAlias] = useAliases();
+  const [pick, setPick] = useState('');
 
   // 한 단어 주소만 (예: /LOG2) — 더 깊은 주소는 진짜로 없는 페이지다
-  const word = useMemo(() => {
+  const raw = useMemo(() => {
     const parts = pathname.split('/').filter(Boolean);
     if (parts.length !== 1) return null;
-    try { return norm(decodeURIComponent(parts[0])); } catch { return norm(parts[0]); }
+    try { return decodeURIComponent(parts[0]); } catch { return parts[0]; }
   }, [pathname]);
+  const word = raw === null ? null : norm(raw);
+
+  // 연결할 수 있는 곳 — 게시판 · 여러 개로 만든 섹션 · 기본 기능 페이지
+  const targets = useMemo(() => {
+    const out: { value: string; label: string }[] = [];
+    for (const b of boards) out.push({ value: boardHref(b.id), label: `게시판 · ${b.name}` });
+    for (const kind of SECTION_KINDS) {
+      for (const s of sectionsOf(secMap, kind)) {
+        if (s.id === MAIN_SEC) continue;
+        out.push({ value: sectionHref(kind, s.id), label: `${SECTION_META[kind].label} · ${s.name}` });
+      }
+    }
+    for (const f of FEATURES) {
+      if (f.href !== '/board') out.push({ value: f.href, label: `기본 · ${f.label} (${f.href})` });
+    }
+    return out;
+  }, [boards, secMap]);
 
   const target = useMemo(() => {
     if (!word) return null;
+    if (aliases[word]) return aliases[word];
     // 이 주소를 건 커스텀 링크의 이름도 후보로 — 「이야기」 링크가 /LOG2를 가리키고 게시판 이름이 「이야기」인 경우
     const keys = new Set([word]);
     for (const l of links) {
-      if (norm(l.href.replace(/^\//, '')) === word && l.name.trim()) keys.add(norm(l.name));
+      if (norm(l.href) === word && l.name.trim()) keys.add(norm(l.name));
     }
     const hit = (...vals: (string | undefined)[]) => vals.some(v => !!v && keys.has(norm(v)));
     for (const b of boards) {
@@ -48,7 +74,7 @@ export default function NotFoundPage() {
       }
     }
     return null;
-  }, [word, boards, secMap, links]);
+  }, [word, boards, secMap, links, aliases]);
 
   const ready = boardsLoaded && secLoaded;
   useEffect(() => {
@@ -58,6 +84,8 @@ export default function NotFoundPage() {
   // 찾는 중이거나 옮기는 중에는 빈 화면 — 안내가 번쩍이지 않게
   if (!ready || target) return <section className="page" />;
 
+  const linkName = links.find(l => word && norm(l.href) === word)?.name;
+
   return (
     <section className="page">
       <div className="page-head">
@@ -65,19 +93,31 @@ export default function NotFoundPage() {
         <p>주소가 잘못되었거나 삭제된 페이지입니다</p>
       </div>
       <div className="panel" style={{ textAlign: 'center', padding: 56 }}>
-        <p style={{ fontSize: 13, color: 'var(--faint)', marginBottom: 16 }}>
-          찾으시는 페이지가 없습니다.
-        </p>
-        {/* 관리자에게만 — 메뉴(커스텀 링크)에 걸 수 있는 게시판 주소 */}
-        {isAdmin && boards.length > 1 && (
-          <div style={{ fontSize: 12, color: 'var(--sub)', margin: '0 auto 18px', maxWidth: 420, textAlign: 'left', lineHeight: 1.9 }}>
-            메뉴에 게시판을 걸 때는 아래 주소를 쓰거나, 메뉴 관리의 「미배치」에서 게시판을 그대로 끌어다 넣어 주세요.
-            {boards.map(b => (
-              <div key={b.id}><b>{b.name}</b> — <code>{boardHref(b.id)}</code></div>
-            ))}
+        {/* 관리자 — 이 주소를 어디로 연결할지 바로 고른다 */}
+        {isAdmin && raw ? (
+          <div style={{ maxWidth: 460, margin: '0 auto 22px', textAlign: 'left', display: 'grid', gap: 12 }}>
+            <p style={{ fontSize: 13.5, color: 'var(--ink)', lineHeight: 1.7 }}>
+              <b>/{raw}</b>{linkName ? <> (메뉴 「{linkName}」)</> : null}는 아직 아무 페이지에도 연결되지 않았어요.
+              <br />어디로 보낼지 고르면 이제부터 이 주소로 들어오는 사람은 그곳으로 가요.
+            </p>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+              <KSelect minWidth={240} maxWidth={320} value={pick} onChange={setPick}
+                placeholder="연결할 곳 고르기" options={targets} />
+              <button className="btn btn-dark" disabled={!pick} style={{ opacity: pick ? 1 : 0.45 }}
+                onClick={() => {
+                  if (!pick) return;
+                  setAlias(raw, pick);
+                  toast(`/${raw} 주소를 연결했어요`);
+                  router.replace(pick);
+                }}>연결</button>
+            </div>
           </div>
+        ) : (
+          <p style={{ fontSize: 13, color: 'var(--faint)', marginBottom: 16 }}>
+            찾으시는 페이지가 없습니다.
+          </p>
         )}
-        <button className="btn btn-dark" onClick={() => router.push('/')}>메인으로</button>
+        <button className="btn btn-ghost" onClick={() => router.push('/')}>메인으로</button>
       </div>
     </section>
   );
