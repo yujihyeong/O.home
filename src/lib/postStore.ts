@@ -61,7 +61,7 @@ export interface Post {
   mode: PostMode;        // 렌더 방식 (md / html)
   /** 무엇으로 썼는지 (v2.0) — 에디터로 쓴 글을 수정할 때 HTML 소스가 뜨지 않게 기억한다.
    *  렌더는 mode로 하고, 이 값은 수정 화면을 어떤 모드로 열지에만 쓴다. */
-  authored?: 'editor' | 'log';   // log = 글쓰기 「로그 정리」 모드로 쓴 마크다운 — 수정할 때 그 모드로 다시 연다
+  authored?: 'editor';
   category: string;      // 말머리
   author: string;
   authorId: string;

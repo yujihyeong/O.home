@@ -7,8 +7,6 @@ import StarterKit from '@tiptap/starter-kit';
 import Image from '@tiptap/extension-image';
 import { putBlob } from '@/lib/blobStore';
 import { useToast } from '@/components/ui/Toast';
-import { SpellPanel, SpellSession, shiftAfter } from '@/components/ui/WriteTools';
-import { findSpelling, SpellIssue } from '@/lib/writeTools';
 
 /** 로컬 모드용 — 파일을 그대로 본문에 심는다 (서버가 없어 올릴 곳이 없을 때) */
 function toDataUrl(f: File): Promise<string> {
@@ -37,7 +35,6 @@ export function RichEditor({ value, onChange, placeholder }: {
   const toast = useToast();
   const fileRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
-  const [spell, setSpell] = useState<SpellSession | null>(null);   // 맞춤법 검사 결과
   const editor = useEditor({
     extensions: [StarterKit, Image],
     content: value || '<p></p>',
@@ -76,40 +73,6 @@ export function RichEditor({ value, onChange, placeholder }: {
     setBusy(false);
   };
 
-  /* 맞춤법 검사 — 드래그한 부분이 있으면 그 부분만, 없으면 글 전체.
-     글자 노드마다 검사해 문서 위치(pos)로 기억한다 — 고칠 때 그 자리 글자가 그대로인지 확인 후 바꾼다 */
-  const runSpell = () => {
-    const { from, to, empty } = editor.state.selection;
-    const [a, b] = empty ? [0, editor.state.doc.content.size] : [from, to];
-    const found: SpellIssue[] = [];
-    editor.state.doc.nodesBetween(a, b, (node, pos) => {
-      if (!node.isText || !node.text) return;
-      const s = Math.max(a, pos);
-      const e = Math.min(b, pos + node.nodeSize);
-      found.push(...findSpelling(node.text.slice(s - pos, e - pos), s));
-    });
-    const issues = found.map(i => ({ ...i, id: `${i.from}-${i.wrong}` }));
-    if (!issues.length) {
-      setSpell(null);
-      toast(empty ? '고칠 곳을 찾지 못했습니다' : '드래그한 부분에서 고칠 곳을 찾지 못했습니다');
-      return;
-    }
-    setSpell({ issues, scope: empty ? 'all' : 'sel' });
-  };
-  const fixOne = (i: SpellIssue): boolean => {
-    const { doc } = editor.state;
-    if (i.to > doc.content.size || doc.textBetween(i.from, i.to) !== i.wrong) return false;
-    editor.view.dispatch(editor.state.tr.insertText(i.fix, i.from, i.to));   // 굵게 등 서식은 그대로
-    return true;
-  };
-  const ctx = (i: SpellIssue): [string, string] => {
-    const size = editor.state.doc.content.size;
-    return [
-      editor.state.doc.textBetween(Math.max(0, i.from - 14), i.from, ' '),
-      editor.state.doc.textBetween(i.to, Math.min(size, i.to + 14), ' '),
-    ];
-  };
-
   return (
     <div className="re-wrap">
       <div className="re-toolbar">
@@ -133,8 +96,6 @@ export function RichEditor({ value, onChange, placeholder }: {
           onClick={() => editor.chain().focus().toggleBlockquote().run()} />
         <TBtn title="구분선" label="—" onClick={() => editor.chain().focus().setHorizontalRule().run()} />
         <span className="re-sep" />
-        <TBtn title="맞춤법 검사 — 드래그하면 그 부분만, 아니면 글 전체" label="가✓" on={!!spell} onClick={runSpell} />
-        <span className="re-sep" />
         <TBtn title={busy ? '올리는 중…' : '이미지 올리기'} label={busy ? '⏳' : '🖼'}
           onClick={() => { if (!busy) fileRef.current?.click(); }} />
         <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }}
@@ -147,22 +108,6 @@ export function RichEditor({ value, onChange, placeholder }: {
           <TBtn title="다시 실행" label="↷" onClick={() => editor.chain().focus().redo().run()} />
         </span>
       </div>
-      {spell && (
-        <SpellPanel session={spell} context={ctx}
-          onFix={i => {
-            if (!fixOne(i)) { toast('글이 바뀌어 이 항목을 고치지 못했습니다 — 다시 검사해 주세요'); return; }
-            setSpell(s => (s ? { ...s, issues: shiftAfter(s.issues, i) } : s));
-          }}
-          onFixAll={() => {
-            let n = 0;
-            for (const i of [...spell.issues].sort((x, y) => y.from - x.from)) if (fixOne(i)) n++;
-            setSpell(s => (s ? { ...s, issues: [] } : s));
-            toast(`${n}곳을 고쳤습니다`);
-          }}
-          onIgnore={i => setSpell(s => (s ? { ...s, issues: s.issues.filter(x => x.id !== i.id) } : s))}
-          onPick={i => editor.chain().focus().setTextSelection({ from: i.from, to: i.to }).run()}
-          onClose={() => setSpell(null)} />
-      )}
       {/* 플레이스홀더는 본문 영역 기준으로 — 툴바가 두 줄이 돼도 안 밀림 (v1.9 사용자 발견) */}
       <div className="re-body">
         <EditorContent editor={editor} />

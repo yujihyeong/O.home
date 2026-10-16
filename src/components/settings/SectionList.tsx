@@ -66,14 +66,12 @@ export function SectionList({ kind }: { kind: SectionKind }) {
     const after = kind && (id === MAIN_SEC ? before : `${meta.href}?s=${slug || id}`);
     if (before === after) return;
     const swap = (h: string) => (h === before ? after : h);
-    const swapTree = (t: typeof ms.tree) => (t ?? []).map(g => ({
-      ...g,
-      ...(g.href ? { href: swap(g.href) } : {}),
-      items: g.items.map(it => ({ ...it, href: swap(it.href) })),
-    }));
     patchMenu({
-      tree: swapTree(ms.tree),
-      ...(ms.treeNight ? { treeNight: swapTree(ms.treeNight) } : {}),
+      tree: (ms.tree ?? []).map(g => ({
+        ...g,
+        ...(g.href ? { href: swap(g.href) } : {}),
+        items: g.items.map(it => ({ ...it, href: swap(it.href) })),
+      })),
       removedBoards: (ms.removedBoards ?? []).map(swap),
     });
   };

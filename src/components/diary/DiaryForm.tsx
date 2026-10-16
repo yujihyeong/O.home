@@ -9,7 +9,6 @@ import { DragList } from '@/components/ui/DragList';
 import { useConfirmDelete } from '@/components/ui/Modal';
 import { putBlob, useBlobUrl } from '@/lib/blobStore';
 import { useToast } from '@/components/ui/Toast';
-import { TextTools } from '@/components/ui/WriteTools';
 
 export interface DiaryFormValue {
   title: string; date: string; moodId: string; body: string;
@@ -77,9 +76,7 @@ export function DiaryForm({ initial, moods, onSave, onCancel }: {
         </div>
         <div>
           <label className="k-label" style={{ marginBottom: 6 }}>내용 — 마크다운 지원</label>
-          <TextTools value={body} onChange={setBody}>
-            <KTextarea value={body} onChange={e => setBody(e.target.value)} style={{ minHeight: 180 }} />
-          </TextTools>
+          <KTextarea value={body} onChange={e => setBody(e.target.value)} style={{ minHeight: 180 }} />
         </div>
         <label className="k-label" style={{ margin: 0 }}>이미지 (선택) — 본문 아래에 순서대로 표시 · ⠿ 순서</label>
         {imgs.length > 0 && (
