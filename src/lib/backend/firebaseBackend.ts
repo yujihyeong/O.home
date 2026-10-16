@@ -97,7 +97,12 @@ export async function createFirebaseBackend(cfg: FirebaseCfg): Promise<Backend> 
     if (!u) return [[where('visibility', '==', 'public')]];
     if (await isAdminNow()) return [[]];                    // 관리자는 전부
     // 회원: 전체공개+회원공개, 그리고 내가 쓴 것(비공개 포함)은 따로 받아 합친다
-    return [[where('visibility', 'in', ['public', 'member'])], [where('authorId', '==', u.uid)]];
+    // 비공개여도 읽기를 허락받은 것(비밀글의 댓글 등 — readerIds)도 따로 받는다
+    return [
+      [where('visibility', 'in', ['public', 'member'])],
+      [where('authorId', '==', u.uid)],
+      [where('readerIds', 'array-contains', u.uid)],
+    ];
   };
 
   const listQuery = (coll: string, cs: Cons[]) =>
@@ -201,9 +206,19 @@ export async function createFirebaseBackend(cfg: FirebaseCfg): Promise<Backend> 
       } catch (e) { return { ok: false, error: humanError(e) }; }
     },
 
-    async signUp(id, password, nickname) {
+    async signUp(id, password, nickname, invite) {
       try {
         const cred = await authMod.createUserWithEmailAndPassword(auth, id, password);
+        // 가입코드 확인 (보안 강화) — 규칙이 비공개 가입코드와 비교해 맞을 때만 이 문서를 허락한다.
+        // 틀리면 방금 만든 계정을 지운다(Firebase는 계정 생성 자체를 규칙으로 막을 수 없다)
+        try {
+          const j = await withLimit(setDoc(doc(db, 'joins', cred.user.uid), { code: invite, at: Date.now() }));
+          if (j === TIMEOUT) return { ok: false, error: `${NO_REACH} (로그인 계정은 이미 만들어졌습니다)` };
+        } catch (e) {
+          try { await cred.user.delete(); } catch { /* 무시 */ }
+          const code = (e as { code?: string })?.code ?? '';
+          return { ok: false, error: code.includes('permission-denied') ? '가입코드가 올바르지 않습니다.' : humanError(e) };
+        }
         await authMod.updateProfile(cred.user, { displayName: nickname });
         const r = await withLimit(
           setDoc(doc(db, 'profiles', cred.user.uid), { nickname, createdAt: Date.now() }, { merge: true }));
@@ -214,6 +229,23 @@ export async function createFirebaseBackend(cfg: FirebaseCfg): Promise<Backend> 
     },
 
     async signOut() { await authMod.signOut(auth); },
+
+    async getInvite() {
+      try {
+        const s = await getDoc(doc(db, 'secure', 'invite'));
+        return s.exists() ? String((s.data() as { code?: string }).code ?? '') : null;
+      } catch { return null; }
+    },
+
+    async setInvite(code) {
+      try {
+        const r = await withLimit(setDoc(doc(db, 'secure', 'invite'), { code, updatedAt: Date.now() }));
+        return r === TIMEOUT ? { ok: false, error: NO_REACH } : { ok: true };
+      } catch (e) {
+        const c = (e as { code?: string })?.code ?? '';
+        return { ok: false, error: c.includes('permission-denied') ? '보안 규칙을 최신으로 다시 게시해 주세요' : humanError(e) };
+      }
+    },
 
     async resetPassword(email) {
       try {
@@ -324,9 +356,9 @@ export async function createFirebaseBackend(cfg: FirebaseCfg): Promise<Backend> 
       for (const part of parts) {
         const batch = writeBatch(db);
         part.forEach(({ item, sort }) => {
-          const { authorId, visibility, editorIds } = metaOf(item, uid, visFloorOf(coll, item));
+          const { authorId, visibility, editorIds, readerIds } = metaOf(item, uid, visFloorOf(coll, item));
           batch.set(doc(db, coll, item.id), {
-            data: item, authorId, visibility, editorIds, sort, updatedAt: Date.now(),
+            data: item, authorId, visibility, editorIds, readerIds, sort, updatedAt: Date.now(),
           });
         });
         await batch.commit();
@@ -355,8 +387,8 @@ export async function createFirebaseBackend(cfg: FirebaseCfg): Promise<Backend> 
         const part = items.slice(i, i + 400);
         const batch = writeBatch(db);
         part.forEach(it => {
-          const { visibility, editorIds } = metaOf(it, uid, visFloorOf(coll, it));
-          batch.update(doc(db, coll, it.id), { visibility, editorIds, updatedAt: Date.now() });
+          const { visibility, editorIds, readerIds } = metaOf(it, uid, visFloorOf(coll, it));
+          batch.update(doc(db, coll, it.id), { visibility, editorIds, readerIds, updatedAt: Date.now() });
         });
         await batch.commit();
         n += part.length;

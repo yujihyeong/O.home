@@ -72,7 +72,11 @@ export interface TrpgLog {
   thumbColor?: { c1: string; c2?: string }; // 이미지 없을 때 단색/그라데이션
   serifTitle?: boolean;      // 타이틀 폰트 개별 지정 예시 (폰트 라이브러리는 후속)
   visibility: Visibility;
-  password?: string;         // 열람 비밀번호 (선택) — 권한이 없어도 비밀번호로 열람 가능
+  /** (옛 방식) 열람 비밀번호 평문 — 목록 문서에 그대로 있어 F12로 보였다. 새로 저장하면 pwLock으로 바뀐다 */
+  password?: string;
+  /** 열람 비밀번호가 걸려 있음 (보안 강화) — 비밀번호 자체는 어디에도 저장하지 않는다.
+   *  권한이 없는 사람에게는 비밀번호로 **암호화한 본문**(id + ENC_SUFFIX)만 공개되고, 맞는 비밀번호로만 풀린다 */
+  pwLock?: boolean;
   // 목록 표시 여부 (v2.0 사용자 요청) — 접근권한(누가 열 수 있는지)과는 별개로, 목록에 줄이 뜰지만 정하는
   // 스위치. 나만보기(private)여도 이걸 켜지 않으면 관리자 목록에서 사라지지 않는다 — 반대로 이걸 켜면
   // 전체공개여도 목록에서만 빠지고 직접 링크로는 그대로 열린다. 관리자는 편집모드에서 숨김 표시로 계속 본다
@@ -106,10 +110,52 @@ export interface TrpgLogBody {
   secId?: string;
 }
 
-/** 본문 문서에 적을 열람 권한 — 비밀번호가 걸려 있으면 목록 필터가 예전부터 그래 왔듯 공개로 둔다
- *  (비밀번호는애초에 Firestore 규칙 단계에서 검증할 수 없어 클라이언트 확인용일 뿐이었다) */
+/** 본문 문서에 적을 열람 권한.
+ *  옛 평문 비밀번호 로그만 예전처럼 공개로 둔다(그 로그는 다시 저장하면 암호화 방식으로 바뀐다).
+ *  암호화 방식(pwLock)은 평문 본문을 원래 권한대로 지키고, 공개되는 건 암호문 사본뿐이다 */
 export const bodyVisibility = (l: { visibility: Visibility; password?: string }): Visibility =>
   l.password ? 'public' : l.visibility;
+
+/** 비밀번호가 걸린 로그인가 (옛 평문 방식 포함) */
+export const hasLogLock = (l: { password?: string; pwLock?: boolean }) => !!(l.pwLock || l.password);
+
+/** 암호화한 본문 사본의 문서 id — 원래 본문 id 뒤에 붙인다 */
+export const ENC_SUFFIX = '~pw';
+
+/* ---------- 로그 본문 암호화 (보안 강화) ----------
+   비밀번호에서 키를 만들어(PBKDF2-SHA256 · 20만 회) AES-GCM으로 본문을 잠근다.
+   서버에는 암호문만 공개되고 비밀번호는 어디에도 남지 않는다 — 틀린 비밀번호로는 풀리지 않는다(GCM 인증).
+   형식: "enc1:" + base64(salt 16바이트 | iv 12바이트 | 암호문) */
+const b64 = (u: Uint8Array) => { let s = ''; u.forEach(c => { s += String.fromCharCode(c); }); return btoa(s); };
+const unb64 = (s: string) => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+
+async function logKey(password: string, salt: Uint8Array) {
+  const base = await crypto.subtle.importKey('raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveKey']);
+  return crypto.subtle.deriveKey(
+    { name: 'PBKDF2', salt: salt as BufferSource, iterations: 200_000, hash: 'SHA-256' },
+    base, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+}
+
+export async function encryptLog(text: string, password: string): Promise<string> {
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const key = await logKey(password, salt);
+  const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, new TextEncoder().encode(text)));
+  const all = new Uint8Array(salt.length + iv.length + ct.length);
+  all.set(salt, 0); all.set(iv, salt.length); all.set(ct, salt.length + iv.length);
+  return `enc1:${b64(all)}`;
+}
+
+/** 풀지 못하면(비밀번호가 틀리거나 형식이 다르면) null */
+export async function decryptLog(payload: string, password: string): Promise<string | null> {
+  if (!payload.startsWith('enc1:')) return null;
+  try {
+    const all = unb64(payload.slice(5));
+    const salt = all.slice(0, 16), iv = all.slice(16, 28), ct = all.slice(28);
+    const key = await logKey(password, salt);
+    return new TextDecoder().decode(await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, ct));
+  } catch { return null; }
+}
 
 export const TRPG_BODY_SEED: TrpgLogBody[] = [];
 

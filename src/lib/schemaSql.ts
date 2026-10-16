@@ -34,6 +34,15 @@ create table if not exists public.site_settings (
   updated_at timestamptz not null default now()
 );
 
+-- ── 3b. 비공개 설정 (보안 강화) — 가입코드처럼 방문자에게 보이면 안 되는 값 ─────
+-- site_settings는 누구나 읽는다(테마·메뉴를 그려야 하므로). 가입코드가 거기 있으면 F12로 그대로 보였다.
+-- 이 표는 관리자만 읽고 쓴다 — 가입 검사는 아래 handle_new_user가 서버 안에서 한다.
+create table if not exists public.private_settings (
+  key text primary key,
+  value text not null,
+  updated_at timestamptz not null default now()
+);
+
 -- ── 4. 관리자 판별 함수 ──────────────────────────────────────
 create or replace function public.is_admin()
 returns boolean language sql stable security definer set search_path = public as $$
@@ -43,9 +52,17 @@ $$;
 -- ── 5. 가입 시 프로필 자동 생성 (첫 가입자 = 관리자) ─────────
 create or replace function public.handle_new_user()
 returns trigger language plpgsql security definer set search_path = public as $$
-declare existing int;
+declare existing int; need text;
 begin
   select count(*) into existing from public.profiles;
+  -- 가입코드는 서버에서 검사한다 (보안 강화) — 예전엔 화면에서만 비교해서,
+  -- 콘솔에서 가입 API를 직접 부르면 코드 없이도 회원이 될 수 있었다. 첫 계정(관리자)은 예외
+  if existing > 0 then
+    select value into need from public.private_settings where key = 'invite';
+    if coalesce(new.raw_user_meta_data->>'invite', '') <> coalesce(nullif(need, ''), 'WELCOME') then
+      raise exception 'invalid invite code';
+    end if;
+  end if;
   insert into public.profiles (id, nickname, role)
   values (
     new.id,
@@ -139,6 +156,11 @@ begin
       alter table public.%I add column if not exists editor_ids text[] not null default '{}'::text[]
     $f$, t);
 
+    -- 비공개여도 읽을 수 있는 회원 (보안 강화) — 비밀글에 달린 댓글을 그 글 작성자가 볼 수 있게
+    execute format($f$
+      alter table public.%I add column if not exists reader_ids text[] not null default '{}'::text[]
+    $f$, t);
+
     execute format('alter table public.%I enable row level security', t);
     execute format('create index if not exists %I on public.%I (sort)', t || '_sort_idx', t);
 
@@ -149,19 +171,26 @@ begin
         visibility = 'public'
         or (visibility = 'member' and auth.uid() is not null)
         or author_id = auth.uid()
+        or auth.uid()::text = any(reader_ids)
         or public.is_admin()
       )$p$, t);
 
     -- 쓰기: 로그인 회원 (방명록만 아래에서 비로그인 허용으로 덮어씀)
     execute format('drop policy if exists "insert" on public.%I', t);
+    -- 남의 이름(author_id)으로는 못 쓴다 (보안 강화) — 예전엔 아무 값이나 넣을 수 있었다.
+    -- 편집 권한을 받은 회원(editor_ids)은 통과 — 저장이 upsert라 수정할 때도 이 검사를 거친다
     execute format($p$
-      create policy "insert" on public.%I for insert to authenticated with check (true)$p$, t);
+      create policy "insert" on public.%I for insert to authenticated
+        with check (author_id is null or author_id = auth.uid() or public.is_admin()
+                    or auth.uid()::text = any(editor_ids))$p$, t);
 
     -- 수정·삭제: 본인 · 편집 권한을 받은 회원(editor_ids) · 관리자
     execute format('drop policy if exists "update" on public.%I', t);
     execute format($p$
       create policy "update" on public.%I for update to authenticated
         using (author_id = auth.uid() or public.is_admin()
+               or auth.uid()::text = any(editor_ids))
+        with check (author_id = auth.uid() or public.is_admin()
                or auth.uid()::text = any(editor_ids))$p$, t);
 
     execute format('drop policy if exists "delete" on public.%I', t);
@@ -174,12 +203,14 @@ end $$;
 
 -- 방명록·게시판 댓글은 비로그인 방문자도 남길 수 있음 (닉네임+비밀번호 방식)
 drop policy if exists "insert" on public.guestbook;
-create policy "insert" on public.guestbook for insert with check (true);
+create policy "insert" on public.guestbook for insert
+  with check (author_id is null or author_id = auth.uid() or public.is_admin());
 
 -- 댓글도 비로그인 방문자가 남길 수 있다 (닉네임+비밀번호 방식 — 방명록과 동일, v2.0).
 -- 수정·삭제는 위 공통 정책 그대로: 작성자 본인 또는 관리자.
 drop policy if exists "insert" on public.comments;
-create policy "insert" on public.comments for insert with check (true);
+create policy "insert" on public.comments for insert
+  with check (author_id is null or author_id = auth.uid() or public.is_admin());
 
 -- 알림도 비로그인 방문자가 만들 수 있다 (v2.0) — 손님 댓글·방명록이 관리자에게 알림을 남겨야 하므로.
 -- 행의 주인(author_id)은 받는 사람이라, 읽기·수정·삭제는 받는 사람과 관리자만 (공통 정책 그대로).
@@ -190,6 +221,18 @@ create policy "insert" on public.notifications for insert with check (true);
 alter table public.profiles enable row level security;
 alter table public.invite_codes enable row level security;
 alter table public.site_settings enable row level security;
+alter table public.private_settings enable row level security;
+
+drop policy if exists "private_admin" on public.private_settings;
+create policy "private_admin" on public.private_settings for all to authenticated
+  using (public.is_admin()) with check (public.is_admin());
+
+-- 예전에 공개 설정에 저장돼 있던 가입코드를 비공개 표로 옮기고 공개 쪽은 지운다
+insert into public.private_settings (key, value)
+  select 'invite', value #>> '{}' from public.site_settings
+  where key = 'ohome.invite.v1' and coalesce(value #>> '{}', '') <> ''
+on conflict (key) do nothing;
+delete from public.site_settings where key = 'ohome.invite.v1';
 
 drop policy if exists "profiles_select" on public.profiles;
 create policy "profiles_select" on public.profiles for select using (true);
@@ -206,13 +249,13 @@ drop policy if exists "profiles_delete_admin" on public.profiles;
 create policy "profiles_delete_admin" on public.profiles for delete to authenticated
   using (public.is_admin());
 
+-- (옛 초대코드 표 — 지금은 쓰지 않는다) 누구나 읽고 고칠 수 있던 것을 관리자 전용으로 (보안 강화)
 drop policy if exists "invite_select" on public.invite_codes;
-create policy "invite_select" on public.invite_codes for select using (true);
+create policy "invite_select" on public.invite_codes for select to authenticated using (public.is_admin());
 drop policy if exists "invite_write" on public.invite_codes;
 create policy "invite_write" on public.invite_codes for all to authenticated
   using (public.is_admin()) with check (public.is_admin());
 drop policy if exists "invite_use" on public.invite_codes;
-create policy "invite_use" on public.invite_codes for update using (used_by is null);
 
 drop policy if exists "settings_select" on public.site_settings;
 create policy "settings_select" on public.site_settings for select using (true);
@@ -225,12 +268,17 @@ insert into storage.buckets (id, name, public)
 values ('ohome', 'ohome', true)
 on conflict (id) do nothing;
 
+-- 파일 목록 조회는 관리자만 (보안 강화) — 예전엔 누구나 저장소 전체 목록을 받아
+-- 비공개 글에만 쓰인 이미지 주소까지 찾아낼 수 있었다. 공개 주소로 그림을 보는 것은 그대로 된다
 drop policy if exists "ohome_read" on storage.objects;
-create policy "ohome_read" on storage.objects for select using (bucket_id = 'ohome');
+create policy "ohome_read" on storage.objects for select to authenticated
+  using (bucket_id = 'ohome' and public.is_admin());
 drop policy if exists "ohome_write" on storage.objects;
 create policy "ohome_write" on storage.objects for insert to authenticated with check (bucket_id = 'ohome');
+-- 남이 올린 파일을 덮어쓰지 못하게 (보안 강화) — 예전엔 로그인한 누구나 아무 파일이나 바꿀 수 있었다
 drop policy if exists "ohome_update" on storage.objects;
-create policy "ohome_update" on storage.objects for update to authenticated using (bucket_id = 'ohome');
+create policy "ohome_update" on storage.objects for update to authenticated
+  using (bucket_id = 'ohome' and (owner = auth.uid() or public.is_admin()));
 drop policy if exists "ohome_delete" on storage.objects;
 create policy "ohome_delete" on storage.objects for delete to authenticated
   using (bucket_id = 'ohome' and (owner = auth.uid() or public.is_admin()));

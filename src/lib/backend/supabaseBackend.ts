@@ -86,9 +86,25 @@ export async function createSupabaseBackend(
       return error ? { ok: false, error: error.message } : { ok: true };
     },
 
-    async signUp(id, password, nickname) {
-      const { error } = await sb.auth.signUp({ email: id, password, options: { data: { nickname } } });
+    async signUp(id, password, nickname, invite) {
+      // 가입코드는 서버 트리거(handle_new_user)가 비공개 표와 비교한다 — 틀리면 계정 자체가 만들어지지 않는다
+      const { error } = await sb.auth.signUp({ email: id, password, options: { data: { nickname, invite } } });
+      if (error && /database error/i.test(error.message)) return { ok: false, error: '가입코드가 올바르지 않습니다.' };
       return error ? { ok: false, error: error.message } : { ok: true };
+    },
+
+    async getInvite() {
+      const { data, error } = await sb.from('private_settings').select('value').eq('key', 'invite').maybeSingle();
+      if (error) return null;
+      return (data as { value?: string } | null)?.value ?? null;
+    },
+
+    async setInvite(code) {
+      const { error } = await sb.from('private_settings')
+        .upsert({ key: 'invite', value: code, updated_at: new Date().toISOString() }, { onConflict: 'key' });
+      return error
+        ? { ok: false, error: /private_settings/.test(error.message) ? '서버 스키마를 최신으로 다시 실행해 주세요 (private_settings 표가 없습니다)' : error.message }
+        : { ok: true };
     },
 
     async signOut() { await sb.auth.signOut(); },
@@ -158,8 +174,8 @@ export async function createSupabaseBackend(
     async syncList<T extends ListItem>(coll: string, prev: T[], next: T[], uid: string | null) {
       const { inserts, updates, moves, deletes } = diffList(prev, next);
       const toRow = ({ item, sort }: { item: T; sort: number }) => {
-        const { authorId, visibility, editorIds } = metaOf(item, uid, visFloorOf(coll, item));
-        return { id: item.id, data: item, author_id: authorId, visibility, editor_ids: editorIds, sort };
+        const { authorId, visibility, editorIds, readerIds } = metaOf(item, uid, visFloorOf(coll, item));
+        return { id: item.id, data: item, author_id: authorId, visibility, editor_ids: editorIds, reader_ids: readerIds, sort };
       };
       // 한 요청에 다 실어 보내면 큰 본문(TRPG 로그 등)이 여럿일 때 요청이 너무 커진다
       // (v2.0 — Firestore와 같은 문제 예방). 대략 크기를 재서 4MB쯤에서 끊어 보낸다.
@@ -203,19 +219,19 @@ export async function createSupabaseBackend(
        없어서, 최신 규칙을 넣어도 그 회원의 저장이 계속 거부됐다) */
     async refreshVis<T extends ListItem>(coll: string, items: T[], uid: string | null): Promise<number> {
       // 값이 같은 것끼리 묶는다 — 편집 권한이 있는 항목은 드물어 묶음이 거의 그대로 유지된다
-      const byKey = new Map<string, { vis: string; editorIds: string[]; ids: string[] }>();
+      const byKey = new Map<string, { vis: string; editorIds: string[]; readerIds: string[]; ids: string[] }>();
       items.forEach(it => {
-        const { visibility, editorIds } = metaOf(it, uid, visFloorOf(coll, it));
-        const key = visibility + '|' + JSON.stringify(editorIds);
-        const g = byKey.get(key) ?? { vis: visibility, editorIds, ids: [] };
+        const { visibility, editorIds, readerIds } = metaOf(it, uid, visFloorOf(coll, it));
+        const key = visibility + '|' + JSON.stringify(editorIds) + '|' + JSON.stringify(readerIds);
+        const g = byKey.get(key) ?? { vis: visibility, editorIds, readerIds, ids: [] };
         g.ids.push(it.id);
         byKey.set(key, g);
       });
       let n = 0;
-      for (const { vis, editorIds, ids } of byKey.values()) {
+      for (const { vis, editorIds, readerIds, ids } of byKey.values()) {
         for (let i = 0; i < ids.length; i += 200) {
           const part = ids.slice(i, i + 200);
-          const { error } = await sb.from(coll).update({ visibility: vis, editor_ids: editorIds }).in('id', part);
+          const { error } = await sb.from(coll).update({ visibility: vis, editor_ids: editorIds, reader_ids: readerIds }).in('id', part);
           if (error) throw error;
           n += part.length;
         }

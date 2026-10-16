@@ -4,7 +4,9 @@
 import React, { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
-import { useLocalList, BOARD_SEED, Post, newId, FoldType } from '@/lib/postStore';
+import { useLocalList, BOARD_SEED, Post, newId, FoldType, PostKind, kindOf } from '@/lib/postStore';
+import { putBlob } from '@/lib/blobStore';
+import { stripImageMeta } from '@/lib/imageMeta';
 import { useBoards, boardHref, MAIN_BOARD_ID } from '@/lib/boardStore';
 import { renderBody } from '@/lib/sanitize';
 import { KInput, KTextarea, KSelect, KCheck } from '@/components/ui/Kit';
@@ -14,6 +16,23 @@ import { RichEditor } from '@/components/ui/RichEditor';
 import { TextTools } from '@/components/ui/WriteTools';
 import { useToast } from '@/components/ui/Toast';
 import { PageTitle, EditableDesc } from '@/components/ui/PageText';
+
+/** 로컬 모드용 — 올릴 서버가 없으면 이미지를 본문에 그대로 심는다 (에디터와 같은 규칙) */
+function toDataUrl(f: Blob): Promise<string> {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res(String(r.result));
+    r.onerror = () => rej(r.error);
+    r.readAsDataURL(f);
+  });
+}
+
+const escAttr = (s: string) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+
+/** 갤러리 글 본문 — 이미지를 차례로 + 설명(마크다운). 목록 썸네일·위젯이 본문 첫 이미지를 그대로 쓴다 */
+const galleryBody = (images: string[], caption: string) =>
+  images.map(src => `<p><img src="${escAttr(src)}" alt=""></p>`).join('')
+  + (caption.trim() ? renderBody('md', caption) : '');
 
 /** 에디터가 다루지 못해 정리될 만한 태그·속성이 있는가 — 전환 경고 판단 (인트로와 같은 기준) */
 const hasRichHtml = (html: string) =>
@@ -33,7 +52,13 @@ function WriteInner() {
   const board = boards.find(b => b.id === bid) ?? boards[0];
   const [title, setTitle] = useState('');
   // 에디터가 기본 · log = 로그 정리 모드 (마크다운 + 앞뒤에 마크다운이 없는 문장을 ""로) — 저장은 마크다운으로
-  const [writeMode, setWriteMode] = useState<'editor' | 'md' | 'html' | 'log'>('editor');
+  const [writeMode, setWriteMode] = useState<'editor' | 'md' | 'html' | 'log'>('log');
+  // 글 종류 — 갤러리(이미지) / 로그(글). 목록의 갤러리 탭에서 WRITE를 누르면 갤러리로 시작
+  const [kind, setKind] = useState<PostKind>(params.get('kind') === 'gallery' ? 'gallery' : 'log');
+  const [images, setImages] = useState<string[]>([]);
+  const [caption, setCaption] = useState('');
+  const [upBusy, setUpBusy] = useState(false);
+  const imgRef = useRef<HTMLInputElement>(null);
   const isMd = writeMode === 'md' || writeMode === 'log';
   const [body, setBody] = useState('');
   // HTML 모드 안의 보기 (v2.0 사용자 요청) — 코드 그대로 / 미리보기에서 바로 편집
@@ -57,11 +82,12 @@ function WriteInner() {
   const [cropOpen, setCropOpen] = useState(false);
   // 본문 이미지 목록 — HTML <img> + Markdown 이미지
   const bodyImages = useMemo(() => {
+    if (kind === 'gallery') return images;
     const out: string[] = [];
     for (const m of body.matchAll(/<img[^>]*src=["']([^"']+)["']/gi)) out.push(m[1]);
     for (const m of body.matchAll(/!\[[^\]]*\]\(([^)\s]+)/g)) out.push(m[1]);
     return [...new Set(out)];
-  }, [body]);
+  }, [body, kind, images]);
   // 대표로 지정한 이미지가 본문에서 삭제되면 해제
   useEffect(() => {
     if (thumbSrc && !bodyImages.includes(thumbSrc)) { setThumbSrc(undefined); setThumbCrop(undefined); }
@@ -75,6 +101,8 @@ function WriteInner() {
     if (!p) return;
     hydrated.current = true;
     setTitle(p.title); setBody(p.body);
+    setKind(kindOf(p));
+    setImages(p.images ?? []); setCaption(p.caption ?? '');
     // 에디터로 쓴 글은 에디터로 다시 연다 — 예전에는 무조건 HTML 소스가 떠서
     // 에디터로 쓴 글을 수정하면 갑자기 태그가 보였다 (authored 없는 옛 글은 지금까지대로 HTML)
     setWriteMode(p.mode === 'md' ? (p.authored === 'log' ? 'log' : 'md') : (p.authored === 'editor' ? 'editor' : 'html'));
@@ -96,16 +124,42 @@ function WriteInner() {
     );
   }
 
+  const addImages = async (files: FileList | null) => {
+    if (!files?.length) return;
+    setUpBusy(true);
+    try {
+      const added: string[] = [];
+      for (const f of Array.from(files)) {
+        const clean = await stripImageMeta(f);   // 메타데이터 없이 (보안 강화)
+        const ref = await putBlob(clean);
+        added.push(/^https?:/.test(ref) ? ref : await toDataUrl(clean));
+      }
+      setImages(l => [...l, ...added]);
+    } catch (e) {
+      toast(`이미지를 올리지 못했습니다 — ${e instanceof Error ? e.message : String(e)}`);
+    }
+    setUpBusy(false);
+  };
+
   const post = () => {
-    if (!title.trim() || !body.trim()) { toast('제목과 내용을 입력해 주세요'); return; }
+    const isGal = kind === 'gallery';
+    if (!title.trim()) { toast('제목을 입력해 주세요'); return; }
+    if (isGal && images.length === 0) { toast('이미지를 한 장 이상 올려 주세요'); return; }
+    if (!isGal && !body.trim()) { toast('내용을 입력해 주세요'); return; }
+    // 갤러리는 이미지+설명으로 본문(HTML)을 만든다 — 목록·위젯·상세가 지금처럼 본문을 읽는다
+    const content = isGal
+      ? { body: galleryBody(images, caption), mode: 'html' as const, authored: undefined, images, caption }
+      : {
+        body, mode: (isMd ? 'md' : 'html') as 'md' | 'html',
+        authored: writeMode === 'editor' ? 'editor' as const : writeMode === 'log' ? 'log' as const : undefined,
+        images: undefined, caption: undefined,
+      };
     if (editing) {
       // 수정 — 작성자 본인만 (관리자도 타인 글은 삭제만, v1.9). 작성자/날짜/댓글/소속 게시판은 유지
       if (editing.authorId !== user.id) { toast('수정은 작성자 본인만 할 수 있습니다'); return; }
       setPosts(posts.map(p => (p.id === editing.id ? {
         ...p,
-        title: title.trim(), body,
-        mode: isMd ? 'md' : 'html',
-        authored: writeMode === 'editor' ? 'editor' : writeMode === 'log' ? 'log' : undefined,
+        title: title.trim(), ...content, kind,
         category,
         secret, notice: isAdmin ? notice : p.notice,
         tags: parseTags(tagsText),
@@ -117,9 +171,7 @@ function WriteInner() {
       return;
     }
     const p: Post = {
-      id: newId(), title: title.trim(), body,
-      mode: isMd ? 'md' : 'html', category,
-      ...(writeMode === 'editor' ? { authored: 'editor' as const } : writeMode === 'log' ? { authored: 'log' as const } : {}),
+      id: newId(), title: title.trim(), ...content, kind, category,
       author: user.nickname, authorId: user.id, date: new Date().toISOString(),
       secret, notice: isAdmin && notice,
       tags: parseTags(tagsText),
@@ -137,7 +189,7 @@ function WriteInner() {
     <section className="page">
       {/* 큰 글씨 — 추가 게시판이면 그 이름(메뉴 관리 타이틀·이름이 우선), 누르면 그 게시판으로 복귀
           (v2.0 사용자 제보 — 「글쓰기에서 큰제목을 눌러도 안 돌아가고, 제목도 원래 것이 뜬다」) */}
-      <div className="page-head"><PageTitle href={boardHref(board.id)}>{board.id === MAIN_BOARD_ID ? (editing ? 'EDIT' : 'WRITE') : board.name}</PageTitle><EditableDesc k="board-write-desc" def="에디터 / Markdown / 로그 정리 / HTML — 스크립트는 저장 시 자동 제거" /></div>
+      <div className="page-head"><PageTitle href={boardHref(board.id)}>{board.id === MAIN_BOARD_ID ? (editing ? 'EDIT' : 'WRITE') : board.name}</PageTitle><EditableDesc k="board-write-desc" def="갤러리(이미지) / 로그(글) — 에디터 · Markdown · 로그 정리 · HTML, 스크립트는 저장 시 자동 제거" /></div>
       <div className="write-grid">
         {/* 좌: 본문 */}
         <div className="panel" style={{ padding: 24 }}>
@@ -145,6 +197,41 @@ function WriteInner() {
             <label className="k-label" style={{ width: 60 }}>제목</label>
             <KInput value={title} onChange={e => setTitle(e.target.value)} style={{ flex: 1 }} />
           </div>
+          {/* 글 종류 — 갤러리(이미지) / 로그(글) */}
+          <div className="form-row">
+            <label className="k-label" style={{ width: 60 }}>종류</label>
+            <div className="mini-seg">
+              <button className={kind === 'gallery' ? 'on' : ''} onClick={() => setKind('gallery')}>🖼 갤러리</button>
+              <button className={kind === 'log' ? 'on' : ''} onClick={() => setKind('log')}>✎ 로그</button>
+            </div>
+          </div>
+          {kind === 'gallery' ? (
+            <>
+              <label className="k-label" style={{ marginBottom: 7 }}>이미지 — 올린 차례대로 보입니다 · 첫 장이 목록 썸네일</label>
+              <div className="gw-grid">
+                {images.map((src, i) => (
+                  <div key={`${i}-${src.slice(-24)}`} className="gw-item">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={src} alt="" />
+                    <div className="gw-acts">
+                      {i > 0 && <button type="button" data-tip="앞으로" onClick={() => setImages(l => { const n = [...l]; [n[i - 1], n[i]] = [n[i], n[i - 1]]; return n; })}>‹</button>}
+                      <button type="button" data-tip="빼기" onClick={() => setImages(l => l.filter((_, j) => j !== i))}>✕</button>
+                    </div>
+                  </div>
+                ))}
+                <button type="button" className="gw-add" onClick={() => { if (!upBusy) imgRef.current?.click(); }}>
+                  {upBusy ? '올리는 중…' : '＋ 이미지'}
+                </button>
+              </div>
+              <input ref={imgRef} type="file" accept="image/*" multiple style={{ display: 'none' }}
+                onChange={e => { const f = e.target.files; void addImages(f).then(() => { e.target.value = ''; }); }} />
+              <label className="k-label" style={{ margin: '14px 0 7px' }}>설명 (선택) — 마크다운</label>
+              <TextTools value={caption} onChange={setCaption}>
+                <KTextarea style={{ minHeight: 90 }} placeholder="그림에 대한 설명을 적어 주세요"
+                  value={caption} onChange={e => setCaption(e.target.value)} />
+              </TextTools>
+            </>
+          ) : (<>
           <div className="form-row">
             <label className="k-label" style={{ width: 60 }}>모드</label>
             <div className="mini-seg">
@@ -195,6 +282,7 @@ function WriteInner() {
               </div>
             </>
           )}
+          </>)}
           {/* 티켓 스킨 대표 이미지 — 본문에 삽입한 이미지 리스트에서 선택, 클릭 시 16:9 썸네일 위치 지정 (v1.9) */}
           {board.skin === 'ticket' && bodyImages.length > 0 && (
             <div style={{ marginTop: 14 }}>

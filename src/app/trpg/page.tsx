@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
 import { useSectionParam, filterSection, sectionSetter, secStamp } from '@/lib/sectionStore';
 import { useLocalList, newId } from '@/lib/postStore';
-import { TrpgLog, TRPG_SEED, TrpgLogBody, TRPG_BODY_SEED, bodyVisibility, decodeLogText, logNo, saveLogBody } from '@/lib/galleryStore';
+import { TrpgLog, TRPG_SEED, TrpgLogBody, TRPG_BODY_SEED, bodyVisibility, decodeLogText, logNo, saveLogBody, hasLogLock, encryptLog, ENC_SUFFIX } from '@/lib/galleryStore';
 import { Relation, REL_SEED } from '@/lib/charStore';
 import { SearchBar, KInput, KTextarea, KRadio, KSelect, KDate, Pager } from '@/components/ui/Kit';
 import { Modal } from '@/components/ui/Modal';
@@ -197,7 +197,8 @@ function TrpgPageInner() {
       relId: nRel === 'none' ? undefined : nRel,
       date: nDate || undefined, ph: 'cool',
       visibility: nVis,
-      password: nPw.trim() || undefined,
+      // 비밀번호는 저장하지 않는다 — 대신 그 비밀번호로 잠근 본문 사본을 따로 둔다 (보안 강화)
+      pwLock: nPw.trim() ? true : undefined,
       listHidden: nListHidden,
       // 썸네일: 이미지(선택) 또는 단색/그라데이션
       thumbId: nThumb ? await putBlob(nThumb) : undefined,
@@ -216,11 +217,18 @@ function TrpgPageInner() {
       visibility: bodyVisibility(log),
       ...secStamp(sec.id),   // 소속 (v2.0) — 본문 문서도 비공개 판정을 받게
     };
+    // 비밀번호 열람용 사본 — 비밀번호로 암호화한 본문만 공개한다 (원본 파일은 싣지 않는다)
+    const encBody: TrpgLogBody | null = nPw.trim() ? {
+      id: id + ENC_SUFFIX,
+      ...(await saveLogBody(await encryptLog(bodyText, nPw.trim()))),
+      visibility: 'public',
+      ...secStamp(sec.id),
+    } : null;
     setLogs([log, ...logs]);
     // 본문 문서는 **뒤에** 붙인다 (v2.0 포크 제보) — 앞에 끼우면 기존 본문 전체의 자리가 밀려
     // 재저장 대상이 되는데, 큰 본문이 쌓인 홈에서는 그 합이 한 번의 쓰기 한도를 넘어 저장이 실패했다.
     // 본문은 id로만 찾으므로 순서는 아무 의미가 없다.
-    setBodies([...bodies, body]);
+    setBodies([...bodies, body, ...(encBody ? [encBody] : [])]);
     setAddOpen(false);
     setNNo(''); setNVis('public'); setNPw(''); setNListHidden(false); setNTitle(''); setNCatch(''); setNWriter(''); setNWith(''); setNBody(''); setNFileName(''); setNDate(''); setNFile(null);
     setNThumb(null); setNThumbUrl(''); setNThumbCrop(undefined);
@@ -255,7 +263,7 @@ function TrpgPageInner() {
         {l.catchphrase && <div className="sc-catch">{l.catchphrase}</div>}
         {/* 나만보기 등도 이제 목록엔 뜨므로(v2.0), 못 여는 로그는 왜 못 여는지 표시 */}
         {!canOpen(l) && (
-          <div className="row"><b>열람</b> {l.password ? '비밀번호 필요' : '권한 없음'}</div>
+          <div className="row"><b>열람</b> {hasLogLock(l) ? '비밀번호 필요' : '권한 없음'}</div>
         )}
         {l.writer && <div className="row"><b>라이터</b> {l.writer}</div>}
         {l.withText && <div className="row"><b>동행</b> {l.withText}</div>}
@@ -304,7 +312,7 @@ function TrpgPageInner() {
                       {/* 편집모드에서만 — 목록 숨김이라 관리자에게만 예외로 보이는 중 (v2.0) */}
                       {editOn && l.listHidden && <span className="pill" style={{ marginLeft: 6 }}>숨김</span>}
                       {/* 나만보기 등도 목록엔 뜨므로(v2.0) — 못 여는 로그는 왜 못 여는지 표시 */}
-                      {!canOpen(l) && <span className="pill" style={{ marginLeft: 6 }}>{l.password ? '비밀번호 필요' : '비공개'}</span>}
+                      {!canOpen(l) && <span className="pill" style={{ marginLeft: 6 }}>{hasLogLock(l) ? '비밀번호 필요' : '비공개'}</span>}
                       <small>{[l.writer, l.withText].filter(Boolean).join(' · ')}{l.date ? ` · ${l.date.replace(/-/g, '.')}` : ''}</small>
                     </div>
                   </div>

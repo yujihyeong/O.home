@@ -1,0 +1,137 @@
+// 이미지 메타데이터 지우기 (보안 강화) — 올리기 전에 브라우저 안에서.
+// 사진에는 찍은 위치(GPS)·기기·날짜, 생성 이미지에는 프롬프트·도구 정보 같은 것이 숨어 있다.
+// 공개 주소로 올라가면 누구나 내려받아 그대로 읽을 수 있으므로, 그림 자체는 건드리지 않고(재압축 없음)
+// 메타데이터 덩어리만 잘라 낸다.
+//   · JPEG: EXIF·XMP(APP1), IPTC(APP13), 주석(COM) 제거 — 회전 정보만 최소 EXIF로 다시 넣는다(안 그러면 사진이 눕는다)
+//   · PNG : tEXt·zTXt·iTXt(생성 정보·프롬프트), eXIf, tIME 제거
+//   · WebP: EXIF·XMP 청크 제거 + VP8X 표시 정리
+// 색 정보(ICC)는 남긴다 — 개인정보가 아니고, 지우면 색이 달라 보인다.
+// 다른 형식이거나 읽다가 이상하면 원본을 그대로 돌려준다(올리기를 막지 않는다).
+
+const u16be = (b: Uint8Array, i: number) => (b[i] << 8) | b[i + 1];
+const u32be = (b: Uint8Array, i: number) => ((b[i] << 24) >>> 0) + (b[i + 1] << 16) + (b[i + 2] << 8) + b[i + 3];
+const u32le = (b: Uint8Array, i: number) => (b[i] | (b[i + 1] << 8) | (b[i + 2] << 16) | (b[i + 3] << 24)) >>> 0;
+
+const concat = (parts: Uint8Array[]) => {
+  const out = new Uint8Array(parts.reduce((n, p) => n + p.length, 0));
+  let o = 0;
+  for (const p of parts) { out.set(p, o); o += p.length; }
+  return out;
+};
+
+/** EXIF(APP1 본문)에서 회전값(0x0112)만 읽는다 — 없으면 1 */
+function exifOrientation(seg: Uint8Array): number {
+  // seg = "Exif\0\0" + TIFF
+  if (seg.length < 14 || String.fromCharCode(...seg.slice(0, 4)) !== 'Exif') return 1;
+  const t = 6;
+  const le = seg[t] === 0x49;
+  const r16 = (i: number) => (le ? seg[t + i] | (seg[t + i + 1] << 8) : (seg[t + i] << 8) | seg[t + i + 1]);
+  const r32 = (i: number) => (le
+    ? (seg[t + i] | (seg[t + i + 1] << 8) | (seg[t + i + 2] << 16) | (seg[t + i + 3] << 24)) >>> 0
+    : u32be(seg, t + i));
+  const ifd = r32(4);
+  if (t + ifd + 2 > seg.length) return 1;
+  const n = r16(ifd);
+  for (let k = 0; k < n; k++) {
+    const e = ifd + 2 + k * 12;
+    if (t + e + 12 > seg.length) break;
+    if (r16(e) === 0x0112) { const v = r16(e + 8); return v >= 1 && v <= 8 ? v : 1; }
+  }
+  return 1;
+}
+
+/** 회전값 하나만 든 최소 EXIF(APP1) 세그먼트 */
+function orientationApp1(o: number): Uint8Array {
+  const tiff = [
+    0x4d, 0x4d, 0x00, 0x2a, 0x00, 0x00, 0x00, 0x08,   // 빅엔디언 TIFF, IFD0 = 8
+    0x00, 0x01,                                         // 항목 1개
+    0x01, 0x12, 0x00, 0x03, 0x00, 0x00, 0x00, 0x01,     // Orientation, SHORT, 1개
+    0x00, o, 0x00, 0x00,                                // 값
+    0x00, 0x00, 0x00, 0x00,                             // 다음 IFD 없음
+  ];
+  const body = [0x45, 0x78, 0x69, 0x66, 0x00, 0x00, ...tiff];   // "Exif\0\0"
+  const len = body.length + 2;
+  return new Uint8Array([0xff, 0xe1, len >> 8, len & 0xff, ...body]);
+}
+
+function stripJpeg(b: Uint8Array): Uint8Array | null {
+  if (b[0] !== 0xff || b[1] !== 0xd8) return null;
+  const keep: Uint8Array[] = [b.slice(0, 2)];
+  let orientation = 1;
+  let i = 2;
+  while (i + 4 <= b.length) {
+    if (b[i] !== 0xff) return null;
+    const m = b[i + 1];
+    if (m === 0xda) { keep.push(b.slice(i)); break; }          // 화상 데이터 시작 — 나머지는 그대로
+    if (m === 0xd8 || (m >= 0xd0 && m <= 0xd7) || m === 0x01) { keep.push(b.slice(i, i + 2)); i += 2; continue; }
+    const len = u16be(b, i + 2);
+    const seg = b.slice(i, i + 2 + len);
+    const isApp1 = m === 0xe1;
+    if (isApp1) orientation = Math.max(orientation, exifOrientation(b.slice(i + 4, i + 2 + len)));
+    // 버린다: APP1(EXIF·XMP) · APP13(IPTC) · COM — 나머지(JFIF·ICC·Adobe·양자화표 등)는 그대로
+    if (!(isApp1 || m === 0xed || m === 0xfe)) keep.push(seg);
+    i += 2 + len;
+  }
+  if (orientation !== 1) keep.splice(1, 0, orientationApp1(orientation));
+  return concat(keep);
+}
+
+function stripPng(b: Uint8Array): Uint8Array | null {
+  const sig = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+  if (!sig.every((v, k) => b[k] === v)) return null;
+  const drop = new Set(['tEXt', 'zTXt', 'iTXt', 'eXIf', 'tIME']);
+  const keep: Uint8Array[] = [b.slice(0, 8)];
+  let i = 8;
+  while (i + 12 <= b.length) {
+    const len = u32be(b, i);
+    const type = String.fromCharCode(b[i + 4], b[i + 5], b[i + 6], b[i + 7]);
+    const end = i + 12 + len;
+    if (end > b.length) return null;
+    if (!drop.has(type)) keep.push(b.slice(i, end));
+    i = end;
+    if (type === 'IEND') break;
+  }
+  return concat(keep);
+}
+
+function stripWebp(b: Uint8Array): Uint8Array | null {
+  if (String.fromCharCode(...b.slice(0, 4)) !== 'RIFF' || String.fromCharCode(...b.slice(8, 12)) !== 'WEBP') return null;
+  const keep: Uint8Array[] = [];
+  let i = 12;
+  while (i + 8 <= b.length) {
+    const type = String.fromCharCode(b[i], b[i + 1], b[i + 2], b[i + 3]);
+    const len = u32le(b, i + 4);
+    const end = i + 8 + len + (len & 1);
+    if (end > b.length + 1) return null;
+    if (type !== 'EXIF' && type !== 'XMP ') {
+      const chunk = b.slice(i, Math.min(end, b.length));
+      if (type === 'VP8X' && chunk.length > 8) chunk[8] &= ~(0x08 | 0x04);   // EXIF·XMP 있음 표시 끄기
+      keep.push(chunk);
+    }
+    i = end;
+  }
+  const body = concat(keep);
+  const head = new Uint8Array(12);
+  head.set(b.slice(0, 12));
+  const size = body.length + 4;
+  head[4] = size & 0xff; head[5] = (size >> 8) & 0xff; head[6] = (size >> 16) & 0xff; head[7] = (size >>> 24) & 0xff;
+  return concat([head, body]);
+}
+
+/** 메타데이터를 지운 이미지 — 이미지가 아니거나 모르는 형식이면 그대로 */
+export async function stripImageMeta<T extends Blob>(blob: T): Promise<T | Blob> {
+  if (!/^image\/(jpeg|jpg|png|webp)$/i.test(blob.type)) return blob;
+  try {
+    const b = new Uint8Array(await blob.arrayBuffer());
+    const t = blob.type.toLowerCase();
+    const out = t.includes('png') ? stripPng(b) : t.includes('webp') ? stripWebp(b) : stripJpeg(b);
+    if (!out || out.length === b.length) return blob;
+    const clean = new Blob([out as BlobPart], { type: blob.type });
+    // 파일이면 이름을 지킨다 (원본 파일명 표시 등)
+    return typeof File !== 'undefined' && blob instanceof File
+      ? new File([clean], blob.name, { type: blob.type, lastModified: 0 })
+      : clean;
+  } catch {
+    return blob;
+  }
+}

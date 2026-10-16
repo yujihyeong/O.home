@@ -147,7 +147,7 @@ export function SetupGate({ children }: { children: React.ReactNode }) {
     setSigning(true);
     try {
       const be = await createBackend(cfg());
-      let r = await be.signUp(email.trim(), pw, nick.trim() || email.split('@')[0]);
+      let r = await be.signUp(email.trim(), pw, nick.trim() || email.split('@')[0], '');   // 첫 계정은 가입코드 없이 (서버도 예외 처리)
       // 앞선 시도가 저장 도중 끊겨 로그인 계정만 남은 경우 — 같은 비밀번호로 들어가 이어서 진행한다
       if (!r.ok && /이미 사용 중/.test(r.error ?? '')) {
         const back = await be.signIn(email.trim(), pw);

@@ -12,6 +12,8 @@ export const FIRESTORE_RULES = `rules_version = '2';
 //   meta/owner            { uid, admins[] }   ← 첫 로그인 계정이 1회만 자기를 등록
 //   profiles/{uid}        { nickname, avatarUrl, avatarColor }
 //   settings/{key}        { value }           ← 테마·메뉴·폰트·메인 위젯 등
+//   secure/{key}          { code }            ← 가입코드 등 관리자만 읽는 값 (보안 강화)
+//   joins/{uid}           { code }            ← 가입할 때 낸 가입코드 — 맞아야 회원이 된다
 //   <콘텐츠>/{id}          { data, authorId, visibility, sort }
 // ============================================================
 
@@ -33,6 +35,21 @@ service cloud.firestore {
             || (ownerData().keys().hasAny(['admins']) && request.auth.uid in ownerData().admins));
     }
 
+    // 회원 = 가입코드를 통과해 프로필이 만들어진 계정 (보안 강화).
+    // Firebase는 가입(계정 생성) 자체를 막을 수 없어서, 코드 없이 계정만 만든 사람은
+    // 프로필이 없으므로 회원 전용 글을 읽지도, 글을 쓰지도 못하게 한다
+    function isMember() {
+      return signedIn()
+        && (isAdmin() || exists(/databases/$(database)/documents/profiles/$(request.auth.uid)));
+    }
+
+    // 지금 가입코드 — 관리자가 정한 적 없으면 기본 WELCOME
+    function inviteCode() {
+      return exists(/databases/$(database)/documents/secure/invite)
+        ? get(/databases/$(database)/documents/secure/invite).data.code
+        : 'WELCOME';
+    }
+
     // 콘텐츠 컬렉션 목록 — 여기 없는 이름은 아무 권한도 없다
     function isContent(name) {
       return name in [
@@ -51,9 +68,29 @@ service cloud.firestore {
     }
 
     // ── 회원 프로필 ─────────────────────────────────────────────
+    // ── 가입코드 (관리자만 읽고 씀 — 방문자에게 보이지 않게) ─────────
+    match /secure/{key} {
+      allow read, write: if isAdmin();
+    }
+
+    // ── 가입 확인 — 맞는 가입코드를 낸 계정만 문서가 만들어진다 ──
+    // 첫 계정(소유자가 아직 없을 때)은 코드 없이 통과. 한 번 만들면 고칠 수 없다
+    match /joins/{uid} {
+      allow read: if isAdmin() || (signedIn() && request.auth.uid == uid);
+      allow create: if signedIn() && request.auth.uid == uid
+        && (!exists(/databases/$(database)/documents/meta/owner)
+            || request.resource.data.code == inviteCode());
+      allow update, delete: if isAdmin();
+    }
+
+    // ── 회원 프로필 ─────────────────────────────────────────────
+    // 새 프로필은 가입 확인(joins)을 통과한 계정만 — 이미 있는 회원은 그대로 수정 가능
     match /profiles/{uid} {
       allow read: if true;
-      allow create, update: if signedIn() && (request.auth.uid == uid || isAdmin());
+      allow create: if signedIn() && (isAdmin() || (request.auth.uid == uid
+        && (!exists(/databases/$(database)/documents/meta/owner)
+            || exists(/databases/$(database)/documents/joins/$(uid)))));
+      allow update: if signedIn() && (request.auth.uid == uid || isAdmin());
       allow delete: if isAdmin();
     }
 
@@ -68,15 +105,23 @@ service cloud.firestore {
       // 읽기: 전체공개 / 멤버공개(로그인) / 내가 쓴 것 / 관리자
       allow read: if isContent(coll) && (
         resource.data.visibility == 'public'
-        || (resource.data.visibility == 'member' && signedIn())
+        || (resource.data.visibility == 'member' && isMember())
         || (signedIn() && resource.data.authorId == request.auth.uid)
+        || (signedIn() && resource.data.keys().hasAny(['readerIds'])
+            && request.auth.uid in resource.data.readerIds)
         || isAdmin()
       );
 
       // 쓰기: 로그인 회원 — 방명록·댓글은 비로그인 방문자도 남길 수 있음(닉네임+비밀번호 방식)
       // notifications: 손님 댓글·방명록이 관리자에게 알림을 남길 수 있어야 한다 (v2.0) —
       // 행 주인(authorId)은 받는 사람이라 읽기·수정·삭제는 받는 사람·관리자만 (아래 공통 규칙)
-      allow create: if isContent(coll) && (signedIn() || coll in ['guestbook', 'comments', 'notifications']);
+      // 남의 이름(authorId)으로는 못 쓴다 (보안 강화) — 알림만 예외(주인이 받는 사람)
+      allow create: if isContent(coll)
+        && (isMember() || coll in ['guestbook', 'comments', 'notifications'])
+        && (coll == 'notifications'
+            || request.resource.data.authorId == null
+            || (signedIn() && request.resource.data.authorId == request.auth.uid)
+            || isAdmin());
 
       // 수정·삭제: 작성자 본인 · 편집 권한을 받은 회원 · 관리자
       // 댓글은 글과 따로 저장되므로(v2.0) 댓글을 달 때 글을 수정할 필요가 없다 —
@@ -90,7 +135,10 @@ service cloud.firestore {
         && (resource.data.authorId == request.auth.uid
             || isAdmin()
             || (resource.data.keys().hasAny(['editorIds'])
-                && request.auth.uid in resource.data.editorIds));
+                && request.auth.uid in resource.data.editorIds))
+        // 수정으로 글쓴이를 바꿀 수는 없다 (관리자 제외)
+        && (request.method == 'delete' || isAdmin()
+            || request.resource.data.authorId == resource.data.authorId);
     }
   }
 }
@@ -101,7 +149,8 @@ export const STORAGE_RULES = `rules_version = '2';
 // ============================================================
 // O.HOME Storage 보안 규칙 (이미지·파일)
 // Firebase 콘솔 → Storage → 규칙 에 붙여넣고 [게시].
-//   · 읽기는 공개 (방문자가 그림을 봐야 하므로)
+//   · 그림 보기(get)는 공개 (방문자가 그림을 봐야 하므로)
+//   · 파일 목록(list)은 로그인 회원만 — 방문자가 저장소 전체를 훑어 비공개 글의 이미지를 찾지 못하게
 //   · 올리기·지우기는 로그인 회원만
 //   · 한 번에 20MB 초과 업로드 차단
 // ============================================================
@@ -109,7 +158,8 @@ export const STORAGE_RULES = `rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
     match /ohome/{allPaths=**} {
-      allow read: if true;
+      allow get: if true;
+      allow list: if request.auth != null;
       allow write: if request.auth != null
         && request.resource.size < 20 * 1024 * 1024;
       allow delete: if request.auth != null;

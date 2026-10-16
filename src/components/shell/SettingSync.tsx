@@ -15,6 +15,7 @@ const LABEL: Record<string, string> = {
   'ohome.fonts.v2': '폰트',
   'ohome.menuset.v1': '메뉴',
   'ohome.main.v1': '메인 위젯',
+  'ohome.main.night.v1': '메인 위젯 (밤)',
   'ohome.pagetext.v1': '페이지 문구',
 };
 

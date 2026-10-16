@@ -38,6 +38,9 @@ export interface CommentRow extends Comment {
   targetId: string;                 // 달린 대상(글·로드뷰 항목·감상타래·방명록)의 id
   /** 대상 종류 — 같은 컬렉션을 나눠 쓴다 (thread·guest: v2.0 사용자 요청) */
   target: 'post' | 'road' | 'thread' | 'guest';
+  /** 비밀글에 달린 댓글 (보안 강화) — 서버에서도 비공개. 댓글 쓴 사람·관리자 + readerIds(글 작성자)만 받는다 */
+  secret?: boolean;
+  readerIds?: string[];
 }
 
 export const COMMENT_SEED: CommentRow[] = [];
@@ -75,7 +78,15 @@ export interface Post {
   tags?: string[];
   thumbSrc?: string;     // 티켓 스킨 대표 이미지 — 본문에 삽입한 이미지 중 선택 (v1.9)
   thumbCrop?: { x: number; y: number; scale: number };  // 대표 썸네일 크롭 (16:9)
+  /** 글 종류 — 갤러리(이미지) / 로그(글). 없으면 로그로 본다 (예전 글) */
+  kind?: PostKind;
+  /** 갤러리 글의 이미지·설명 — 수정 화면을 다시 채우는 용도. 보여 주기는 body(HTML)로 한다 */
+  images?: string[];
+  caption?: string;
 }
+
+export type PostKind = 'gallery' | 'log';
+export const kindOf = (p: Pick<Post, 'kind'>): PostKind => p.kind ?? 'log';
 
 export interface GuestEntry {
   id: string;

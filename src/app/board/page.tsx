@@ -5,7 +5,7 @@ import React, { Suspense, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
 import {
-  useLocalList, BOARD_SEED, Post, fmtDate,
+  useLocalList, BOARD_SEED, Post, fmtDate, kindOf,
   CommentRow, COMMENT_KEY, COMMENT_SEED, commentsFor,
 } from '@/lib/postStore';
 import {
@@ -38,18 +38,24 @@ function BoardInner() {
   const cmtCount = (p: Post) => commentsFor(cmtRows, 'post', p.id, p.comments).length;
   const { st: boardSet } = useBoardSettings();   // 시스템 뱃지 색 (환경설정 > 게시판 관리)
   const [cat, setCat] = useState('전체');
+  // 글 종류 탭 — 전체 / 갤러리(이미지 격자) / 로그(글 목록)
+  const [kind, setKind] = useState<'all' | 'gallery' | 'log'>(() => {
+    const k = params.get('kind');
+    return k === 'gallery' || k === 'log' ? k : 'all';
+  });
   const [q, setQ] = useState('');
   const [page, setPage] = useState(1);
 
   // 게시판 전환 시 필터·페이지 초기화
   const [prevBid, setPrevBid] = useState(bid);
-  if (prevBid !== bid) { setPrevBid(bid); setCat('전체'); setQ(''); setPage(1); }
+  if (prevBid !== bid) { setPrevBid(bid); setCat('전체'); setQ(''); setPage(1); setKind('all'); }
 
   // 권한 3단계 — mock 단계에선 로그인 전제 (로드뷰 4.10과 동일 규칙)
   const allow = (p: BoardPerm) => (p === 'admin' ? isAdmin : p === 'member' ? !!user : true);
 
   const visible = useMemo(() => {
     let list = posts.filter(p => (p.boardId ?? MAIN_BOARD_ID) === board.id);
+    if (kind !== 'all') list = list.filter(p => kindOf(p) === kind);
     if (cat === '공지') list = list.filter(p => p.notice);
     else if (cat !== '전체') list = list.filter(p => p.category === cat);
     if (q) {
@@ -63,7 +69,7 @@ function BoardInner() {
     // 공지 상단 고정 + 최신순
     return list.sort((a, b) =>
       (b.notice ? 1 : 0) - (a.notice ? 1 : 0) || b.date.localeCompare(a.date));
-  }, [posts, board.id, cat, q]);
+  }, [posts, board.id, cat, q, kind]);
 
   const totalPages = Math.max(1, Math.ceil(visible.length / PER_PAGE));
   const pageList = visible.slice((page - 1) * PER_PAGE, page * PER_PAGE);
@@ -85,6 +91,12 @@ function BoardInner() {
         <PageTitle href={boardHref(board.id)}>{board.id === MAIN_BOARD_ID ? 'BOARD' : board.name}</PageTitle>
         <EditableDesc k={board.id === MAIN_BOARD_ID ? 'board-desc' : `board-desc-${board.id}`} def={board.desc} />
       </div>
+      {/* 글 종류 — 갤러리는 이미지 격자, 로그는 글 목록 */}
+      <div className="mini-seg kind-tabs">
+        {([['all', '전체'], ['gallery', '🖼 갤러리'], ['log', '✎ 로그']] as const).map(([k, l]) => (
+          <button key={k} className={kind === k ? 'on' : ''} onClick={() => { setKind(k); setPage(1); }}>{l}</button>
+        ))}
+      </div>
       <div className="toolrow">
         <div className="seg">
           {['전체', '공지', ...board.cats.map(x => x.label)].map(c => (
@@ -94,12 +106,37 @@ function BoardInner() {
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <SearchBar onSearch={v => { setQ(v); setPage(1); }} />
           {allow(board.permWrite) && !!user && (
-            <button className="btn btn-dark" onClick={() => router.push(`/board/write?b=${board.id}`)}>✎ WRITE</button>
+            <button className="btn btn-dark"
+              onClick={() => router.push(`/board/write?b=${board.id}${kind === 'gallery' ? '&kind=gallery' : ''}`)}>✎ WRITE</button>
           )}
         </div>
       </div>
 
-      {board.skin === 'ticket' ? (
+      {kind === 'gallery' ? (
+        /* 갤러리 탭 — 이미지 격자 (대표 이미지 > 첫 이미지) */
+        <div className="gal-grid">
+          {pageList.map(p => {
+            const thumb = canRead(p) ? (p.thumbSrc ?? firstImage(p.body)) : null;
+            return (
+              <div className="gal-card" key={p.id} onClick={() => { if (canRead(p)) router.push(`/board/${p.id}`); }}>
+                <div className="gal-thumb">
+                  {thumb
+                    ? <CropImg src={thumb} crop={p.thumbSrc ? p.thumbCrop : undefined} />
+                    : <div className="bt-ph">{canRead(p) ? '🖼' : '🔒'}</div>}
+                  {canRead(p) && (p.images?.length ?? 0) > 1 && <span className="gal-n">{p.images!.length}</span>}
+                </div>
+                <div className="gal-cap">
+                  <b>{canRead(p) ? <>{p.secret && '🔒 '}{p.title}</> : '비밀글입니다'}</b>
+                  <small>{p.author} · {fmtDate(p.date)}</small>
+                </div>
+              </div>
+            );
+          })}
+          {pageList.length === 0 && (
+            <div className="panel" style={{ gridColumn: '1 / -1', padding: 36, textAlign: 'center', fontSize: 12.5, color: 'var(--faint)' }}>갤러리 글이 없습니다</div>
+          )}
+        </div>
+      ) : board.skin === 'ticket' ? (
         /* 티켓형 스킨 (5.2 v1.9) — 왼쪽 썸네일(본문 첫 이미지) + 절취선 + 오른쪽 글 정보 */
         <div style={board.fg ? { color: board.fg } : undefined}>
           {pageList.map(p => {

@@ -132,9 +132,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // 회원가입 — 가입코드(초대코드) 방식
   const signup = useCallback(async (id: string, password: string, nickname: string, code: string): Promise<Result> => {
     if (!id || !password || !nickname) return { ok: false, error: '아이디·비밀번호·닉네임을 모두 입력해 주세요.' };
-    if (code !== inviteCode()) return { ok: false, error: '가입코드가 올바르지 않습니다.' };
     if (server && be) {
-      const r = await be.signUp(id.trim(), password, nickname.trim());
+      // 서버 모드 — 가입코드는 서버가 검사한다 (방문자 화면에는 코드가 내려오지 않는다)
+      const r = await be.signUp(id.trim(), password, nickname.trim(), code.trim());
       if (!r.ok) return { ok: false, error: r.error ?? '가입에 실패했습니다.' };
       // 계정이 만들어지는 순간 로그인 상태가 되며 사용자 정보가 먼저 계산되는데,
       // 그때는 닉네임(프로필)이 아직 저장되기 전이라 이메일이 이름 자리에 들어간다.
@@ -142,6 +142,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try { const u = await be.currentUser(); if (u) setUser(u); } catch { /* 무시 */ }
       return { ok: true };
     }
+    if (code !== inviteCode()) return { ok: false, error: '가입코드가 올바르지 않습니다.' };
     if (MOCK_ACCOUNTS[id] || mockRegistry()[id]) return { ok: false, error: '이미 사용 중인 아이디입니다.' };
     const reg = mockRegistry();
     reg[id] = { password, user: { id, nickname, role: 'member' } };

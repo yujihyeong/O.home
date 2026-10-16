@@ -50,7 +50,7 @@ export const RESET_CONTENT: ResetGroup[] = [
 ];
 
 export const RESET_EXTRA: ResetGroup[] = [
-  { key: 'main', label: '메인 위젯 구성', desc: '위젯 종류·배치·크기', keys: ['ohome.main.v1'] },
+  { key: 'main', label: '메인 위젯 구성', desc: '위젯 종류·배치·크기', keys: ['ohome.main.v1', 'ohome.main.night.v1'] },
   { key: 'site', label: '사이트 설정', desc: '테마·폰트·메뉴·로고·게시판/커미션 설정', keys: SITE_KEYS },
   { key: 'images', label: '업로드 이미지 전체', desc: '모든 그림·썸네일 저장소', keys: [] },
   // 로그인 계정 자체는 서비스(Firebase Authentication / Supabase Auth) 소관이라 홈에서 지울 수 없다
