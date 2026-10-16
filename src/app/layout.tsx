@@ -92,7 +92,7 @@ if(navigator.userAgent.indexOf('Whale/')>-1){document.documentElement.style.colo
               <MainStoreProvider>
                 <BgmStoreProvider>
                   {/* 설치 초기 화면 — 첫 실행이면 관리자·게스트 설정/백업 복원만 표시 (v1.9) */}
-                  {/* 낮/밤 장면 배경 (잔디밭·들꽃 / 밤벚꽃) — 콘텐츠 뒤에 옅게 */}
+                  {/* 낮/밤 장면 배경 — 그라데이션 색만 */}
                   <SceneLayer />
                   <SetupGate>
                   <TopBar />
