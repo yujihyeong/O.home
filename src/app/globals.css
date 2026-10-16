@@ -24,11 +24,11 @@
   --sans:var(--sans-base);
   /* 역할 폰트 크기 배율 — 모든 font-size는 calc(Npx*var(--fs,1)) 형태, --fs는 영역별로 재지정 */
   --fs:var(--fs-body,1);
-  /* 테마 변수 — 환경설정 > 디자인에서 변경 (기본 = 다크 모드) */
-  --bg-g1:#2b3038; --bg-g2:#121418;
-  --top-bg:rgba(20,22,27,.82); --top-fg:#aab0ba; --top-hv:#ffffff; --top-brand:#f2f3f5;
-  --dd-bg:rgba(28,31,37,.97); --dd-fg:#c6cad1; --dd-hv:rgba(255,255,255,.1);
-  --page-title:#eceef1; --page-desc:#9aa0a9;
+  /* 테마 변수 — 환경설정 > 디자인에서 변경 (기본 = 낮 모드 — 첫 페인트가 저장본 없는 방문자에게도 낮으로) */
+  --bg-g1:#f6f3e7; --bg-g2:#d6e2c6;
+  --top-bg:rgba(251,249,240,.84); --top-fg:#5f6c56; --top-hv:#5d7f43; --top-brand:#36432f;
+  --dd-bg:rgba(255,253,246,.97); --dd-fg:#46523f; --dd-hv:rgba(61,90,42,.09);
+  --page-title:#34412d; --page-desc:#7a8670;
   --bgm-bg:rgba(22,24,29,.9); --bgm-fg:#eef0f3; --bgm-ic:#cfd3da; --bgm-vol:#e8eaee;
   --sb-thumb:#565d68; --sb-bd:#1a1d22;
   --search-bg:#232830; --search-fg:#e8eaee; --search-ic:#8b919b; --search-bd:#3a404a;
@@ -1811,3 +1811,121 @@ body.edit-on .main-grid.gridlines .wgt{outline-offset:0}
 .up-busy{position:fixed;bottom:76px;left:50%;transform:translateX(-50%);z-index:121;display:flex;align-items:center;gap:9px;padding:10px 18px;border-radius:999px;background:var(--dd-bg);color:var(--dd-fg);font-size:calc(12.5px*var(--fs,1));box-shadow:0 10px 30px rgba(0,0,0,.3);border:1px solid var(--line-dark);backdrop-filter:blur(8px)}
 .up-spin{width:12px;height:12px;border-radius:50%;border:2px solid var(--line-dark);border-top-color:var(--accent);animation:upSpin .7s linear infinite;flex-shrink:0}
 @keyframes upSpin{to{transform:rotate(360deg)}}
+
+/* ==========================================================
+   낮 / 밤 장면 — 낮: 잔디밭·꽃·평화 / 밤: 벚꽃
+   장식은 전부 콘텐츠 뒤(z-index -1)에 옅게 깐다. 두 장면을 같이 두고
+   <html data-scene>으로 한쪽만 드러내 전환을 천천히 겹쳐 바꾼다.
+   ========================================================== */
+.scene{position:fixed;inset:0;z-index:-1;pointer-events:none;overflow:hidden}
+.scene>div{position:absolute;inset:0;opacity:0;transition:opacity 1.2s ease;
+  background:linear-gradient(180deg,var(--sc-g1) 0%,var(--sc-g2) 100%)}
+html[data-scene="day"] .scene-day,html[data-scene="night"] .scene-night{opacity:1}
+/* 배경 이미지를 깔았으면 그 위에 장식만 남긴다 */
+html[style*="--bg-image: url"] .scene>div{background:none}
+
+/* 낮 — 오른쪽 위에서 드는 햇살, 낮은 언덕, 풀밭에 점점이 핀 들꽃, 천천히 떠오르는 꽃가루 */
+.scene-day .sun{position:absolute;inset:0;
+  background:
+    radial-gradient(900px 520px at 84% -6%,rgba(255,243,206,.85),rgba(255,243,206,0) 62%),
+    radial-gradient(1200px 380px at 30% 0%,rgba(255,255,255,.55),transparent 70%)}
+.scene-day .meadow{position:absolute;left:0;right:0;bottom:0;width:100%;height:26vh;min-height:150px;display:block}
+.scene-day .flw{position:absolute;border-radius:50%;opacity:.75;transform:translateX(-50%)}
+.scene-day .flw.t0{background:radial-gradient(circle,#f3d57a 0 28%,#fffaf0 32% 100%)}
+.scene-day .flw.t1{background:radial-gradient(circle,#f0cf6c 0 28%,#f4c7bd 32% 100%)}
+.scene-day .flw.t2{background:radial-gradient(circle,#fff6d8 0 30%,#e6d9f0 34% 100%)}
+.scene-day .mote{position:absolute;width:4px;height:4px;border-radius:50%;background:rgba(255,252,236,.95);
+  box-shadow:0 0 6px rgba(255,244,200,.9);animation:sc-mote linear infinite}
+@keyframes sc-mote{
+  0%{transform:translate(0,0);opacity:0}
+  12%{opacity:.85}
+  50%{transform:translate(4vw,-14vh)}
+  88%{opacity:.6}
+  100%{transform:translate(9vw,-30vh);opacity:0}
+}
+
+/* 밤 — 성긴 별, 왼쪽 위 달무리, 아래로 번지는 꽃빛, 흩날리는 벚꽃잎 */
+.scene-night .stars{position:absolute;inset:0 0 30% 0;opacity:.75;
+  background-image:
+    radial-gradient(1px 1px at 22px 34px,#fff 99%,transparent),
+    radial-gradient(1px 1px at 140px 88px,rgba(255,255,255,.8) 99%,transparent),
+    radial-gradient(1.5px 1.5px at 210px 20px,#fff 99%,transparent),
+    radial-gradient(1px 1px at 72px 160px,rgba(255,255,255,.7) 99%,transparent),
+    radial-gradient(1px 1px at 260px 190px,rgba(255,240,246,.8) 99%,transparent);
+  background-size:300px 230px;
+  -webkit-mask-image:linear-gradient(#000,transparent);mask-image:linear-gradient(#000,transparent)}
+.scene-night .stars.s2{opacity:.5;background-size:420px 310px;background-position:130px 60px;animation:sc-twinkle 7s ease-in-out infinite alternate}
+@keyframes sc-twinkle{from{opacity:.15}to{opacity:.6}}
+.scene-night .halo{position:absolute;inset:0;
+  background:
+    radial-gradient(520px 420px at 14% 6%,rgba(255,236,244,.16),transparent 65%),
+    radial-gradient(1400px 420px at 50% 112%,rgba(231,168,191,.20),transparent 70%)}
+.scene-night .petal-fall{position:absolute;top:-6vh;animation:sc-fall linear infinite}
+.scene-night .petal{display:block;border-radius:80% 0 80% 0;
+  background:linear-gradient(135deg,#ffe6ee 0%,#f2b3c7 70%,#e597b0 100%);
+  box-shadow:0 0 6px rgba(255,214,228,.35);animation:sc-sway ease-in-out infinite alternate}
+@keyframes sc-fall{from{transform:translate3d(0,0,0)}to{transform:translate3d(-12vw,112vh,0)}}
+@keyframes sc-sway{from{transform:translateX(-14px) rotate(-25deg)}to{transform:translateX(14px) rotate(35deg)}}
+
+@media (prefers-reduced-motion:reduce){
+  .scene-day .mote,.scene-night .stars.s2{animation:none}
+  .scene-night .petal-fall{display:none}
+}
+
+/* 상단바 낮/밤 전환 버튼 */
+.scene-tg{display:grid;place-items:center;width:32px;height:32px;border-radius:50%;color:var(--top-fg);transition:color .2s,background .2s,transform .5s}
+.scene-tg:hover{color:var(--top-hv,#fff);background:color-mix(in srgb,var(--top-fg) 12%,transparent)}
+.scene-tg:active{transform:rotate(-30deg)}
+.scene-tg svg{width:19px;height:19px;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.scene-tg.night svg{fill:currentColor;fill-opacity:.18}
+@media (max-width:620px){
+  .scene-tg{margin-left:auto}
+  .scene-tg + .user-wrap,.scene-tg + .login-link{margin-left:0}
+}
+
+/* 낮의 밝은 상단바 — 어두운 헤더용 흰 반투명 호버·구분선이 묻히지 않게 */
+html[data-scene="day"]{--line-dark:rgba(64,84,48,.13)}
+html[data-scene="day"] .gnb button:hover,html[data-scene="day"] .gnb a.gnb-link:hover{background:rgba(93,127,67,.08)}
+html[data-scene="day"] .gnb button.on,html[data-scene="day"] .gnb a.gnb-link.on{background:rgba(93,127,67,.13)}
+html[data-scene="day"] .user-chip:hover{background:rgba(93,127,67,.08)}
+html[data-scene="day"] .brand small,html[data-scene="day"] .grp>button::after{color:#8e9a83}
+html[data-scene="day"] .topbar{color:var(--top-fg)}
+/* 밤 — 상단바 아래에 아주 옅은 꽃빛 선 */
+html[data-scene="night"] .topbar{border-bottom-color:rgba(231,168,191,.16)}
+
+/* ---------- 글쓰기 도구 — 로그 정리 · 맞춤법 검사 ---------- */
+.wt-wrap{display:grid;gap:8px}
+.wt-bar{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.wt-bar button{height:28px;padding:0 11px;border-radius:999px;border:1px solid var(--line);background:var(--panel-solid);
+  font-size:calc(11.5px*var(--fs,1));color:var(--sub);transition:.15s;white-space:nowrap}
+.wt-bar button:hover{color:var(--ink);border-color:var(--accent-soft);background:color-mix(in srgb,var(--accent-soft) 10%,var(--panel-solid))}
+.wt-bar small{font-size:calc(10.5px*var(--fs,1));color:var(--faint);margin-left:4px}
+.sp-panel{border:1px solid var(--line);border-radius:var(--radius-s);background:var(--panel-solid);overflow:hidden;animation:fade .15s}
+.re-wrap .sp-panel{border-width:0 0 1px;border-radius:0}
+.sp-head{display:flex;align-items:center;gap:10px;padding:8px 12px;border-bottom:1px solid var(--line);
+  background:color-mix(in srgb,var(--accent-soft) 8%,var(--panel-solid));font-size:calc(12px*var(--fs,1))}
+.sp-head span{color:var(--faint);font-size:calc(11px*var(--fs,1))}
+.sp-head .sp-all{margin-left:auto;padding:4px 11px;border-radius:999px;background:var(--btn-dark);color:var(--btn-dark-fg);font-size:calc(11px*var(--fs,1))}
+.sp-head .sp-all:hover{background:var(--btn-dark-hv)}
+.sp-head .sp-x{margin-left:auto;color:var(--faint);width:22px;height:22px;border-radius:6px}
+.sp-head .sp-all + .sp-x{margin-left:0}
+.sp-head .sp-x:hover{color:var(--ink);background:color-mix(in srgb,var(--ink) 7%,transparent)}
+.sp-panel ul{list-style:none;max-height:260px;overflow-y:auto}
+.sp-panel li{display:grid;grid-template-columns:1fr auto;gap:2px 12px;padding:8px 12px;border-bottom:1px dashed var(--line);align-items:center}
+.sp-panel li:last-child{border-bottom:none}
+.sp-line{font-size:calc(12.5px*var(--fs,1));line-height:1.6;cursor:var(--cur-pointer,pointer);word-break:break-all}
+.sp-line s{color:#b0565e;text-decoration-color:#d48a90;background:rgba(214,120,128,.1);border-radius:3px;padding:0 2px}
+.sp-line b{color:#4f7a3c;background:rgba(110,160,90,.12);border-radius:3px;padding:0 2px;font-weight:600}
+.sp-line .sp-ctx{color:var(--faint)}
+.sp-line .sp-arrow{color:var(--faint);margin:0 4px}
+.sp-panel li small{grid-column:1;font-size:calc(10.5px*var(--fs,1));color:var(--sub)}
+.sp-acts{grid-column:2;grid-row:1 / span 2;display:flex;gap:5px}
+.sp-acts button{padding:4px 10px;border-radius:7px;font-size:calc(11px*var(--fs,1));background:var(--btn-dark);color:var(--btn-dark-fg)}
+.sp-acts button:hover{background:var(--btn-dark-hv)}
+.sp-acts button.ghost{background:transparent;color:var(--sub);border:1px solid var(--line)}
+.sp-acts button.ghost:hover{color:var(--ink)}
+@media (max-width:620px){
+  .wt-bar small{display:none}
+  .sp-panel li{grid-template-columns:1fr}
+  .sp-acts{grid-column:1;grid-row:auto}
+}

@@ -1,10 +1,14 @@
 // 테마 시스템 — 기획서 5.1
-// 모드 4종: 라이트 / 다크(기본) / 포인트 자동(다크·라이트 톤) / 완전 커스텀
+// 모드: 낮(기본) / 밤 / 라이트 / 다크 / 포인트 자동(다크·라이트 톤) / 완전 커스텀
+// 낮·밤은 「장면」 모드 — 방문자가 상단바 버튼으로 둘 사이를 오간다 (ThemeProvider의 scene)
 // 모든 색은 순수 hex로 저장(환경설정 hex 입력란과 1:1) — 반투명이 필요한 곳은
 // themeToCssVars 에서 고정 알파를 적용해 CSS 변수로 변환한다.
 import { adjust, hexToHsl, hslToHex, withAlpha } from './color';
 
-export type ThemeMode = 'light' | 'dark' | 'point' | 'custom';
+export type ThemeMode = 'day' | 'night' | 'light' | 'dark' | 'point' | 'custom';
+/** 장면 — 낮(잔디밭·꽃·평화) / 밤(벚꽃) */
+export type Scene = 'day' | 'night';
+export const isScene = (m: string | null | undefined): m is Scene => m === 'day' || m === 'night';
 export type PointTone = 'dark' | 'light';
 
 /** 환경설정에서 항목별로 제어되는 테마 변수 (5.1 상세 설정 항목) */
@@ -71,7 +75,47 @@ export interface ThemeState {
   vars: ThemeVars;
 }
 
-/** 다크 모드 (기본 디폴트) — 프로토타입 "시크 모노톤" 기준 */
+/** 낮 — 잔디밭 · 꽃 · 평화. 햇살 든 연한 하늘에서 풀빛으로 내려앉는 바탕, 이끼색 글씨 */
+export const DAY_THEME: ThemeVars = {
+  bgG1: '#f6f3e7', bgG2: '#d6e2c6',
+  bgType: 'gradient', bgAngle: 180, bgBlur: 0,
+  cardBg: '#fffdf7', cardFg: '#2f3a2b',
+  topBg: '#fbf9f0', topFg: '#5f6c56', topHv: '#5d7f43', topBrand: '#36432f',
+  ddBg: '#fffdf6', ddFg: '#46523f', ddHv: '#3d5a2a',
+  pageTitle: '#34412d', pageDesc: '#7a8670',
+  bgmBg: '#fffdf6', bgmFg: '#34412d', bgmIc: '#5f6c56', bgmVol: '#46523f',
+  sbThumb: '#bccab0', sbBd: '#eef1e4',
+  searchBg: '#fffef9', searchFg: '#2f3a2b', searchIc: '#8d9982', searchBd: '#d6dccb',
+  btnDark: '#6b7f59', btnDarkFg: '#ffffff', btnDarkHv: '#7a8f67',
+  memoBoard: '#e9eedf', memoBoardBd: '#d4dcc6',
+  tabBg: '#e4eadb', tabFg: '#68745f', tabOnBg: '#fffdf7', tabOnFg: '#2f3a2b',
+  segBg: '#eef1e6', segFg: '#859078',
+  cropBg: '#e3e9da',
+  accent: '#c9725f', accentSoft: '#e3a593',   // 풀밭에 핀 들꽃 — 살구빛 산호
+  radius: 16, radiusS: 10, shadow: 35, ddShadow: 35, shColor: '#3a4a2a',
+};
+
+/** 밤 — 벚꽃. 남색 밤하늘에서 자두빛으로 번지는 바탕, 연분홍 꽃잎 포인트 */
+export const NIGHT_THEME: ThemeVars = {
+  bgG1: '#161a2e', bgG2: '#2d2236',
+  bgType: 'gradient', bgAngle: 180, bgBlur: 0,
+  cardBg: '#fcf9fb', cardFg: '#2a2532',
+  topBg: '#14172a', topFg: '#b4aec3', topHv: '#f7dbe5', topBrand: '#f4eaf0',
+  ddBg: '#1c1e33', ddFg: '#cbc5d6', ddHv: '#ffffff',
+  pageTitle: '#f3e9ef', pageDesc: '#a69fb5',
+  bgmBg: '#171a2d', bgmFg: '#f1eaf0', bgmIc: '#d4cbdb', bgmVol: '#ece4ec',
+  sbThumb: '#5b5672', sbBd: '#191b2e',
+  searchBg: '#22243b', searchFg: '#ede6f0', searchIc: '#8f88a3', searchBd: '#393a52',
+  btnDark: '#2b2942', btnDarkFg: '#ffffff', btnDarkHv: '#3b3856',
+  memoBoard: '#25263c', memoBoardBd: '#38384f',
+  tabBg: '#36344c', tabFg: '#b4aec3', tabOnBg: '#fcf9fb', tabOnFg: '#2a2532',
+  segBg: '#f1edf2', segFg: '#8e8799',
+  cropBg: '#2a2b42',
+  accent: '#c46a8b', accentSoft: '#e7a8bf',   // 밤벚꽃
+  radius: 16, radiusS: 10, shadow: 100, ddShadow: 100, shColor: '#07061a',
+};
+
+/** 다크 모드 (예전 기본) — 프로토타입 "시크 모노톤" 기준 */
 export const DARK_THEME: ThemeVars = {
   bgG1: '#2b3038', bgG2: '#121418',
   bgType: 'gradient', bgAngle: 180, bgBlur: 0,
@@ -160,6 +204,8 @@ export function derivePointTheme(accent: string, tone: PointTone): ThemeVars {
 
 export function themeForMode(mode: ThemeMode, accent: string, tone: PointTone, custom: ThemeVars): ThemeVars {
   switch (mode) {
+    case 'day': return DAY_THEME;
+    case 'night': return NIGHT_THEME;
     case 'light': return LIGHT_THEME;
     case 'dark': return DARK_THEME;
     case 'point': return derivePointTheme(accent, tone);
@@ -178,6 +224,8 @@ export interface ThemeStore {
 /** 모드별 초기값 (선택 리셋용) */
 export function defaultVarsFor(mode: ThemeMode, accent: string, tone: PointTone): ThemeVars {
   switch (mode) {
+    case 'day': return DAY_THEME;
+    case 'night': return NIGHT_THEME;
     case 'light': return LIGHT_THEME;
     case 'dark': return DARK_THEME;
     case 'point': return derivePointTheme(accent, tone);
@@ -186,8 +234,10 @@ export function defaultVarsFor(mode: ThemeMode, accent: string, tone: PointTone)
 }
 
 export const DEFAULT_THEME_STORE: ThemeStore = {
-  mode: 'dark', pointTone: 'dark', pointAccent: '#a63a45',
+  mode: 'day', pointTone: 'dark', pointAccent: '#a63a45',
   perMode: {
+    day: DAY_THEME,
+    night: NIGHT_THEME,
     light: LIGHT_THEME,
     dark: DARK_THEME,
     point: derivePointTheme('#a63a45', 'dark'),

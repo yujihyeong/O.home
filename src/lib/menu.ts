@@ -74,3 +74,44 @@ export const DEFAULT_MENU: MenuItem[] = [
   },
   { label: '방명록', href: '/guest' },
 ];
+
+/**
+ * 밤 장면의 기본 메뉴 — 낮과 같은 기능을 밤의 결로 다시 묶는다.
+ * 밤에는 혼자 적어 두는 기록과 이야기가 앞에 오고, 일정·커미션 같은 낮의 일은 접어 둔다
+ * (메뉴에서 빠질 뿐 주소와 데이터는 그대로 — 메뉴 관리 > 밤 메뉴에서 얼마든지 바꿀 수 있다).
+ */
+export const DEFAULT_NIGHT_MENU: MenuItem[] = [
+  {
+    label: '밤의 기록',
+    children: [
+      { label: '다이어리', href: '/diary' },
+      { label: '감상타래', href: '/threads' },
+      { label: '메모장', href: '/memo' },
+    ],
+  },
+  {
+    label: '자놀',
+    children: [
+      { label: '캐릭터', href: '/chars' },
+      { label: '자관', href: '/rels' },
+      { label: '역극', href: '/rp' },
+    ],
+  },
+  {
+    label: '서재',
+    children: [
+      { label: '리스트', href: '/board' },
+      { label: '갤러리', href: '/gallery' },
+      { label: '로그 백업', href: '/trpg' },
+    ],
+  },
+  {
+    label: 'TRPG',
+    children: [
+      { label: '캐릭터', href: '/tchars' },
+      { label: '도토리', href: '/dotori' },
+      { label: '플레이기록', href: '/playlog' },
+    ],
+  },
+  { label: '방명록', href: '/guest' },
+];

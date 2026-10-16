@@ -24,7 +24,7 @@ import { useTrpgSettings, DOTORI_STATUS_KEYS, DotoriStatus, dotoriBadgeStyle } f
 import { useMemoSettings } from '@/lib/memoStore';
 import {
   useMenuSettings, MenuSettings, MenuPerm, MenuVis, PLAYLOG_COLS,
-  MenuGroupNode, MenuLeaf, defaultTree, newGroupId, menuLabelFor, extraBoardHref, boardEntries,
+  MenuGroupNode, MenuLeaf, defaultTree, defaultNightTree, newGroupId, menuLabelFor, extraBoardHref, boardEntries,
   IMG_PROTECT_AREAS,
 } from '@/lib/menuStore';
 import { FEATURES } from '@/lib/menu';
@@ -170,9 +170,11 @@ function DesignPane() {
       <div className="d">변경은 미리보기로만 반영 — [SAVE]를 눌러야 저장 · 모드마다 수정값을 따로 기억합니다</div>
 
       <div className="set-row">
-        <div className="l"><b>모드</b><small>전환해도 각 모드의 수정값은 유지 — 초기화는 [선택 리셋]에서 모드별로</small></div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        <div className="l"><b>모드</b><small>전환해도 각 모드의 수정값은 유지 — 초기화는 [선택 리셋]에서 모드별로 · <b>낮/밤</b>을 고르면 방문자가 상단바 버튼으로 두 장면을 오갈 수 있고, 메뉴도 장면마다 따로 둘 수 있습니다(메뉴 관리)</small></div>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
           <div className="seg in-panel">
+            {modeBtn('day', '낮')}
+            {modeBtn('night', '밤')}
             {modeBtn('light', '라이트')}
             {modeBtn('dark', '다크')}
             {modeBtn('point', '포인트 자동')}
@@ -232,6 +234,8 @@ function DesignPane() {
         body="선택한 모드의 수정값만 초기 상태로 돌아갑니다. 확정은 [SAVE]를 눌러야 저장됩니다."
         onClose={() => setResetOpen(false)}
         buttons={[
+          { label: '낮', kind: 'ghost', onClick: () => { resetMode('day'); setResetOpen(false); } },
+          { label: '밤', kind: 'ghost', onClick: () => { resetMode('night'); setResetOpen(false); } },
           { label: '라이트', kind: 'ghost', onClick: () => { resetMode('light'); setResetOpen(false); } },
           { label: '다크', kind: 'ghost', onClick: () => { resetMode('dark'); setResetOpen(false); } },
           { label: '포인트 자동', kind: 'ghost', onClick: () => { resetMode('point'); setResetOpen(false); } },
@@ -2027,7 +2031,13 @@ function MenuPane() {
   const { boards, loaded: bLoaded, patchBoard } = useBoards();  // 추가 게시판 이름·자동 편입 동기화 + 권한
   const toast = useToast();
   const del = useConfirmDelete();
-  const saved = ms.tree ?? defaultTree();
+  /* 낮/밤 메뉴 — 장면마다 카테고리를 따로 둔다. 밤을 따로 저장한 적 없으면 낮 메뉴를 그대로 보여 준다 */
+  const [mscene, setMscene] = useState<'day' | 'night'>('day');
+  const saved = mscene === 'night'
+    ? (ms.treeNight ?? ms.tree ?? defaultNightTree())
+    : (ms.tree ?? defaultTree());
+  const treePatch = (t: MenuGroupNode[]): Partial<MenuSettings> =>
+    (mscene === 'night' ? { treeNight: t } : { tree: t });
   // 게시판 + 여러 개로 만든 섹션 — 메뉴가 아는 「추가 항목」 전체 (v2.0)
   const { map: secMap } = useSections();
   const { links, setLinks } = useCustomLinks();   // 커스텀 링크 (v2.0 사용자 요청)
@@ -2055,7 +2065,10 @@ function MenuPane() {
   }, [savedKey, msLoaded, bLoaded]);
 
   const setTree = (t: MenuGroupNode[]) => setDraft(t);
-  const saveAll = () => { patch({ tree, removedBoards: removed }); toast('메뉴가 저장되었습니다'); };
+  const saveAll = () => {
+    patch({ ...treePatch(tree), removedBoards: removed });
+    toast(mscene === 'night' ? '밤 메뉴가 저장되었습니다' : '메뉴가 저장되었습니다');
+  };
 
   /* 이미 올라간 글의 공개범위를 서버에 적용 (v2.0 사용자 요청).
      화면에서 가리는 것만으로는 API를 직접 부르는 사람에게 그대로 보인다 — 서버(RLS)가
@@ -2103,7 +2116,7 @@ function MenuPane() {
   const [rpGate, setRpGate] = useState('');
   useEffect(() => { setRpGate(getPageText('rp-gate-desc', '역극은 로그인한 참여자에게만 표시됩니다')); }, []);
   const leaveWith = (action: 'save' | 'discard') => {
-    if (action === 'save') patch({ tree, removedBoards: removed });
+    if (action === 'save') patch({ ...treePatch(tree), removedBoards: removed });
     else revert();
     dirtyRef.current = false;
     setLeaveAsk(false);
@@ -2116,14 +2129,23 @@ function MenuPane() {
      **새로 만든 것을 자동으로 넣지는 않는다** (v2.0 사용자 확정) — 미배치에 머물게 둔다 */
   useEffect(() => {
     if (!msLoaded || !bLoaded) return;
-    let next: MenuGroupNode[] = saved
+    const clean = (t: MenuGroupNode[]) => t
       .map(g => (g.href
         ? (menuLabelFor(g.href, extraAll) === null ? null : g)
         : { ...g, items: g.items.filter(it => menuLabelFor(it.href, extraAll) !== null) }))
       .filter((g): g is MenuGroupNode => !!g);
-    if (JSON.stringify(next) !== JSON.stringify(saved)) patch({ tree: next });
+    // 낮·밤 메뉴를 각각 — 밤은 따로 저장한 것이 있을 때만 (없으면 낮 메뉴를 따라가므로)
+    const day = ms.tree ?? defaultTree();
+    const nextDay = clean(day);
+    const p: Partial<MenuSettings> = {};
+    if (JSON.stringify(nextDay) !== JSON.stringify(day)) p.tree = nextDay;
+    if (ms.treeNight) {
+      const nextNight = clean(ms.treeNight);
+      if (JSON.stringify(nextNight) !== JSON.stringify(ms.treeNight)) p.treeNight = nextNight;
+    }
+    if (Object.keys(p).length) patch(p);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [msLoaded, bLoaded, boards, ms.tree]);
+  }, [msLoaded, bLoaded, boards, ms.tree, ms.treeNight]);
 
   // 미배치 = 트리에 없는 기능 — 메뉴에 노출되지 않음 (데이터는 보존)
   const placedSet = new Set(tree.flatMap(g => (g.href ? [g.href] : g.items.map(i => i.href))));
@@ -2337,9 +2359,36 @@ function MenuPane() {
         </div>
       </div>
       {/* 기본(구성) / 권한 탭 (v1.9) — 권한 설정이 길어져 분리 */}
-      <div className="mini-seg" style={{ marginBottom: 14 }}>
-        <button className={mtab === 'basic' ? 'on' : ''} onClick={() => setMtab('basic')}>기본</button>
-        <button className={mtab === 'perm' ? 'on' : ''} onClick={() => setMtab('perm')}>권한</button>
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', marginBottom: 14 }}>
+        <div className="mini-seg">
+          <button className={mtab === 'basic' ? 'on' : ''} onClick={() => setMtab('basic')}>기본</button>
+          <button className={mtab === 'perm' ? 'on' : ''} onClick={() => setMtab('perm')}>권한</button>
+        </div>
+        {/* 낮/밤 메뉴 — 테마가 낮·밤 모드일 때 방문자가 버튼으로 오가며 서로 다른 메뉴를 본다 */}
+        <div className="mini-seg">
+          {(['day', 'night'] as const).map(sc => (
+            <button key={sc} className={mscene === sc ? 'on' : ''} onClick={() => {
+              if (mscene === sc) return;
+              if (dirty) { toast('바꾼 메뉴를 먼저 SAVE 하거나 변경 취소해 주세요'); return; }
+              setMscene(sc); setDraft(null); setDraftRemoved(null);
+            }}>{sc === 'day' ? '☀ 낮 메뉴' : '☾ 밤 메뉴'}</button>
+          ))}
+        </div>
+        {mscene === 'night' && (
+          <small style={{ color: 'var(--faint)', fontSize: 11 }}>
+            {ms.treeNight ? '밤에만 보이는 메뉴입니다' : '아직 낮 메뉴를 그대로 씁니다 — 고쳐서 SAVE 하면 밤 메뉴가 따로 생깁니다'}
+          </small>
+        )}
+        {mscene === 'night' && ms.treeNight && (
+          <button className="btn btn-ghost" style={{ padding: '5px 12px', fontSize: 11 }}
+            onClick={() => { patch({ treeNight: undefined }); setDraft(null); setDraftRemoved(null); toast('밤에도 낮 메뉴를 씁니다'); }}>
+            낮 메뉴 따라가기
+          </button>
+        )}
+        {mscene === 'night' && (
+          <button className="btn btn-ghost" style={{ padding: '5px 12px', fontSize: 11 }}
+            onClick={() => setDraft(defaultNightTree())}>밤 기본 구성 불러오기</button>
+        )}
       </div>
 
       {mtab === 'perm' ? (
@@ -2612,7 +2661,7 @@ function MenuPane() {
         body="기본 제공 메뉴 구성(자놀·게시판·TRPG·커미션·기록·방명록)으로 편집 화면이 바뀝니다. SAVE를 눌러야 실제 메뉴에 반영됩니다."
         onClose={() => setResetAsk(false)}
         buttons={[
-          { label: 'RESET', kind: 'dark', onClick: () => { setDraft(defaultTree()); setDraftRemoved([]); setResetAsk(false); } },
+          { label: 'RESET', kind: 'dark', onClick: () => { setDraft(mscene === 'night' ? defaultNightTree() : defaultTree()); setDraftRemoved([]); setResetAsk(false); } },
           { label: 'CANCEL', kind: 'ghost', onClick: () => setResetAsk(false) },
         ]} />
       {/* 미저장 메뉴 변경 이탈 경고 (v1.9) */}

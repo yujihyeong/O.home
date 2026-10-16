@@ -3,7 +3,8 @@
 // 하위 메뉴(기능 모듈)를 원하는 상위에 배치하는 자유 트리 (v1.9 개편).
 // 트리에서 뺀 기능은 노출만 사라지고 데이터는 보존 (3장 원칙).
 import { useCallback, useEffect, useState } from 'react';
-import { DEFAULT_MENU, FEATURES, MenuItem } from './menu';
+import { DEFAULT_MENU, DEFAULT_NIGHT_MENU, FEATURES, MenuItem } from './menu';
+import type { Scene } from './theme';
 import { newId } from './postStore';
 import { getRawSetting, setSetting } from './settingStore';
 
@@ -22,7 +23,10 @@ export interface MenuGroupNode { id: string; label: string; href?: string; items
 export interface MenuViewer { loggedIn: boolean; isAdmin: boolean; id?: string }
 
 export interface MenuSettings {
-  tree?: MenuGroupNode[];            // 자유 메뉴 트리 (v1.9 — 없으면 v1 설정에서 마이그레이션)
+  tree?: MenuGroupNode[];            // 자유 메뉴 트리 (v1.9 — 없으면 v1 설정에서 마이그레이션) · 낮 장면의 메뉴
+  /** 밤 장면의 메뉴 — 낮/밤마다 카테고리를 다르게. 없으면 낮 메뉴를 그대로 쓴다
+   *  (아무 메뉴도 저장한 적 없는 새 홈은 밤 기본 구성) */
+  treeNight?: MenuGroupNode[];
   removedBoards: string[];           // 메뉴에서 뺀 추가 게시판 href (자동 배치 제외)
   // v1 유산 — 트리 마이그레이션 재료로만 사용
   groupOrder: string[];
@@ -61,12 +65,30 @@ export function imgProtectAreaFor(pathname: string): ImgProtectArea | null {
   return null;
 }
 
+const toTree = (menu: MenuItem[], pre: string): MenuGroupNode[] =>
+  menu.map(m => m.children
+    ? { id: `${pre}${m.label}`, label: m.label, items: m.children.map(c => ({ href: c.href, ...(c.label !== menuLabelFor(c.href) ? { label: c.label } : {}) })) }
+    : { id: `${pre}${m.label}`, label: m.label, href: m.href, items: [] });
+
 /** 기본 트리 — DEFAULT_MENU 구조 그대로 */
 export function defaultTree(): MenuGroupNode[] {
-  return DEFAULT_MENU.map(m => m.children
-    ? { id: `g-${m.label}`, label: m.label, items: m.children.map(c => ({ href: c.href })) }
-    : { id: `g-${m.label}`, label: m.label, href: m.href, items: [] });
+  return toTree(DEFAULT_MENU, 'g-');
 }
+
+/** 밤 기본 트리 — DEFAULT_NIGHT_MENU */
+export function defaultNightTree(): MenuGroupNode[] {
+  return toTree(DEFAULT_NIGHT_MENU, 'gn-');
+}
+
+/** 장면별 메뉴 트리 — 밤은 따로 저장한 게 없으면 낮 메뉴, 낮 메뉴도 없으면 밤 기본 구성 */
+export function sceneTree(s: MenuSettings, scene?: Scene | null): MenuGroupNode[] {
+  if (scene === 'night') return s.treeNight ?? s.tree ?? defaultNightTree();
+  return s.tree ?? defaultTree();
+}
+
+/** 공개범위 판정용 — 낮·밤 메뉴 전부 (방문자가 버튼 하나로 오가므로 둘 다 같은 기준으로 본다) */
+const allTrees = (s: MenuSettings): MenuGroupNode[] =>
+  [...(s.tree ?? defaultTree()), ...(s.treeNight ?? [])];
 
 /** v1 설정(groupOrder/hidden/labels) → 트리 마이그레이션 */
 function migrateTree(p: Partial<MenuSettings>): MenuGroupNode[] {
@@ -134,15 +156,15 @@ function moveHrefs(p: Partial<MenuSettings>): Partial<MenuSettings> {
     }
     return h;
   };
+  const mvTree = (t: MenuGroupNode[]) => t.map(g => ({
+    ...g,
+    ...(g.href ? { href: mv(g.href) } : {}),
+    items: (g.items ?? []).map(it => ({ ...it, href: mv(it.href) })),
+  }));
   return {
     ...p,
-    ...(p.tree ? {
-      tree: p.tree.map(g => ({
-        ...g,
-        ...(g.href ? { href: mv(g.href) } : {}),
-        items: (g.items ?? []).map(it => ({ ...it, href: mv(it.href) })),
-      })),
-    } : {}),
+    ...(p.tree ? { tree: mvTree(p.tree) } : {}),
+    ...(p.treeNight ? { treeNight: mvTree(p.treeNight) } : {}),
     ...(p.removedBoards ? { removedBoards: p.removedBoards.map(mv) } : {}),
   };
 }
@@ -214,7 +236,7 @@ export const boardEntries = (boards?: { id: string; name: string }[]): ExtraEntr
 
 /** 메뉴 관리에서 지정한 페이지 상단 큰 제목 (5.2 v1.9) — 정확히 일치하는 href만, 없으면 null */
 export function pageTitleFor(s: MenuSettings, href: string): string | null {
-  for (const g of s.tree ?? []) {
+  for (const g of [...(s.tree ?? []), ...(s.treeNight ?? [])]) {
     if (g.href === href) return g.pageTitle?.trim() || null;
     for (const it of g.items) if (it.href === href) return it.pageTitle?.trim() || null;
   }
@@ -253,7 +275,7 @@ function hrefEntry(s: MenuSettings, path: string): { vis: MenuVis; open: boolean
     if (href.length > bestLen) { bestLen = href.length; best = e; }
     else if (href.length === bestLen && VIS_RANK[e.vis] < VIS_RANK[best.vis]) best = e;
   };
-  for (const g of s.tree ?? defaultTree()) {
+  for (const g of allTrees(s)) {
     const gv = g.vis ?? 'all';
     if (g.href && covers(g.href)) take(g.href, { vis: gv, open: !!g.open, members: g.visMembers });
     // 상위가 더 좁으면 하위는 그 뒤에 숨는다 — 상위가 안 보이면 하위도 안 보이므로
@@ -324,7 +346,7 @@ export function canAccessHref(
 
 /** 메뉴 트리에 적힌 이 주소의 이름 (v2.0) — 이름을 따로 준 적이 없으면 null */
 export function menuLabelOf(s: MenuSettings, href: string): string | null {
-  for (const g of s.tree ?? []) {
+  for (const g of [...(s.tree ?? []), ...(s.treeNight ?? [])]) {
     if (g.href === href) return g.label?.trim() || null;
     for (const it of g.items) if (it.href === href) return it.label?.trim() || null;
   }
@@ -338,8 +360,9 @@ export function buildMenu(
   s: MenuSettings,
   extra?: ExtraEntry[],
   viewer?: MenuViewer,
+  scene?: Scene | null,   // 낮/밤 장면 — 장면마다 메뉴(카테고리)가 다르다
 ): MenuItem[] {
-  const tree = s.tree ?? defaultTree();
+  const tree = sceneTree(s, scene);
   const placed = new Set(tree.flatMap(g => (g.href ? [g.href] : g.items.map(it => it.href))));
   const canSee = (vis?: MenuVis, members?: string[]) =>
     !viewer || allows(vis ?? 'all', viewer, members);
