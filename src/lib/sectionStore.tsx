@@ -15,7 +15,7 @@
  * 섹션을 지워도 **항목 데이터는 남긴다**(3장 원칙) — 메뉴에서만 사라진다.
  */
 import { useCallback, useEffect, useReducer } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useRouteSearch } from './routeParams';
 import { getRawSetting, setSetting } from './settingStore';
 import { newId } from './postStore';
 
@@ -144,7 +144,7 @@ export function useSections(): {
  * `useSearchParams`는 Suspense 경계가 필요하므로 쓰는 쪽 페이지를 감싸 준다(자관 수정과 같은 방식).
  */
 export function useSectionParam(kind: SectionKind): { id: string; name: string; items: SectionItem[] } {
-  const sp = useSearchParams();
+  const sp = useRouteSearch();   // 짧은 주소(/LOG 등) 안에서는 연결된 섹션의 ?s=를 받는다
   const { list } = useSections();
   const items = list(kind);
   const want = sp.get('s') ?? MAIN_SEC;
