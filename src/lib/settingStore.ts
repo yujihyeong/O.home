@@ -41,7 +41,7 @@ export const SETTING_KEYS = [
   'ohome.theme.v2', 'ohome.themePresets.v1', 'ohome.fonts.v2', 'ohome.menuset.v1', 'ohome.site.v1',
   'ohome.pagetext.v1', 'ohome.cursor.v1', 'ohome.bgm.v1', 'ohome.boardset.v1', 'ohome.boards.v1',
   'ohome.commset.v1', 'ohome.memoset.v1', 'ohome.threadset.v1', 'ohome.trpgset.v1',
-  'ohome.relqsets.v1', 'ohome.main.v1', 'ohome.sched.v1',
+  'ohome.relqsets.v1', 'ohome.main.v1', 'ohome.main.night.v1', 'ohome.sched.v1',
   'ohome.membertags.v1', 'ohome.invite.v1', 'ohome.roadnext.v1', 'ohome.repo.v1',
   'ohome.sections.v1', 'ohome.intro.v1', 'ohome.links.v1',
 ];

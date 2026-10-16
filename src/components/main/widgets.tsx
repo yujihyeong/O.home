@@ -44,8 +44,11 @@ export function BannerWidget({ conf }: { conf: WidgetConf }) {
   const [cur, setCur] = useState(0);
   const [mngOpen, setMngOpen] = useState(false);
   useEditEvent(conf.id, () => setMngOpen(true));   // 편집모드 우클릭 → 설정 (v1.9)
-  const slides = ((conf.settings.slides as BannerSlide[]) ?? []).length > 0
-    ? (conf.settings.slides as BannerSlide[]) : DEMO_SLIDES;
+  const stored = (conf.settings.slides as BannerSlide[]) ?? [];
+  const slides = stored.length > 0 ? stored : DEMO_SLIDES;
+  // 슬라이드를 올린 적 없으면 낮/밤 기본 배너 — 지금 장면에 맞춰 바뀐다
+  const { scene } = useTheme();
+  const sceneBanner = stored.length === 0 ? (scene ?? 'day') : null;
   const interval = (conf.settings.interval as number) ?? 4;
 
   useEffect(() => {
@@ -65,7 +68,11 @@ export function BannerWidget({ conf }: { conf: WidgetConf }) {
 
   return (
     <div className="banner" style={{ cursor: s.link && !editOn ? 'pointer' : undefined }} onClick={go}>
-      {slides.map((sl, i) => (
+      {sceneBanner && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img key={sceneBanner} src={`/banner/${sceneBanner}.webp`} alt="" className={`scene-banner ${sceneBanner}`} />
+      )}
+      {!sceneBanner && slides.map((sl, i) => (
         <div key={sl.id} className={`slide ${i === Math.min(cur, slides.length - 1) ? 'on' : ''}`}>
           {sl.imgId
             /* 업로드 이미지 — 원본 보존 + 위치 크롭만 적용 (배너 크기가 바뀌어도 비율 좌표로 재현) */
@@ -77,7 +84,7 @@ export function BannerWidget({ conf }: { conf: WidgetConf }) {
         </div>
       ))}
       <div className="cap"><b>{s.cap}</b><span>{s.sub}</span></div>
-      <div className="dots" onClick={e => e.stopPropagation()}>
+      <div className="dots" style={sceneBanner ? { display: 'none' } : undefined} onClick={e => e.stopPropagation()}>
         {slides.map((sl, i) => (
           <i key={sl.id} className={i === Math.min(cur, slides.length - 1) ? 'on' : ''} onClick={() => setCur(i)} />
         ))}

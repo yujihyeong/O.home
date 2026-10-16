@@ -6,6 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { ConfirmModal } from '@/components/ui/Modal';
 import { useAuth } from './auth';
 import { getRawSetting, setSetting } from './settingStore';
+import { useTheme } from './ThemeProvider';
 
 export type WidgetType =
   | 'banner' | 'member'                 // 고정 요소 (삭제 불가)
@@ -89,6 +90,32 @@ const DEFAULT_STATE: MainState = {
 };
 
 const STORAGE_KEY = 'ohome.main.v1';
+/** 밤 장면의 메인 위젯 구성 — 낮/밤마다 위젯을 따로 둔다. 없으면 낮 구성을 그대로 보여 준다 */
+const NIGHT_KEY = 'ohome.main.night.v1';
+
+/** 저장본 → 상태 (기본 위젯 병합·옛 형식 정리) */
+function loadState(key: string): MainState {
+  try {
+    const raw = getRawSetting(key) ?? (key === NIGHT_KEY ? getRawSetting(STORAGE_KEY) : null);
+    if (raw) {
+      const parsed = JSON.parse(raw) as MainState;
+      // 새 위젯 타입이 추가돼도 기본값과 병합 · 제거된 'image' 위젯은 걸러냄 (v1.9 — deco로 일원화)
+      // 구 enabled:false(전체 숨김)는 삭제로 이관 — 토글은 이제 모바일 표시만 제어 (v1.9 사용자 확정)
+      const removed = new Set(parsed.removedIds ?? []);
+      const kept: WidgetConf[] = [];
+      for (const w of parsed.widgets) {
+        if ((w.type as string) === 'image') continue;
+        if (!w.enabled && !w.fixed) { removed.add(w.id); continue; }
+        kept.push(w.enabled ? w : { ...w, enabled: true });
+      }
+      const ids = new Set(kept.map(w => w.id));
+      // 삭제한 기본 위젯은 병합으로 되살리지 않음
+      const merged = [...kept, ...DEFAULT_STATE.widgets.filter(w => !ids.has(w.id) && !removed.has(w.id))];
+      return { ...DEFAULT_STATE, ...parsed, widgets: merged, removedIds: [...removed] };
+    }
+  } catch { /* 기본값 사용 */ }
+  return DEFAULT_STATE;
+}
 /** 편집모드를 지원하는 페이지 (v1.9 — 카드 그리드 드래그 정렬 포함)
  *  /trpg 로그 백업이 빠져 있던 것은 실수 — 드래그 정렬·목록 숨김 확인 모두 이 토글이 있어야 켜진다
  *  (v2.0 사용자 발견 — 목록 숨김 기능을 만들다 보니 편집모드 자체가 이 페이지에서 켜지지 않는 걸 발견) */
@@ -128,32 +155,32 @@ export function MainStoreProvider({ children }: { children: React.ReactNode }) {
   const pendingNav = useRef<string | null>(null);
   const snapshot = useRef<MainState | null>(null);
 
-  // 로드
-  useEffect(() => {
-    try {
-      const raw = getRawSetting(STORAGE_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw) as MainState;
-        // 새 위젯 타입이 추가돼도 기본값과 병합 · 제거된 'image' 위젯은 걸러냄 (v1.9 — deco로 일원화)
-        // 구 enabled:false(전체 숨김)는 삭제로 이관 — 토글은 이제 모바일 표시만 제어 (v1.9 사용자 확정)
-        const removed = new Set(parsed.removedIds ?? []);
-        const kept: WidgetConf[] = [];
-        for (const w of parsed.widgets) {
-          if ((w.type as string) === 'image') continue;
-          if (!w.enabled && !w.fixed) { removed.add(w.id); continue; }
-          kept.push(w.enabled ? w : { ...w, enabled: true });
-        }
-        const ids = new Set(kept.map(w => w.id));
-        // 삭제한 기본 위젯은 병합으로 되살리지 않음
-        const merged = [...kept, ...DEFAULT_STATE.widgets.filter(w => !ids.has(w.id) && !removed.has(w.id))];
-        setState({ ...DEFAULT_STATE, ...parsed, widgets: merged, removedIds: [...removed] });
-      }
-    } catch { /* 기본값 사용 */ }
-  }, []);
+  /* 낮/밤 장면마다 위젯 구성을 따로 — 지금 보이는 장면의 구성을 불러오고, 고치면 그 장면에 저장한다.
+     밤 구성을 따로 저장한 적 없으면 낮 구성을 그대로 보여 준다(밤에서 고쳐 저장하면 그때 따로 생긴다) */
+  const { scene } = useTheme();
+  const key = scene === 'night' ? NIGHT_KEY : STORAGE_KEY;
+  const keyRef = useRef(key);
+  const stateRef = useRef(state);
+  stateRef.current = state;
+  const editRef = useRef(editOn);
+  editRef.current = editOn;
 
   const persist = useCallback((s: MainState) => {
-    try { setSetting(STORAGE_KEY, s); } catch { /* 무시 */ }
+    try { setSetting(keyRef.current, s); } catch { /* 무시 */ }
   }, []);
+
+  // 로드 · 장면이 바뀌면 그 장면의 구성으로 갈아 끼운다
+  useEffect(() => {
+    if (keyRef.current !== key && editRef.current) {
+      // 편집 중에 장면을 바꾸면 하던 편집은 원래 장면에 저장하고 편집을 마친다
+      try { setSetting(keyRef.current, stateRef.current); } catch { /* 무시 */ }
+      snapshot.current = null;
+      setEditOn(false);
+      setGridOn(false);
+    }
+    keyRef.current = key;
+    setState(loadState(key));
+  }, [key]);
 
   // 고정 캔버스 body 클래스 (v1.9 — 메인은 항상 고정, 반응형 옵션 제거: PC/모바일 두 가지만)
   useEffect(() => {

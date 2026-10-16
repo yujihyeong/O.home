@@ -47,7 +47,11 @@
 html,#appMain{scrollbar-color:var(--sb-thumb) transparent;scrollbar-width:thin}
 
 /* 앱 셸 (v1.8): 헤더 고정 + 스크롤은 콘텐츠 영역 안에서만 */
-body{display:flex;flex-direction:column;height:100vh;overflow:hidden}
+/* 화면 높이는 dvh로 — 아이폰·아이패드 사파리의 100vh는 주소창이 접힌 높이라 실제 보이는 화면보다 크다.
+   그만큼 문서 전체가 밀려 올라가 상단바 아래로 페이지 윗부분이 잘려 보였다 (사용자 제보).
+   문서(html) 자체는 스크롤하지 않는다 — 스크롤은 #appMain 안에서만 */
+html{height:100%;overflow:hidden}
+body{display:flex;flex-direction:column;height:100vh;height:100dvh;overflow:hidden}
 .topbar{flex-shrink:0}
 #appMain{flex:1;overflow-y:auto;overflow-x:hidden;position:relative;scrollbar-gutter:stable} /* 스크롤바 유무로 콘텐츠가 좌우로 밀리지 않게 */
 body{
@@ -1902,7 +1906,7 @@ html[data-scene="day"] .topbar{color:var(--top-fg)}
 html.gate-seen .gate{display:none}
 .gate picture,.gate img{position:absolute;inset:0;width:100%;height:100%}
 .gate img{object-fit:cover;object-position:center 46%;animation:fade .6s ease}
-.gate-enter{position:absolute;left:50%;bottom:9vh;transform:translateX(-50%);
+.gate-enter{position:absolute;left:50%;bottom:calc(9dvh + env(safe-area-inset-bottom,0px));transform:translateX(-50%);
   padding:10px 30px;border-radius:999px;font-family:var(--serif);font-size:calc(14px*var(--fs,1));letter-spacing:.42em;text-indent:.42em;
   color:#5f6c56;background:rgba(255,253,246,.7);border:1.5px solid rgba(125,116,137,.45);backdrop-filter:blur(4px);
   animation:gate-breathe 2.6s ease-in-out infinite;transition:background .2s}
@@ -2064,3 +2068,8 @@ html.gate-seen .gate{display:none}
 .ex-card p+p{margin-top:12px}
 .ex-src{margin-top:16px;text-align:right;font-size:calc(11px*var(--fs,1));color:var(--faint)}
 @media (max-width:620px){.ex-bar{border-radius:16px}}
+
+/* 낮/밤 기본 배너 — 슬라이드를 올린 적 없을 때. 배너 비율이 바뀌어도 인물이 가운데 오게 위치를 잡는다 */
+.banner .scene-banner{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;animation:fade .5s}
+.banner .scene-banner.day{object-position:55% 50%}
+.banner .scene-banner.night{object-position:50% 32%}

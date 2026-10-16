@@ -49,6 +49,8 @@ export function EntryGate() {
   function enter() {
     try { sessionStorage.setItem(KEY, '1'); } catch { /* 무시 */ }
     setState('leaving');
+    // 대문 위에서 화면을 끌어 올렸으면 문서가 밀린 채로 남는다 — 맨 위로 되돌린다
+    window.scrollTo(0, 0);
     setTimeout(() => setState('hidden'), 650);
   }
   return (
