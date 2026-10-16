@@ -35,6 +35,24 @@ function useEditEvent(id: string, onOpen: () => void) {
   }, [id, onOpen]);
 }
 
+/* ---------- 커버 — 낮/밤 일러스트 중 하나를 접속할 때마다 랜덤으로 ---------- */
+/** 1번 그림은 낮 배경색, 2번 그림은 밤 배경색 위에 얹은 것 · PC(1220×420)와 모바일(750×440) 크기를 따로 둔다 */
+const COVERS = ['day', 'night'] as const;
+
+function CoverImg() {
+  // 고르는 건 화면이 뜬 뒤에 — 서버가 그린 HTML과 어긋나지 않게
+  const [pick, setPick] = useState<(typeof COVERS)[number] | null>(null);
+  useEffect(() => { setPick(COVERS[Math.floor(Math.random() * COVERS.length)]); }, []);
+  if (!pick) return null;
+  return (
+    <picture>
+      <source media="(max-width:620px)" srcSet={`/covers/${pick}-m.webp`} />
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={`/covers/${pick}-pc.webp`} alt="" className="cover-img" />
+    </picture>
+  );
+}
+
 /* ---------- 슬라이드 배너 (고정 요소, 4.0) — 이미지·링크·간격·순서 관리 ---------- */
 
 export function BannerWidget({ conf }: { conf: WidgetConf }) {
@@ -44,19 +62,21 @@ export function BannerWidget({ conf }: { conf: WidgetConf }) {
   const [cur, setCur] = useState(0);
   const [mngOpen, setMngOpen] = useState(false);
   useEditEvent(conf.id, () => setMngOpen(true));   // 편집모드 우클릭 → 설정 (v1.9)
-  const slides = ((conf.settings.slides as BannerSlide[]) ?? []).length > 0
-    ? (conf.settings.slides as BannerSlide[]) : DEMO_SLIDES;
+  const stored = (conf.settings.slides as BannerSlide[]) ?? [];
+  const slides = stored.length > 0 ? stored : DEMO_SLIDES;
+  // 커버 — 배너 관리에서 켜고 끈다. 정한 적 없으면 올린 슬라이드가 없을 때 커버
+  const useCover = (conf.settings.cover as boolean | undefined) ?? stored.length === 0;
   const interval = (conf.settings.interval as number) ?? 4;
 
   useEffect(() => {
-    if (slides.length < 2) return;
+    if (useCover || slides.length < 2) return;
     const t = setInterval(() => setCur(c => (c + 1) % slides.length), Math.max(2, interval) * 1000);
     return () => clearInterval(t);
-  }, [slides.length, interval]);
+  }, [slides.length, interval, useCover]);
 
   const s = slides[Math.min(cur, slides.length - 1)];
   const go = () => {
-    if (editOn || !s.link) return;
+    if (editOn || useCover || !s.link) return;
     // 기존 저장분에 풀주소가 있어도 같은 사이트면 내부 이동으로 (v1.9)
     const l = normalizeInternalLink(s.link);
     if (/^https?:\/\//.test(l)) window.open(l, '_blank');
@@ -64,7 +84,8 @@ export function BannerWidget({ conf }: { conf: WidgetConf }) {
   };
 
   return (
-    <div className="banner" style={{ cursor: s.link && !editOn ? 'pointer' : undefined }} onClick={go}>
+    <div className="banner" style={{ cursor: s.link && !editOn && !useCover ? 'pointer' : undefined }} onClick={go}>
+      {useCover ? <CoverImg /> : <>
       {slides.map((sl, i) => (
         <div key={sl.id} className={`slide ${i === Math.min(cur, slides.length - 1) ? 'on' : ''}`}>
           {sl.imgId
@@ -82,6 +103,7 @@ export function BannerWidget({ conf }: { conf: WidgetConf }) {
           <i key={sl.id} className={i === Math.min(cur, slides.length - 1) ? 'on' : ''} onClick={() => setCur(i)} />
         ))}
       </div>
+      </>}
       {/* 배너 관리 (관리자) — 배너에 마우스를 올렸을 때만 표시 */}
       {isAdmin && !editOn && (
         <button className="hv-actions"
