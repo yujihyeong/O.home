@@ -2214,7 +2214,7 @@ html[data-scene="night"] .gbx{
 .gbx-btn.on{filter:brightness(1.1);box-shadow:inset 0 2px 0 var(--gb-btn-lo),0 0 0 2px var(--gb-flag),0 0 10px var(--gb-flag)}
 .gbx-btn:active{transform:translateY(2px);box-shadow:inset 0 -1px 0 var(--gb-btn-lo)}
 .gbx-sys{display:flex;justify-content:center;gap:14px;margin-top:10px}
-.gbx-sys button{display:flex;flex-direction:column;align-items:center;gap:4px;font-family:inherit;font-size:8.5px;letter-spacing:.16em;color:var(--gb-ink);
+.gbx-sys button{display:flex;flex-direction:column;align-items:center;gap:4px;font-family:inherit;font-size:6.5px;letter-spacing:.14em;color:var(--gb-ink);
   transform:rotate(-18deg)}   /* 글자까지 통째로 — A·B 버튼과 같은 기울기 */
 .gbx-sys i{width:30px;height:8px;border-radius:5px;background:var(--gb-sys);box-shadow:inset 0 -2px 0 rgba(0,0,0,.2)}
 .gbx-sys button:active i{transform:translateY(1px)}
