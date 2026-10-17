@@ -35,6 +35,25 @@ export function EntryGate() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pick]);
 
+  /* 아이폰 사파리는 화면 위(상태 표시줄)·아래(주소창) 띠를 페이지 배경색으로 칠한다 —
+     대문은 그 위에 떠 있는 층이라, 뒤에 깔린 낮 배경(녹색)이 띠에 비쳤다 (사용자 제보).
+     대문이 떠 있는 동안 문서 배경과 theme-color를 대문 색으로 맞추고, 걷히면 되돌린다 */
+  useEffect(() => {
+    if (!pick || state === 'hidden') return;
+    const html = document.documentElement;
+    const cls = `gate-${pick}`;
+    html.classList.add(cls);
+    let meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
+    const made = !meta;
+    const prev = meta?.content;
+    if (!meta) { meta = document.createElement('meta'); meta.name = 'theme-color'; document.head.appendChild(meta); }
+    meta.content = pick === 'night' ? '#161a2e' : '#f6f3e7';
+    return () => {
+      html.classList.remove(cls);
+      if (made) meta?.remove(); else if (meta && prev !== undefined) meta.content = prev;
+    };
+  }, [pick, state === 'hidden']);   // eslint-disable-line react-hooks/exhaustive-deps
+
   // 키보드로도 — Enter·Space·Esc
   useEffect(() => {
     if (state !== 'open') return;
