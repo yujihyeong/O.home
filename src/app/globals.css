@@ -2456,3 +2456,17 @@ body.edit-on .qt-re{pointer-events:none}
 .qt-opt{display:inline-flex;align-items:center;gap:7px}
 .qt-opt-av{width:20px;height:20px;border-radius:50%;overflow:hidden;flex-shrink:0;display:inline-block;background:var(--line)}
 .qt-opt-av img{width:100%;height:100%;object-fit:cover;display:block}
+
+/* 배경 없는 위젯 글씨 자동 대비 (사용자 요청) — BgTone이 홈 배경 밝기를 재서 <html data-bgtone>을 단다.
+   어두운 배경 → 밝은 글씨 + 옅은 그림자, 밝은 배경 → 진한 글씨 + 옅은 흰 번짐. 글씨색 변수만 바꿔 위젯 안쪽이 그대로 따른다 */
+html[data-bgtone="dark"] .wgt-nobg{
+  --ink:#f6f3ec;--wg-fg:#f6f3ec;--sub:rgba(246,243,236,.84);--faint:rgba(246,243,236,.64);--wg-title:rgba(246,243,236,.8);--line:rgba(255,255,255,.2);
+  color:var(--ink);text-shadow:0 1px 2px rgba(0,0,0,.45),0 0 10px rgba(0,0,0,.28)}
+html[data-bgtone="light"] .wgt-nobg{
+  --ink:#22252a;--wg-fg:#22252a;--sub:rgba(34,37,42,.8);--faint:rgba(34,37,42,.6);--wg-title:rgba(34,37,42,.72);--line:rgba(0,0,0,.13);
+  color:var(--ink);text-shadow:0 0 8px rgba(255,255,255,.6)}
+/* 메모 글씨 — 배경이 있을 땐 원래 색, 배경을 끄면 위 자동 글씨색을 따른다 */
+.memo-txt{color:#3a3f47}
+.wgt-nobg .memo-txt{color:var(--ink)}
+/* 자기 바탕이 있는 것(말풍선 채팅·폴라로이드·게임기·입력칸·버튼)은 그림자 없이 원래대로 */
+.wgt-nobg :is(.cw-wrap,.pl-wrap,.gbx,.sw-box,.lat-cell,.deco-wgt,.banner,input,textarea,.btn,.modal-ov){text-shadow:none}
