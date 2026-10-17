@@ -39,8 +39,9 @@ export async function generateMetadata(): Promise<Metadata> {
     description,
     // 탭 아이콘 (v2.0 사용자 요청) — 지정했으면 기본 favicon.ico 대신 그것을 쓴다.
     // 지정이 없으면 icons를 아예 넣지 않아 Next의 기본 파일 처리를 그대로 둔다
-    // 홈 화면 아이콘(apple-touch-icon)은 늘 둔다 — 아이폰 「홈 화면에 추가」·웹푸시용 (자놀 이식). 탭 아이콘을 지정했으면 그것으로
-    icons: { ...(favicon ? { icon: favicon } : {}), apple: favicon || '/icon-192.png' },
+    // 홈 화면 아이콘(apple-touch-icon)은 늘 둔다 — 아이폰 「홈 화면에 추가」·웹푸시용 (자놀 이식).
+    // 웹앱 이미지는 탭 아이콘과 따로 (사용자 요청) — ?v= 는 바꾼 그림이 예전 캐시에 가리지 않게
+    icons: { ...(favicon ? { icon: favicon } : {}), apple: '/apple-icon.png?v=2' },
     manifest: '/manifest.webmanifest',
     // 아이폰에서 홈 화면 웹앱(standalone)으로 열리게 — 그래야 웹푸시를 받을 수 있다
     appleWebApp: { capable: true, title: title.replace(/ — 개인홈$/, ''), statusBarStyle: 'default' },
