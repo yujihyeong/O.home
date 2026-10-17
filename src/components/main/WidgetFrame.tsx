@@ -5,6 +5,24 @@ import React, { useEffect, useRef, useState } from 'react';
 import { WidgetConf, useMainStore } from '@/lib/mainStore';
 import { ConfirmModal } from '@/components/ui/Modal';
 
+/** 위젯 하나가 오류로 멈춰도 메인 전체가 하얗게 죽지 않게 — 그 위젯 자리에만 오류 내용을 띄운다 (사용자 제보) */
+class WidgetGuard extends React.Component<{ name: string; children: React.ReactNode }, { err: Error | null }> {
+  state = { err: null as Error | null };
+  static getDerivedStateFromError(err: Error) { return { err }; }
+  componentDidCatch(err: Error) { console.error(`[widget:${this.props.name}]`, err); }
+  render() {
+    if (!this.state.err) return this.props.children;
+    return (
+      <div className="panel widget wgt-err">
+        <h4>위젯 오류</h4>
+        <p>이 위젯을 그리다 문제가 생겼어요 — 아래 내용을 알려 주세요</p>
+        <code>{this.props.name}: {this.state.err.message}</code>
+        <button type="button" className="btn btn-ghost" onClick={() => this.setState({ err: null })}>다시 시도</button>
+      </div>
+    );
+  }
+}
+
 export function WidgetFrame({ conf, mobileOrder, children, className, style, onCtx }: {
   conf: WidgetConf;
   mobileOrder: number;
@@ -201,7 +219,7 @@ export function WidgetFrame({ conf, mobileOrder, children, className, style, onC
         e.stopPropagation(); e.preventDefault();
       }}
     >
-      {children}
+      <WidgetGuard name={conf.type}>{children}</WidgetGuard>
       {/* Shift+드래그 중앙 정렬 — 폭이 안 맞아 5px 치우칠 때 가로를 어느 쪽으로 맞출지 (v1.9 사용자 요청) */}
       <ConfirmModal open={centerAsk !== null}
         title="가운데에 딱 맞추려면 가로 크기를 조정해야 합니다"
