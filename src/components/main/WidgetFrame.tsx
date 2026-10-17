@@ -168,7 +168,7 @@ export function WidgetFrame({ conf, mobileOrder, children, className, style, onC
         w = Math.round((absL + w) / 10) * 10 - absL;
         h = Math.round((absT + h) / 10) * 10 - absT;
       }
-      updateWidget(conf.id, { w: Math.max(160, w), h: Math.max(80, h) });
+      updateWidget(conf.id, { w: Math.max(160, w), h: Math.max(40, h) });   // 높이 최소 40 — 배경 없는 검색창처럼 얇은 위젯도 바짝 줄일 수 있게 (사용자 요청)
     };
     const up = () => { document.body.classList.remove('drag-rs'); window.removeEventListener('pointermove', mv); window.removeEventListener('pointerup', up); };
     window.addEventListener('pointermove', mv);

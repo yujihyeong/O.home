@@ -2474,3 +2474,7 @@ html[data-bgtone="light"] .wgt-nobg{
 .wgt-err{min-width:220px}
 .wgt-err p{font-size:calc(12px*var(--fs,1));color:var(--sub);margin-bottom:8px}
 .wgt-err code{display:block;font-size:11px;background:rgba(200,60,70,.08);color:#b03a48;border-radius:8px;padding:8px 10px;margin-bottom:10px;word-break:break-all;white-space:pre-wrap}
+/* 검색창 위젯 — 배경을 끄면 판의 안쪽 여백도 없애 위젯 사이가 벌어져 보이지 않게,
+   크기를 정해 둔 칸 안에서는 검색창을 세로 가운데로 (사용자 요청) */
+.wgt-nobg .sw-widget{padding:0}
+.wgt.sized .sw-widget{display:flex;flex-direction:column;justify-content:center}
