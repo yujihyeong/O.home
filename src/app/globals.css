@@ -1564,6 +1564,7 @@ body.edit-on .main-grid.gridlines .wgt{outline-offset:0}
 .tag-in{font-style:normal;color:color-mix(in srgb,var(--accent) 65%,var(--faint));margin-left:7px}
 .brow:last-child{border-bottom:none}
 .brow:hover{background:#f4f5f7}
+.brow.nocat{grid-template-columns:1fr 90px 90px}
 .brow .cat{font-size:calc(10px*var(--fs,1));text-align:center}
 .brow .who,.brow .dt{font-size:calc(11.5px*var(--fs,1));color:var(--faint);text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .brow>b{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}

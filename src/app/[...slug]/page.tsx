@@ -13,7 +13,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { PageTitle } from '@/components/ui/PageText';
 import { KSelect } from '@/components/ui/Kit';
 import { useToast } from '@/components/ui/Toast';
-import { useBoards, boardHref, DEFAULT_BOARD_CATS } from '@/lib/boardStore';
+import { useBoards, boardHref, BoardKind } from '@/lib/boardStore';
 import { newId } from '@/lib/postStore';
 import { useSections, SECTION_KINDS, SECTION_META, sectionsOf, sectionHref, MAIN_SEC } from '@/lib/sectionStore';
 import { useAuth } from '@/lib/auth';
@@ -109,14 +109,15 @@ export default function NotFoundPage() {
   /* 그 주소에 **새 게시판**을 만든다 (사용자 요청 — 「/LOG2가 다른 게시판으로 가는 길이 아니라
      그 주소 자체가 있는 페이지였으면」). 게시판을 하나 새로 만들고 이 주소를 거기에 잇는다 —
      주소창은 /LOG2 그대로, 글도 이 게시판에만 쌓인다. 이름은 메뉴에 건 이름(없으면 주소) */
+  const [newKind, setNewKind] = useState<BoardKind>('log');   // 새로 만들 게시판의 형태
   const boardFor = (address: string, name: string) => {
     const key = norm(address);
     const taken = new Set(boards.map(b => b.id));
     const id = key && /^[a-z0-9]+$/.test(key) && !taken.has(key) ? key : newId();
     return {
       board: {
-        id, name, desc: '', skin: 'list' as const, permWrite: 'member' as const, permComment: 'member' as const,
-        cats: DEFAULT_BOARD_CATS,
+        id, name, desc: '', kind: newKind,
+        skin: 'list' as const, permWrite: 'member' as const, permComment: 'member' as const, cats: [],
       },
       href: boardHref(id),
     };
@@ -166,6 +167,14 @@ export default function NotFoundPage() {
             <p style={{ fontSize: 13.5, color: 'var(--ink)', lineHeight: 1.7 }}>
               <b>/{raw}</b>{linkName ? <> (메뉴 「{linkName}」)</> : null}는 아직 비어 있는 주소예요.
             </p>
+            {/* 게시판 형태 — 만들 때 고른다 (나중에 환경설정 › 게시판 관리에서 바꿀 수 있다) */}
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+              <span style={{ fontSize: 12, color: 'var(--sub)' }}>형태</span>
+              <div className="mini-seg">
+                <button className={newKind === 'log' ? 'on' : ''} onClick={() => setNewKind('log')}>✎ 로그</button>
+                <button className={newKind === 'gallery' ? 'on' : ''} onClick={() => setNewKind('gallery')}>🖼 갤러리</button>
+              </div>
+            </div>
             {/* 이 주소 자체를 새 게시판으로 — 주소창은 /{raw} 그대로, 글도 여기에만 쌓인다 */}
             <button className="btn btn-dark" style={{ justifySelf: 'start' }}
               onClick={() => {

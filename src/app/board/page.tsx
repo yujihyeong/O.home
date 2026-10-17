@@ -1,16 +1,16 @@
 'use client';
-// 일반 게시판 목록 (4.2 / 5.2 다중 게시판) — 말머리 필터 · 검색 · 비밀글 마스킹 · 접기 표시 · 페이지네이션
+// 일반 게시판 목록 (4.2 / 5.2 다중 게시판) — 형태(로그 목록 / 갤러리 격자) · 검색 · 비밀글 마스킹 · 접기 표시 · 페이지네이션
 // ?b=<게시판 id> 로 게시판 구분 (없으면 기본 게시판) · 리스트 스킨: 기본형 / 티켓형 (5.2 v1.9)
 import React, { Suspense, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useRouteSearch } from '@/lib/routeParams';
 import { useAuth } from '@/lib/auth';
 import {
-  useLocalList, BOARD_SEED, Post, fmtDate, kindOf,
+  useLocalList, BOARD_SEED, Post, fmtDate,
   CommentRow, COMMENT_KEY, COMMENT_SEED, commentsFor,
 } from '@/lib/postStore';
 import {
-  useBoardSettings, useBoards, badgeFor, boardBadgeStyle, boardHref, MAIN_BOARD_ID, BoardPerm,
+  useBoardSettings, useBoards, boardBadgeStyle, boardHref, MAIN_BOARD_ID, BoardPerm,
 } from '@/lib/boardStore';
 import { SearchBar, Pager } from '@/components/ui/Kit';
 import { CropImg } from '@/components/ui/CropEditor';
@@ -38,27 +38,20 @@ function BoardInner() {
   const [cmtRows] = useLocalList<CommentRow>(COMMENT_KEY, COMMENT_SEED);
   const cmtCount = (p: Post) => commentsFor(cmtRows, 'post', p.id, p.comments).length;
   const { st: boardSet } = useBoardSettings();   // 시스템 뱃지 색 (환경설정 > 게시판 관리)
-  const [cat, setCat] = useState('전체');
-  // 글 종류 탭 — 전체 / 갤러리(이미지 격자) / 로그(글 목록)
-  const [kind, setKind] = useState<'all' | 'gallery' | 'log'>(() => {
-    const k = params.get('kind');
-    return k === 'gallery' || k === 'log' ? k : 'all';
-  });
+  // 게시판 형태 — 만들 때 정한 대로 (갤러리 = 이미지 격자, 로그 = 글 목록). 방문자가 고르지 않는다
+  const isGallery = board?.kind === 'gallery';
   const [q, setQ] = useState('');
   const [page, setPage] = useState(1);
 
   // 게시판 전환 시 필터·페이지 초기화
   const [prevBid, setPrevBid] = useState(bid);
-  if (prevBid !== bid) { setPrevBid(bid); setCat('전체'); setQ(''); setPage(1); setKind('all'); }
+  if (prevBid !== bid) { setPrevBid(bid); setQ(''); setPage(1); }
 
   // 권한 3단계 — mock 단계에선 로그인 전제 (로드뷰 4.10과 동일 규칙)
   const allow = (p: BoardPerm) => (p === 'admin' ? isAdmin : p === 'member' ? !!user : true);
 
   const visible = useMemo(() => {
     let list = posts.filter(p => (p.boardId ?? MAIN_BOARD_ID) === board.id);
-    if (kind !== 'all') list = list.filter(p => kindOf(p) === kind);
-    if (cat === '공지') list = list.filter(p => p.notice);
-    else if (cat !== '전체') list = list.filter(p => p.category === cat);
     if (q) {
       const k = q.toLowerCase();
       list = list.filter(p =>
@@ -67,10 +60,9 @@ function BoardInner() {
         (p.tags ?? []).some(t => t.toLowerCase().includes(k)) ||   // 태그 검색 (v2.0 사용자 요청)
         (!p.secret && p.body.toLowerCase().includes(k)));
     }
-    // 공지 상단 고정 + 최신순
-    return list.sort((a, b) =>
-      (b.notice ? 1 : 0) - (a.notice ? 1 : 0) || b.date.localeCompare(a.date));
-  }, [posts, board.id, cat, q, kind]);
+    // 최신순 (공지·말머리는 쓰지 않는다 — 게시판 자체로 나눈다)
+    return list.sort((a, b) => b.date.localeCompare(a.date));
+  }, [posts, board.id, q]);
 
   const totalPages = Math.max(1, Math.ceil(visible.length / PER_PAGE));
   const pageList = visible.slice((page - 1) * PER_PAGE, page * PER_PAGE);
@@ -80,11 +72,6 @@ function BoardInner() {
 
   if (!boardsLoaded) return <section className="page" />;
 
-  const postBadge = (p: Post) => (
-    <span style={boardBadgeStyle(badgeFor(boardSet, p, board.cats))}>
-      {p.notice ? boardSet.system[0].label : p.secret ? boardSet.system[1].label : p.category}
-    </span>
-  );
 
   return (
     <section className="page">
@@ -92,29 +79,18 @@ function BoardInner() {
         <PageTitle href={boardHref(board.id)}>{board.id === MAIN_BOARD_ID ? 'BOARD' : board.name}</PageTitle>
         <EditableDesc k={board.id === MAIN_BOARD_ID ? 'board-desc' : `board-desc-${board.id}`} def={board.desc} />
       </div>
-      {/* 글 종류 — 갤러리는 이미지 격자, 로그는 글 목록 */}
-      <div className="mini-seg kind-tabs">
-        {([['all', '전체'], ['gallery', '🖼 갤러리'], ['log', '✎ 로그']] as const).map(([k, l]) => (
-          <button key={k} className={kind === k ? 'on' : ''} onClick={() => { setKind(k); setPage(1); }}>{l}</button>
-        ))}
-      </div>
-      <div className="toolrow">
-        <div className="seg">
-          {['전체', '공지', ...board.cats.map(x => x.label)].map(c => (
-            <button key={c} className={cat === c ? 'on' : ''} onClick={() => { setCat(c); setPage(1); }}>{c}</button>
-          ))}
-        </div>
+      <div className="toolrow" style={{ justifyContent: 'flex-end' }}>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <SearchBar onSearch={v => { setQ(v); setPage(1); }} />
           {allow(board.permWrite) && !!user && (
             <button className="btn btn-dark"
-              onClick={() => router.push(`/board/write?b=${board.id}${kind === 'gallery' ? '&kind=gallery' : ''}`)}>✎ WRITE</button>
+              onClick={() => router.push(`/board/write?b=${board.id}`)}>✎ WRITE</button>
           )}
         </div>
       </div>
 
-      {kind === 'gallery' ? (
-        /* 갤러리 탭 — 이미지 격자 (대표 이미지 > 첫 이미지) */
+      {isGallery ? (
+        /* 갤러리 게시판 — 이미지 격자 (대표 이미지 > 첫 이미지) */
         <div className="gal-grid">
           {pageList.map(p => {
             const thumb = canRead(p) ? (p.thumbSrc ?? firstImage(p.body)) : null;
@@ -151,10 +127,11 @@ function BoardInner() {
                     : <div className="bt-ph">{(canRead(p) ? p.title : 'SECRET').slice(0, 1).toUpperCase()}</div>}
                 </div>
                 <div className="bt-body">
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    {postBadge(p)}
-                    {p.fold && <span style={boardBadgeStyle(boardSet.system[2])}>{boardSet.system[2].label}</span>}
-                  </div>
+                  {p.fold && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={boardBadgeStyle(boardSet.system[2])}>{boardSet.system[2].label}</span>
+                    </div>
+                  )}
                   <div className="bt-title">
                     {canRead(p) ? <>{p.secret && '🔒 '}{p.title}</> : '🔒 비밀글입니다'}
                     {canRead(p) && cmtCount(p) > 0 && <span className="cmt">{cmtCount(p)}</span>}
@@ -172,8 +149,7 @@ function BoardInner() {
         /* 기본형 스킨 — 리스트 행 (글씨색은 게시판 관리에서 지정 가능, v1.9) */
         <div className="panel board-list flush" style={board.fg ? { color: board.fg } : undefined}>
           {pageList.map(p => (
-            <div className="brow" key={p.id} onClick={() => { if (canRead(p)) router.push(`/board/${p.id}`); }}>
-              <span className="cat">{postBadge(p)}</span>
+            <div className="brow nocat" key={p.id} onClick={() => { if (canRead(p)) router.push(`/board/${p.id}`); }}>
               {/* 제목 칸 안에서 태그를 오른쪽 끝(=작성자 바로 왼쪽)에 정렬 (v2.0 사용자 요청) —
                   칸을 따로 만들면 행마다 그리드가 독립이라 작성자 열이 태그 길이만큼 어긋난다 */}
               <div className="tcell">
