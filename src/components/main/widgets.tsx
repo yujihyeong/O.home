@@ -17,6 +17,7 @@ import { BlurBg } from '@/components/ui/BlurBg';
 import { ChatWidget } from '@/components/main/ChatWidget';
 import { QuoteWidget } from '@/components/main/QuoteWidget';
 import { PolaroidWidget } from '@/components/main/PolaroidWidget';
+import { SearchWidget } from '@/components/main/SearchWidget';
 import { BannerEditor, BannerSlide, DEMO_SLIDES, DdayEditor, DdayLook, DecoEditor, TodoEditor, TodoSetItem } from '@/components/main/widgetEditors';
 import { CroppedBlobImg, CropValue } from '@/components/ui/CropEditor';
 import { useLocalList, Post, BOARD_SEED } from '@/lib/postStore';
@@ -748,6 +749,7 @@ export function renderWidget(conf: WidgetConf) {
     case 'recent': return <RecentPostsWidget conf={conf} />;
     case 'quote': return <QuoteWidget conf={conf} />;
     case 'polaroid': return <PolaroidWidget conf={conf} />;
+    case 'search': return <SearchWidget conf={conf} />;
     default: return <div className="panel widget"><h4>{WIDGET_META[conf.type]?.title ?? conf.type}</h4></div>;
   }
 }
