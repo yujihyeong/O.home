@@ -18,6 +18,10 @@ export default function LoginPage() {
   const [err, setErr] = useState('');
   const [signupOpen, setSignupOpen] = useState(false);
   const [findOpen, setFindOpen] = useState(false);
+  // 회원정보창의 「회원가입」 버튼으로 오면(?signup=1) 가입 창을 바로 연다
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('signup') === '1') setSignupOpen(true);
+  }, []);
   // 회원가입 폼
   const [sId, setSId] = useState('');
   const [sPw, setSPw] = useState('');

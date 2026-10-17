@@ -2481,3 +2481,7 @@ html[data-bgtone="light"] .wgt-nobg{
 
 /* 대문 ENTER 글씨 — 뚱뚱하고 둥근 Fredoka Bold (사용자 요청, 사이트에 직접 담아 둠 · SIL OFL) */
 @font-face{font-family:'Fredoka';font-style:normal;font-weight:700;font-display:swap;src:url('/fonts/fredoka-700.woff2') format('woff2')}
+/* 회원정보창 비로그인 프로필 — 동그란 원 안의 햄스터/토끼 (사용자 요청) */
+.mb-guest-av{width:42px;height:42px;border-radius:50%;flex-shrink:0;display:grid;place-items:center;font-size:24px;line-height:1;
+  background:color-mix(in srgb,var(--accent) 14%,#fff);box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--accent) 30%,transparent)}
+html[data-scene="night"] .mb-guest-av{background:#e6def2;box-shadow:inset 0 0 0 1.5px rgba(150,120,190,.35)}
