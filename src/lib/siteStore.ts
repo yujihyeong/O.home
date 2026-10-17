@@ -1,5 +1,5 @@
 ﻿'use client';
-// 사이트 로고 설정 (5.2 — 제목/서브타이틀/서브 정렬) — 상단바 브랜드 + TRPG 티켓 하단 문구 연동
+// 사이트 로고 설정 (5.2 — 제목/서브타이틀/서브 정렬) — 상단바 브랜드
 // v1.9: 디자인 탭 SAVE 통합 — 드래프트(useSiteDraft)로 즉시 미리보기하고 SAVE를 눌러야 저장.
 // 소비자(useSiteSettings)는 드래프트가 있으면 그 값을 봄 (테마 미리보기와 동일 규칙).
 import { useCallback, useEffect, useReducer, useState } from 'react';

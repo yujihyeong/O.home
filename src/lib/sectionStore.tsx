@@ -20,15 +20,12 @@ import { getRawSetting, setSetting } from './settingStore';
 import { newId } from './postStore';
 
 export type SectionKind =
-  | 'gallery' | 'roadview' | 'trpg' | 'dotori' | 'playlog' | 'comm' | 'diary' | 'threads' | 'sched' | 'chars';
+  | 'gallery' | 'roadview' | 'comm' | 'diary' | 'threads' | 'sched' | 'chars';
 
 /** 섹션 종류별 기본 정보 — 설정 탭 이름과 페이지 주소 */
 export const SECTION_META: Record<SectionKind, { label: string; href: string; defName: string }> = {
   gallery:  { label: '갤러리',    href: '/gallery',   defName: '갤러리' },
   roadview: { label: '로드비',    href: '/loadb', defName: '로드비' },
-  trpg:     { label: '로그 백업', href: '/trpg',     defName: '로그 백업' },
-  dotori:   { label: '도토리',    href: '/dotori',   defName: '도토리' },
-  playlog:  { label: '플레이기록', href: '/playlog', defName: '플레이기록' },
   comm:     { label: '커미션',    href: '/comm',     defName: '커미션' },
   diary:    { label: '다이어리',  href: '/diary',    defName: '다이어리' },
   threads:  { label: '감상타래',  href: '/threads',  defName: '감상타래' },

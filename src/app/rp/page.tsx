@@ -253,7 +253,7 @@ export default function RpPage() {
     }, `대화 ${count}개도 함께 삭제됩니다.`);
   };
 
-  // 완결 로그 HTML 내보내기 (4.9 — TRPG 백업에 붙일 수 있는 형태)
+  // 완결 로그 HTML 내보내기 (4.9)
   const exportHtml = () => {
     if (!sel) return;
     const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/\n/g, '<br>');

@@ -33,8 +33,6 @@ export interface MenuSettings {
   hidden: string[];
   labels: Record<string, string>;
   // 메뉴별 부속 설정 (스펙상 "메뉴 관리에서" 지정하는 것들)
-  playlogPc: string[];               // 플레이기록 표시 열 — PC (4.16 v1.8)
-  playlogMobile: string[];           //   〃 모바일 (기본 Date/Scenario/Role/Playtime)
   roadUpload: MenuPerm;              // 로드뷰 업로드 권한 (4.10 v1.7)
   roadComment: MenuPerm;             // 로드뷰 댓글 권한
   backupView: 'gal' | 'list';        // 갤러리(그림백업) 기본 보기 (5.2)
@@ -47,12 +45,11 @@ export interface MenuSettings {
 }
 
 /** 이미지 저장 방지 영역 (v1.9) — 게시판은 갤러리·로드비 포함 */
-export type ImgProtectArea = 'board' | 'comm' | 'tchar' | 'chars' | 'rels';
+export type ImgProtectArea = 'board' | 'comm' | 'chars' | 'rels';
 
 export const IMG_PROTECT_AREAS: { key: ImgProtectArea; label: string; paths: string[] }[] = [
   { key: 'board', label: '게시판 (갤러리·로드비 포함)', paths: ['/board', '/gallery', '/loadb'] },
   { key: 'comm', label: '커미션', paths: ['/comm', '/comm-apply'] },
-  { key: 'tchar', label: 'TRPG 캐릭터', paths: ['/tchars'] },
   { key: 'chars', label: '자캐 (캐릭터)', paths: ['/chars'] },
   { key: 'rels', label: '자관', paths: ['/rels'] },
 ];
@@ -112,23 +109,16 @@ function migrateTree(p: Partial<MenuSettings>): MenuGroupNode[] {
 
 export const newGroupId = () => `g-${newId()}`;
 
-export const PLAYLOG_COLS: { key: string; label: string }[] = [
-  { key: 'date', label: 'Date' },
-  { key: 'scenario', label: 'Scenario' },
-  { key: 'writer', label: 'Writer' },
-  { key: 'with', label: 'With' },
-  { key: 'role', label: 'Role' },
-  { key: 'playtime', label: 'Playtime' },
-  { key: 'url', label: 'Url' },
-];
+/** 사이트에서 뺀 기능의 주소 (TRPG 캐릭터·로그 백업·도토리·플레이기록 — 사용자 요청으로 삭제) */
+const REMOVED_PATHS = ['/tchars', '/trpg', '/dotori', '/playlog'];
+const removedHref = (h?: string) =>
+  !!h && REMOVED_PATHS.some(r => h === r || h.startsWith(`${r}?`) || h.startsWith(`${r}/`));
 
 export const DEFAULT_MENU_SETTINGS: MenuSettings = {
   removedBoards: [],
   groupOrder: DEFAULT_MENU.map(m => m.label),
   hidden: [],
   labels: {},
-  playlogPc: PLAYLOG_COLS.map(c => c.key),                       // PC 기본 전체 7열
-  playlogMobile: ['date', 'scenario', 'role', 'playtime'],       // 모바일 기본 4열 (v1.8)
   roadUpload: 'member', roadComment: 'guest',
   backupView: 'gal',
   calTitle: 'en',
@@ -156,16 +146,26 @@ function moveHrefs(p: Partial<MenuSettings>): Partial<MenuSettings> {
     }
     return h;
   };
-  const mvTree = (t: MenuGroupNode[]) => t.map(g => ({
-    ...g,
-    ...(g.href ? { href: mv(g.href) } : {}),
-    items: (g.items ?? []).map(it => ({ ...it, href: mv(it.href) })),
-  }));
+  // 삭제한 기능(TRPG — 사용자 요청)의 메뉴 항목은 저장된 트리에서도 걷어 낸다.
+  // 그것만 들어 있던 상위 메뉴는 통째로 — 원래부터 비어 있던 상위 메뉴는 그대로 둔다
+  const mvTree = (t: MenuGroupNode[]) => t
+    .filter(g => !removedHref(g.href))
+    .map(g => {
+      const items = g.items ?? [];
+      const kept = items.filter(it => !removedHref(it.href));
+      if (!g.href && items.length && !kept.length) return null;
+      return {
+        ...g,
+        ...(g.href ? { href: mv(g.href) } : {}),
+        items: kept.map(it => ({ ...it, href: mv(it.href) })),
+      };
+    })
+    .filter((g): g is MenuGroupNode => !!g);
   return {
     ...p,
     ...(p.tree ? { tree: mvTree(p.tree) } : {}),
     ...(p.treeNight ? { treeNight: mvTree(p.treeNight) } : {}),
-    ...(p.removedBoards ? { removedBoards: p.removedBoards.map(mv) } : {}),
+    ...(p.removedBoards ? { removedBoards: p.removedBoards.filter(h => !removedHref(h)).map(mv) } : {}),
   };
 }
 
