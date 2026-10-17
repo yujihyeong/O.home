@@ -68,7 +68,7 @@ export default function BoardDetailPage() {
   if (!loaded) return <section className="page" />;
   if (!post) {
     return (
-      <section className="page">
+      <section className="page post-read">
         <div className="page-head"><PageTitle>BOARD</PageTitle><p>글을 찾을 수 없습니다</p></div>
       </section>
     );
@@ -78,7 +78,7 @@ export default function BoardDetailPage() {
   const isAuthor = !!post.authorId && post.authorId === user?.id;
   if (post.secret && !isAdmin && !isAuthor) {
     return (
-      <section className="page">
+      <section className="page post-read">
         <div className="page-head"><PageTitle>BOARD</PageTitle><p>비밀글 — 작성자와 관리자만 열람할 수 있습니다</p></div>
       </section>
     );
@@ -168,7 +168,7 @@ export default function BoardDetailPage() {
   );
 
   return (
-    <section className="page">
+    <section className="page post-read">
       <div className="page-head">
         <PageTitle href={boardHref(board.id)}>{boardTitle}</PageTitle>
         <p>{post.author} · {fmtDate(post.date)}</p>
