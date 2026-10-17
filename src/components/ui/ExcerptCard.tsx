@@ -92,6 +92,38 @@ function wrap(ctx: CanvasRenderingContext2D, text: string, max: number): string[
   return out;
 }
 
+/** 상자 블러를 가로·세로로 3번 — 가우스 블러와 거의 같은 부드러운 흐림 (모든 브라우저에서 똑같이) */
+function gaussBlur(img: ImageData, sigma: number) {
+  const { width: w, height: h, data } = img;
+  // 표준편차 sigma에 맞는 상자 3개 크기 (Kovesi 방식)
+  const n = 3;
+  const wIdeal = Math.sqrt((12 * sigma * sigma) / n + 1);
+  let wl = Math.floor(wIdeal); if (wl % 2 === 0) wl--;
+  const m = Math.round((12 * sigma * sigma - n * wl * wl - 4 * n * wl - 3 * n) / (-4 * wl - 4));
+  const radii = [0, 1, 2].map(i => ((i < m ? wl : wl + 2) - 1) / 2);
+  const a = new Float32Array(w * h * 3), b = new Float32Array(w * h * 3);
+  for (let i = 0, j = 0; i < data.length; i += 4, j += 3) { a[j] = data[i]; a[j + 1] = data[i + 1]; a[j + 2] = data[i + 2]; }
+  const pass = (src: Float32Array, dst: Float32Array, r: number, horiz: boolean) => {
+    if (r < 1) { dst.set(src); return; }
+    const len = horiz ? w : h, lines = horiz ? h : w;
+    const step = (horiz ? 1 : w) * 3, iarr = 1 / (r + r + 1);
+    for (let line = 0; line < lines; line++) {
+      const base = (horiz ? line * w : line) * 3;
+      for (let c = 0; c < 3; c++) {
+        const at = (k: number) => src[base + Math.min(len - 1, Math.max(0, k)) * step + c];   // 가장자리는 끝 픽셀
+        let acc = 0;
+        for (let k = -r; k <= r; k++) acc += at(k);
+        for (let k = 0; k < len; k++) {
+          dst[base + k * step + c] = acc * iarr;
+          acc += at(k + r + 1) - at(k - r);
+        }
+      }
+    }
+  };
+  for (const r of radii) { pass(a, b, Math.round(r), true); pass(b, a, Math.round(r), false); }
+  for (let i = 0, j = 0; i < data.length; i += 4, j += 3) { data[i] = a[j]; data[i + 1] = a[j + 1]; data[i + 2] = a[j + 2]; data[i + 3] = 255; }
+}
+
 /** 카드를 캔버스에 그린다 — 높이는 글 길이에 맞추되 정사각형보다 작아지지 않게 */
 async function draw(canvas: HTMLCanvasElement, paras: string[], source: string, st: CardStyle, family: string) {
   const ctx = canvas.getContext('2d')!;
@@ -112,19 +144,26 @@ async function draw(canvas: HTMLCanvasElement, paras: string[], source: string, 
   if (st.img) {
     try {
       const im = await loadImg(st.img);
-      // 꽉 채우기(cover) — 블러는 작게 줄였다 늘려서 (모든 브라우저에서 똑같이)
+      // 꽉 채우기(cover) — 이미지 크기·위치는 블러와 상관없이 그대로
       const k = Math.max(W / im.width, H / im.height);
       const dw = im.width * k, dh = im.height * k;
-      const shrink = 1 + st.blur * 0.9;
-      const tmp = document.createElement('canvas');
-      tmp.width = Math.max(1, Math.round(W / shrink)); tmp.height = Math.max(1, Math.round(H / shrink));
-      const tc = tmp.getContext('2d')!;
-      tc.imageSmoothingQuality = 'high';
-      tc.drawImage(im, (W - dw) / 2 / shrink, (H - dh) / 2 / shrink, dw / shrink, dh / shrink);
       ctx.imageSmoothingQuality = 'high';
-      // 가장자리가 비치지 않게 살짝 크게
-      const m = st.blur ? st.blur * 3 : 0;
-      ctx.drawImage(tmp, -m, -m, W + m * 2, H + m * 2);
+      if (!st.blur) {
+        ctx.drawImage(im, (W - dw) / 2, (H - dh) / 2, dw, dh);
+      } else {
+        // 부드러운 블러 — 반 크기에서 가우스에 가까운 흐림(상자 블러 3번)을 건 뒤 원래 크기로.
+        // 가장자리는 끝 픽셀을 이어 써서 확대하지 않아도 테두리가 비치지 않는다
+        const q = 0.5;
+        const tmp = document.createElement('canvas');
+        tmp.width = Math.round(W * q); tmp.height = Math.round(H * q);
+        const tc = tmp.getContext('2d')!;
+        tc.imageSmoothingQuality = 'high';
+        tc.drawImage(im, (W - dw) / 2 * q, (H - dh) / 2 * q, dw * q, dh * q);
+        const data = tc.getImageData(0, 0, tmp.width, tmp.height);
+        gaussBlur(data, st.blur * 3 * q);
+        tc.putImageData(data, 0, 0);
+        ctx.drawImage(tmp, 0, 0, W, H);
+      }
       // 밝기 — 어둡게는 검정, 밝게는 흰색을 덮는다
       if (st.bright < 100) { ctx.fillStyle = `rgba(0,0,0,${(100 - st.bright) / 100})`; ctx.fillRect(0, 0, W, H); }
       if (st.bright > 100) { ctx.fillStyle = `rgba(255,255,255,${(st.bright - 100) / 100 * 0.8})`; ctx.fillRect(0, 0, W, H); }
