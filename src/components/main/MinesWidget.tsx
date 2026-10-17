@@ -283,9 +283,16 @@ export function MinesWidget() {
       <div className="gbx-ctrl">
         <div className="gbx-dpad" aria-hidden><i /><i /></div>
         <div className="gbx-ab">
-          <button type="button" className={`gbx-btn b ${flagMode ? 'on' : ''}`} onClick={() => setFlagMode(v => !v)}
-            data-tip="깃발 모드 — 켜면 누르는 칸에 깃발">B</button>
-          <button type="button" className="gbx-btn a" onClick={() => setFlagMode(false)} data-tip="여는 모드">A</button>
+          {/* 글자는 버튼 아래에 작게 — 진짜 게임기처럼 */}
+          <span className="gbx-abw b">
+            <button type="button" className={`gbx-btn ${flagMode ? 'on' : ''}`} onClick={() => setFlagMode(v => !v)}
+              data-tip="깃발 모드 — 켜면 누르는 칸에 깃발" aria-label="B — 깃발 모드" />
+            <small>B</small>
+          </span>
+          <span className="gbx-abw a">
+            <button type="button" className="gbx-btn" onClick={() => setFlagMode(false)} data-tip="여는 모드" aria-label="A — 여는 모드" />
+            <small>A</small>
+          </span>
         </div>
       </div>
       <div className="gbx-sys">
