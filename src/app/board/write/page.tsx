@@ -189,6 +189,14 @@ function WriteInner() {
       {/* 큰 글씨 — 추가 게시판이면 그 이름(메뉴 관리 타이틀·이름이 우선), 누르면 그 게시판으로 복귀
           (v2.0 사용자 제보 — 「글쓰기에서 큰제목을 눌러도 안 돌아가고, 제목도 원래 것이 뜬다」) */}
       <div className="page-head"><PageTitle href={boardHref(board.id)}>{board.id === MAIN_BOARD_ID ? (editing ? 'EDIT' : 'WRITE') : board.name}</PageTitle><EditableDesc k="board-write-desc" def="갤러리(이미지) / 로그(글) — 에디터 · Markdown · 로그 정리 · HTML, 스크립트는 저장 시 자동 제거" /></div>
+      {/* 저장 버튼은 위에 — 글이 길어져도 내려가지 않고 바로 누를 수 있게 (화면에 붙어 따라온다) */}
+      <div className="write-actions">
+        <div className="form-actions">
+          <button className="btn btn-onbk"
+            onClick={() => router.push(editing ? `/board/${editing.id}` : boardHref(board.id))}>CANCEL</button>
+          <button className="btn btn-accent" onClick={post}>{editing ? 'SAVE' : 'POST'}</button>
+        </div>
+      </div>
       <div className="write-grid">
         {/* 좌: 본문 */}
         <div className="panel" style={{ padding: 24 }}>
@@ -328,11 +336,6 @@ function WriteInner() {
                 <KInput placeholder="접기 문구" value={foldLabel} onChange={e => setFoldLabel(e.target.value)} />
               )}
             </div>
-          </div>
-          <div className="form-actions">
-            <button className="btn btn-onbk"
-              onClick={() => router.push(editing ? `/board/${editing.id}` : boardHref(board.id))}>CANCEL</button>
-            <button className="btn btn-accent" onClick={post}>{editing ? 'SAVE' : 'POST'}</button>
           </div>
         </div>
       </div>
