@@ -1,6 +1,6 @@
 'use client';
 // 오늘의 대사 위젯 (사용자 요청) — 관리자가 입력해 둔 문장 중 하나를 랜덤으로 보여 준다.
-// 「↻ 다른 대사」로 다시 뽑기. 대사마다 말한 캐릭터를 고른다 (캐릭터 = 이름 + 얼굴 사진, 위젯 설정에서 관리).
+// 대사마다 말한 캐릭터를 고른다 (캐릭터 = 이름 + 얼굴 사진, 위젯 설정에서 관리).
 // 캐릭터 페이지 이동은 없음 (사용자 요청).
 import React, { useEffect, useRef, useState } from 'react';
 import { WidgetConf, useMainStore } from '@/lib/mainStore';
@@ -59,29 +59,21 @@ export function QuoteWidget({ conf }: { conf: WidgetConf }) {
   const lines = ((conf.settings.lines as QuoteLine[]) ?? []).filter(l => l.text.trim());
   // 뽑기는 화면에 뜬 뒤에 — 서버 렌더와 어긋나지 않게
   const [pick, setPick] = useState<string | null>(null);
-  const [fade, setFade] = useState(false);
   const cur = lines.find(l => l.id === pick) ?? null;
   const ch = cur?.charId ? chars.find(c => c.id === cur.charId) : undefined;
   const who = ch ? ch.name : cur?.who;
   const img = ch ? ch.img : cur?.img;
-  const draw = (avoid?: string) => {
-    const pool = lines.length > 1 ? lines.filter(l => l.id !== avoid) : lines;
-    return pool.length ? pool[Math.floor(Math.random() * pool.length)].id : null;
-  };
+  // 들어올 때마다 하나 뽑는다 (「다른 대사」 버튼은 사용자 요청으로 뺐다 — 새로 들어오면 바뀜)
+  const draw = () => (lines.length ? lines[Math.floor(Math.random() * lines.length)].id : null);
   useEffect(() => {
     if (!cur && lines.length) setPick(draw());
   });
-  const again = () => {
-    if (editOn || lines.length < 2) return;
-    setFade(true);
-    setTimeout(() => { setPick(draw(pick ?? undefined)); setFade(false); }, 180);
-  };
 
   return (
     <div className="panel widget qt-widget">
       <h4>TODAY&apos;S LINE {isAdmin && <span className="more" onClick={e => { e.stopPropagation(); if (!editOn) setOpen(true); }}>설정 ›</span>}</h4>
       {cur ? (
-        <div className={`qt-body ${fade ? 'fade' : ''}`}>
+        <div className="qt-body">
           <Face img={img} />
           <div className="qt-txt">
             <div className="qt-bub">{cur.text}</div>
@@ -91,7 +83,6 @@ export function QuoteWidget({ conf }: { conf: WidgetConf }) {
       ) : (
         <p className="hint">{isAdmin ? '「설정 ›」에서 대사를 입력해 주세요' : '아직 대사가 없습니다'}</p>
       )}
-      {lines.length > 1 && <button type="button" className="qt-re" onClick={again}>↻ 다른 대사</button>}
       <Modal open={open} onClose={() => setOpen(false)} title="오늘의 대사"
         desc="입력해 둔 대사 중 하나가 랜덤으로 떠요 — 대사마다 말한 캐릭터를 골라 주세요"
         actions={<button className="btn btn-dark" onClick={() => setOpen(false)}>CLOSE</button>}>
