@@ -124,11 +124,14 @@ export function badgeFor(st: BoardSettings, p: { notice?: boolean; secret?: bool
 // 글은 ohome.board.v1 한 곳에 boardId로 구분 저장(게시판 삭제 시에도 글 데이터는 보존 — 3장 원칙).
 export type BoardSkin = 'list' | 'ticket';
 export type BoardPerm = 'guest' | 'member' | 'admin';
+/** 게시판 형태 — 만들 때 관리자가 정한다. 갤러리 = 이미지 격자 + 이미지 글쓰기, 로그 = 글 목록 + 글쓰기 */
+export type BoardKind = 'log' | 'gallery';
 
 export interface Board {
   id: string;              // 'main' = 기본 게시판 (삭제 불가)
   name: string;            // 메뉴·페이지 타이틀 표시명
   desc: string;            // 페이지 설명 기본 문구
+  kind?: BoardKind;        // 게시판 형태 (없으면 로그)
   skin: BoardSkin;         // 리스트 스킨 — 기본형 / 티켓형
   permWrite: BoardPerm;    // 글쓰기 권한 (mock 단계에선 로그인 전제 — 로드뷰와 동일)
   permComment: BoardPerm;  // 댓글 권한
@@ -141,8 +144,8 @@ export const MAIN_BOARD_ID = 'main';
 
 export const DEFAULT_BOARDS: Board[] = [{
   id: MAIN_BOARD_ID, name: '리스트',
-  desc: 'MD / HTML 작성 지원 · 스크립트 실행 불허 · 말머리 · 비밀글 · 접기',
-  skin: 'list', permWrite: 'member', permComment: 'member', cats: DEFAULT_BOARD_CATS,
+  desc: 'MD / HTML 작성 지원 · 스크립트 실행 불허 · 비밀글 · 접기',
+  skin: 'list', permWrite: 'member', permComment: 'member', cats: [],
 }];
 
 export function useBoards(): {

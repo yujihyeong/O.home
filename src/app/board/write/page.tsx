@@ -1,5 +1,5 @@
 'use client';
-// 게시판 글쓰기/수정 (4.2 / 5.2 다중 게시판) — MD/HTML 모드 선택 + 실시간 미리보기 + 접기/비밀글/공지 설정
+// 게시판 글쓰기/수정 (4.2 / 5.2 다중 게시판) — 게시판 형태(갤러리/로그)대로 · MD/HTML 모드 + 실시간 미리보기 + 접기/비밀글
 // ?edit=<글 id> 로 진입하면 수정 모드 (작성자·관리자만)
 import React, { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -9,7 +9,7 @@ import { putBlob } from '@/lib/blobStore';
 import { stripImageMeta } from '@/lib/imageMeta';
 import { useBoards, boardHref, MAIN_BOARD_ID } from '@/lib/boardStore';
 import { renderBody } from '@/lib/sanitize';
-import { KInput, KTextarea, KSelect, KCheck } from '@/components/ui/Kit';
+import { KInput, KTextarea, KCheck } from '@/components/ui/Kit';
 import { CropEditor, CropImg, CropValue } from '@/components/ui/CropEditor';
 import { ConfirmModal } from '@/components/ui/Modal';
 import { RichEditor } from '@/components/ui/RichEditor';
@@ -41,7 +41,7 @@ const hasRichHtml = (html: string) =>
 
 function WriteInner() {
   const router = useRouter();
-  const { user, isAdmin } = useAuth();
+  const { user } = useAuth();
   const toast = useToast();
   const params = useSearchParams();
   const editPid = params.get('edit');
@@ -53,8 +53,8 @@ function WriteInner() {
   const [title, setTitle] = useState('');
   // 에디터가 기본 · log = 로그 정리 모드 (마크다운 + 앞뒤에 마크다운이 없는 문장을 ""로) — 저장은 마크다운으로
   const [writeMode, setWriteMode] = useState<'editor' | 'md' | 'html' | 'log'>('log');
-  // 글 종류 — 갤러리(이미지) / 로그(글). 목록의 갤러리 탭에서 WRITE를 누르면 갤러리로 시작
-  const [kind, setKind] = useState<PostKind>(params.get('kind') === 'gallery' ? 'gallery' : 'log');
+  // 글 종류 — 게시판을 만들 때 정한 형태(갤러리/로그)를 따른다. 고치는 글은 원래 종류 그대로
+  const kind: PostKind = editing ? kindOf(editing) : (board.kind ?? 'log');
   const [images, setImages] = useState<string[]>([]);
   const [caption, setCaption] = useState('');
   const [upBusy, setUpBusy] = useState(false);
@@ -64,12 +64,7 @@ function WriteInner() {
   // HTML 모드 안의 보기 (v2.0 사용자 요청) — 코드 그대로 / 미리보기에서 바로 편집
   const [htmlView, setHtmlView] = useState<'code' | 'preview'>('code');
   const [askRich, setAskRich] = useState<null | (() => void)>(null);   // 정리 경고 후 실행할 전환
-  const [category, setCategory] = useState('');
-  // 말머리 기본값 — 게시판별 목록(5.2) 로드 후 첫 항목
-  React.useEffect(() => { if (!category && board.cats[0]) setCategory(board.cats[0].label); // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [board.cats.length]);
   const [secret, setSecret] = useState(false);
-  const [notice, setNotice] = useState(false);
   // 태그 (v2.0 사용자 요청) — 쉼표로 구분해 입력, 저장할 때 배열로
   const [tagsText, setTagsText] = useState('');
   const parseTags = (s: string) =>
@@ -101,13 +96,11 @@ function WriteInner() {
     if (!p) return;
     hydrated.current = true;
     setTitle(p.title); setBody(p.body);
-    setKind(kindOf(p));
     setImages(p.images ?? []); setCaption(p.caption ?? '');
     // 에디터로 쓴 글은 에디터로 다시 연다 — 예전에는 무조건 HTML 소스가 떠서
     // 에디터로 쓴 글을 수정하면 갑자기 태그가 보였다 (authored 없는 옛 글은 지금까지대로 HTML)
     setWriteMode(p.mode === 'md' ? (p.authored === 'log' ? 'log' : 'md') : (p.authored === 'editor' ? 'editor' : 'html'));
-    setCategory(p.category);
-    setSecret(p.secret); setNotice(p.notice);
+    setSecret(p.secret);
     setFoldType(p.fold?.type ?? 'none'); setFoldLabel(p.fold?.label ?? '');
     setTagsText((p.tags ?? []).join(', '));
     setThumbSrc(p.thumbSrc); setThumbCrop(p.thumbCrop);
@@ -160,8 +153,7 @@ function WriteInner() {
       setPosts(posts.map(p => (p.id === editing.id ? {
         ...p,
         title: title.trim(), ...content, kind,
-        category,
-        secret, notice: isAdmin ? notice : p.notice,
+        secret,
         tags: parseTags(tagsText),
         fold: foldType === 'none' ? null : { type: foldType, label: foldType === 'custom' ? foldLabel : undefined },
         thumbSrc, thumbCrop,
@@ -171,9 +163,9 @@ function WriteInner() {
       return;
     }
     const p: Post = {
-      id: newId(), title: title.trim(), ...content, kind, category,
+      id: newId(), title: title.trim(), ...content, kind, category: '',
       author: user.nickname, authorId: user.id, date: new Date().toISOString(),
-      secret, notice: isAdmin && notice,
+      secret, notice: false,
       tags: parseTags(tagsText),
       fold: foldType === 'none' ? null : { type: foldType, label: foldType === 'custom' ? foldLabel : undefined },
       comments: [],
@@ -196,14 +188,6 @@ function WriteInner() {
           <div className="form-row">
             <label className="k-label" style={{ width: 60 }}>제목</label>
             <KInput value={title} onChange={e => setTitle(e.target.value)} style={{ flex: 1 }} />
-          </div>
-          {/* 글 종류 — 갤러리(이미지) / 로그(글) */}
-          <div className="form-row">
-            <label className="k-label" style={{ width: 60 }}>종류</label>
-            <div className="mini-seg">
-              <button className={kind === 'gallery' ? 'on' : ''} onClick={() => setKind('gallery')}>🖼 갤러리</button>
-              <button className={kind === 'log' ? 'on' : ''} onClick={() => setKind('log')}>✎ 로그</button>
-            </div>
           </div>
           {kind === 'gallery' ? (
             <>
@@ -314,11 +298,6 @@ function WriteInner() {
         <div>
           <div className="panel widget" style={{ marginBottom: 14 }}>
             <h4>설정</h4>
-            <div className="form-row">
-              <label className="k-label" style={{ width: 60 }}>말머리</label>
-              <KSelect minWidth={130} value={category} onChange={setCategory}
-                options={board.cats.map(x => ({ value: x.label, label: x.label }))} placeholder='말머리 선택' />
-            </div>
             {/* 태그 (v2.0 사용자 요청) — 목록의 작성자 왼쪽에 나열되고 검색에 걸린다 */}
             <div className="form-row">
               <label className="k-label" style={{ width: 60 }}>태그</label>
@@ -327,7 +306,6 @@ function WriteInner() {
             </div>
             <div style={{ display: 'grid', gap: 9 }}>
               <KCheck label="비밀글 (관리자와 나만 열람)" checked={secret} onChange={setSecret} />
-              {isAdmin && <KCheck label="공지로 고정" checked={notice} onChange={setNotice} />}
             </div>
           </div>
           <div className="panel widget" style={{ marginBottom: 14 }}>
