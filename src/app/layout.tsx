@@ -39,11 +39,19 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title,
     description,
-    // 탭 아이콘 (v2.0 사용자 요청) — 지정했으면 기본 favicon.ico 대신 그것을 쓴다.
-    // 지정이 없으면 icons를 아예 넣지 않아 Next의 기본 파일 처리를 그대로 둔다
+    // 탭 아이콘 (v2.0 사용자 요청) — 환경설정에서 지정했으면 그것을, 아니면 기본 하트 아이콘.
     // 홈 화면 아이콘(apple-touch-icon)은 늘 둔다 — 아이폰 「홈 화면에 추가」·웹푸시용 (자놀 이식).
     // 웹앱 이미지는 탭 아이콘과 따로 (사용자 요청) — ?v= 는 바꾼 그림이 예전 캐시에 가리지 않게
-    icons: { ...(favicon ? { icon: favicon } : {}), apple: '/apple-icon.png?v=2' },
+    // 기본 탭 아이콘 (사용자 확정 — 도트 하트 + 녹색 고리): 새 파일 이름 + ?v= 로 걸어야 아이패드 사파리처럼
+    // 예전 favicon.ico를 오래 붙들고 있는 브라우저도 새로 받아 간다 (favicon.ico만 바꿨을 땐 패드에서 안 바뀜)
+    icons: {
+      icon: favicon ? favicon : [
+        { url: '/favicon-heart.svg?v=1', type: 'image/svg+xml' },
+        { url: '/favicon-heart-192.png?v=1', sizes: '192x192', type: 'image/png' },
+        { url: '/favicon-heart-64.png?v=1', sizes: '64x64', type: 'image/png' },
+      ],
+      apple: '/apple-icon.png?v=2',
+    },
     manifest: '/manifest.webmanifest',
     // 아이폰에서 홈 화면 웹앱(standalone)으로 열리게 — 그래야 웹푸시를 받을 수 있다
     appleWebApp: { capable: true, title: title.replace(/ — 개인홈$/, ''), statusBarStyle: 'default' },
