@@ -13,7 +13,8 @@ export type WidgetType =
   | 'menu' | 'memo' | 'diary' | 'latest'
   | 'dday' | 'todo' | 'upcoming' | 'freetext' | 'deco' | 'memoboard'
   | 'apply'
-  | 'mines';   // 지뢰찾기 — 도트 게임기 위젯 (사용자 요청)   // 'image'는 deco(장식 이미지+링크)로 일원화 (v1.9) · apply = 커미션 신청자 (v2.0)
+  | 'mines'
+  | 'chat';    // 메시지창 꾸미기 — 아이메시지·카카오톡·라인·기본 문자 (사용자 요청)   // 지뢰찾기 — 도트 게임기 위젯 (사용자 요청)   // 'image'는 deco(장식 이미지+링크)로 일원화 (v1.9) · apply = 커미션 신청자 (v2.0)
 
 export interface WidgetConf {
   id: string;
@@ -58,11 +59,12 @@ export const WIDGET_META: Record<WidgetType, { title: string; desc: string }> = 
   deco: { title: '이미지', desc: '패널 없이 이미지만' },
   memoboard: { title: 'STICKY', desc: '스티커 메모 미니보드 — 클릭 시 메모장 (4.6)' },
   apply: { title: 'COMMISSION', desc: '커미션 신청자 — 마감 빠른 순 (몇 명까지 볼지 설정)' },
+  chat: { title: '메시지창', desc: '아이메시지·카카오톡·라인·문자 모양 꾸미기 — 대화는 직접 입력' },
   mines: { title: '지뢰찾기', desc: '도트 게임기 미니게임 — 낮/밤에 따라 색이 바뀜' },
 };
 
 /** 같은 종류를 여러 개 추가할 수 있는 위젯 (v1.9 사용자 확정 — 나머지는 하나만) */
-export const MULTI_TYPES: WidgetType[] = ['freetext', 'deco', 'banner'];   // banner: v2.0 사용자 요청 — 슬라이드 배너 여러 개
+export const MULTI_TYPES: WidgetType[] = ['freetext', 'deco', 'banner', 'chat'];   // banner: v2.0 사용자 요청 — 슬라이드 배너 여러 개
 
 /** 위젯 표시 이름 — 중복 추가 가능한 위젯이 2개 이상이면 번호를 붙여 구분 (v1.9) */
 export function widgetLabel(widgets: WidgetConf[], w: WidgetConf): string {
