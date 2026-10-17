@@ -1,15 +1,17 @@
 'use client';
-// 회원정보창 (고정 요소, 4.0) — 비로그인: 로그인 버튼만 (위젯 크기 유지 · 폼은 /login 페이지)
+// 회원정보창 (고정 요소, 4.0) — 비로그인: 로그인한 것과 같은 모양의 손님 카드 (낮 햄스터 · 밤 토끼) + 로그인/회원가입
 // 로그인: 프로필 요약 + 마이페이지/로그아웃
 import React from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
 import { useBlobUrl } from '@/lib/blobStore';
+import { useTheme } from '@/lib/ThemeProvider';
 
 export function MemberBox() {
   const router = useRouter();
   const { user, logout } = useAuth();
   const avatarSrc = useBlobUrl(user?.avatarUrl);
+  const night = useTheme().scene === 'night';
 
   return (
     <div className="panel login-box" style={{ display: 'flex', flexDirection: 'column' }}>
@@ -40,14 +42,23 @@ export function MemberBox() {
           </div>
         </>
       ) : (
-        /* 비로그인 — 남는 높이 안에서 세로 가운데 정렬 (v1.9) */
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-          <p style={{ fontSize: 11.5, color: 'var(--faint)', margin: '0 0 12px', lineHeight: 1.6 }}>
-            로그인 후 멤버 전용 콘텐츠를 열람할 수 있습니다
-          </p>
-          <button className="btn btn-dark" style={{ width: '100%', justifyContent: 'center', padding: 10 }}
-            onClick={() => router.push('/login')}>로그인</button>
-        </div>
+        /* 비로그인 (사용자 요청) — 로그인했을 때와 같은 모양으로: 동그란 프로필(낮 🐹 / 밤 🐰) · 이름 · 「로그인 하지 않은 사용자」
+           아래 버튼은 반씩 로그인 / 회원가입 */
+        <>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 11, marginBottom: 14 }}>
+            <div className="mb-guest-av" aria-hidden>{night ? '🐰' : '🐹'}</div>
+            <div style={{ flex: 1 }}>
+              <b style={{ fontSize: 13.5 }}>{night ? '토끼' : '햄스터'}</b>
+              <small style={{ display: 'block', fontSize: 10.5, color: 'var(--faint)' }}>로그인 하지 않은 사용자</small>
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 6 }}>
+            <button className="btn btn-ghost" style={{ flex: 1, justifyContent: 'center', padding: 7, fontSize: 11 }}
+              onClick={() => router.push('/login')}>로그인</button>
+            <button className="btn btn-ghost" style={{ flex: 1, justifyContent: 'center', padding: 7, fontSize: 11 }}
+              onClick={() => router.push('/login?signup=1')}>회원가입</button>
+          </div>
+        </>
       )}
     </div>
   );
