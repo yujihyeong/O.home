@@ -69,11 +69,20 @@ export function SearchWidget(_: { conf: WidgetConf }) {
       })
       // 비밀글은 읽을 수 있는 사람(관리자·작성자)에게만 걸린다
       .filter(p => !p.secret || isAdmin || (!!p.authorId && p.authorId === user?.id))
-      .map(p => ({
-        p,
-        board: bname.get(p.boardId ?? MAIN_BOARD_ID) ?? '',
-        text: plain(`${p.body} ${p.caption ?? ''}`),
-      }));
+      // 서버에 저장된 글은 모양이 제각각일 수 있다 (빈 제목·날짜, 문자열 태그 등) — 검색용으로 맞춰 둔다
+      .map(raw => {
+        const p: Post = {
+          ...raw,
+          title: String(raw.title ?? ''),
+          date: String(raw.date ?? ''),
+          tags: Array.isArray(raw.tags) ? raw.tags.filter(t => t != null).map(String) : [],
+        };
+        return {
+          p,
+          board: bname.get(p.boardId ?? MAIN_BOARD_ID) ?? '',
+          text: plain(`${typeof raw.body === 'string' ? raw.body : ''} ${typeof raw.caption === 'string' ? raw.caption : ''}`),
+        };
+      });
   }, [posts, menuSet, boards, user, isAdmin]);
 
   const hits: Hit[] = useMemo(() => {

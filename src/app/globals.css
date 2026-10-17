@@ -2470,3 +2470,7 @@ html[data-bgtone="light"] .wgt-nobg{
 .wgt-nobg .memo-txt{color:var(--ink)}
 /* 자기 바탕이 있는 것(말풍선 채팅·폴라로이드·게임기·입력칸·버튼)은 그림자 없이 원래대로 */
 .wgt-nobg :is(.cw-wrap,.pl-wrap,.gbx,.sw-box,.lat-cell,.deco-wgt,.banner,input,textarea,.btn,.modal-ov){text-shadow:none}
+/* 위젯 오류 표시 — 한 위젯이 멈춰도 메인은 그대로 (사용자 제보) */
+.wgt-err{min-width:220px}
+.wgt-err p{font-size:calc(12px*var(--fs,1));color:var(--sub);margin-bottom:8px}
+.wgt-err code{display:block;font-size:11px;background:rgba(200,60,70,.08);color:#b03a48;border-radius:8px;padding:8px 10px;margin-bottom:10px;word-break:break-all;white-space:pre-wrap}
