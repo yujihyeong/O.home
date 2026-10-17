@@ -9,7 +9,7 @@ import { Modal, ConfirmModal } from '@/components/ui/Modal';
 import { KRadio } from '@/components/ui/Kit';
 import { useToast } from '@/components/ui/Toast';
 
-const ADDABLE: WidgetType[] = ['banner', 'memo', 'dday', 'todo', 'upcoming', 'freetext', 'deco', 'diary', 'latest', 'apply', 'mines', 'chat'];   // banner: 여러 개 추가 (v2.0 사용자 요청)
+const ADDABLE: WidgetType[] = ['banner', 'memo', 'dday', 'todo', 'upcoming', 'freetext', 'deco', 'diary', 'latest', 'apply', 'chat'];   // 지뢰찾기는 위젯 대신 화면 왼쪽 아래 팝업 (사용자 요청)   // banner: 여러 개 추가 (v2.0 사용자 요청)
 /** 내용 설정 모달이 있는 위젯 — 우클릭 「설정」 노출 대상 (v1.9) */
 const EDITABLE: WidgetType[] = ['banner', 'memo', 'dday', 'todo', 'freetext', 'deco', 'apply', 'chat'];
 
@@ -21,6 +21,16 @@ export default function MainPage() {
   const [addType, setAddType] = useState<WidgetType>('freetext');
   const [addCol, setAddCol] = useState<'1' | '2' | '3'>('3');
   const [delAsk, setDelAsk] = useState<WidgetConf | null>(null);   // 우클릭 삭제 경고 (v1.9)
+
+  // 위젯 삭제 — 편집모드 위젯 오른쪽 위 ✕ (WidgetFrame이 이벤트로) → 같은 경고 모달
+  useEffect(() => {
+    const ask = (e: Event) => {
+      const w = state.widgets.find(v => v.id === (e as CustomEvent).detail?.id);
+      if (w && !w.fixed) setDelAsk(w);
+    };
+    window.addEventListener('ohome-widget-del', ask);
+    return () => window.removeEventListener('ohome-widget-del', ask);
+  }, [state.widgets]);
 
   // 위젯 추가 — 상단바의 [＋ 위젯] 버튼(그리드 토글 왼쪽)이 이벤트로 연다 (v1.9 사용자 확정)
   useEffect(() => {

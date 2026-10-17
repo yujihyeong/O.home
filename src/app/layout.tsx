@@ -8,6 +8,7 @@ import { FontProvider } from '@/lib/fontStore';
 import { ToastProvider } from '@/components/ui/Toast';
 import { TopBar } from '@/components/shell/TopBar';
 import { BgmPlayer } from '@/components/shell/BgmPlayer';
+import { GameDock } from '@/components/shell/GameDock';
 import { TipLayer } from '@/components/ui/TipLayer';
 import { CursorLayer } from '@/components/shell/CursorLayer';
 import { ImgProtect } from '@/components/shell/ImgProtect';
@@ -108,6 +109,8 @@ if(navigator.userAgent.indexOf('Whale/')>-1){document.documentElement.style.colo
                   <main id="appMain"><PageFrame><MenuGuard>{children}</MenuGuard></PageFrame></main>
                   {/* BGM 미니 플레이어 — 전역 상주, 페이지 이동에도 유지 (4.1) */}
                   <BgmPlayer />
+                  {/* 지뢰찾기 — 왼쪽 아래 동그란 게임기 버튼, 누르면 팝업 (사용자 요청) */}
+                  <GameDock />
                   {/* 전역 커스텀 툴팁 — data-tip 요소 공통 (7장) */}
                   <TipLayer />
                   {/* 커스텀 마우스 커서 (5.1) */}
