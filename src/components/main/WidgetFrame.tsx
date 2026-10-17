@@ -181,6 +181,9 @@ export function WidgetFrame({ conf, mobileOrder, children, className, style, onC
         width: useSize && conf.w != null ? conf.w : undefined,
         height: useSize && conf.h != null ? conf.h : undefined,
         zIndex: conf.z,
+        // 모바일 스택에서 배너·이미지 위젯이 PC 비율 그대로 보이게 (모바일은 높이를 비우므로 0으로 접히던 문제)
+        ...((conf.type === 'banner' || (conf.type === 'deco' && !conf.settings.hPx)) && conf.w && conf.h
+          ? { '--wr': `${conf.w} / ${conf.h}` } as React.CSSProperties : {}),
       }}
       onPointerDown={onPointerDown}
       onContextMenu={e => {
