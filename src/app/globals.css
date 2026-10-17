@@ -2392,3 +2392,39 @@ body.edit-on .page-main-wrap .wgt .rx{display:block}
 .exc-mark-text{max-height:150px;overflow:auto;padding:9px 11px;border-radius:9px;background:color-mix(in srgb,var(--accent-soft) 6%,var(--panel-solid));border:1px solid var(--line);font-size:12.5px;line-height:1.7;user-select:text;-webkit-user-select:text}
 .exc-mark-text p+p{margin-top:6px}
 .exc-mark small{color:var(--faint);font-size:10.5px}
+
+/* 오늘의 대사 위젯 (사용자 요청) — 사진(선택) + 말풍선 + 말한 사람, 오른쪽 아래 「↻ 다른 대사」 */
+.qt-widget{min-width:230px;display:flex;flex-direction:column}
+.qt-body{display:flex;gap:12px;align-items:flex-start;transition:opacity .18s}
+.qt-body.fade{opacity:0}
+.qt-av{width:48px;height:48px;border-radius:50%;flex-shrink:0;overflow:hidden;border:3px solid var(--panel,#fff);box-shadow:0 2px 8px rgba(0,0,0,.14);background:var(--line)}
+.qt-av img{width:100%;height:100%;object-fit:cover;display:block}
+.qt-txt{flex:1;min-width:0}
+.qt-bub{background:color-mix(in srgb,currentColor 7%,transparent);border-radius:4px 14px 14px 14px;padding:10px 13px;font-size:calc(13px*var(--fs,1));line-height:1.6;white-space:pre-wrap;word-break:keep-all;overflow-wrap:anywhere}
+.qt-who{font-size:calc(11px*var(--fs,1));color:var(--sub);margin-top:6px}
+.qt-re{align-self:flex-end;margin-top:auto;padding-top:8px;background:none;border:none;color:var(--sub);font-size:calc(11px*var(--fs,1));cursor:var(--cur-pointer,pointer);letter-spacing:.02em}
+.qt-re:hover{color:var(--text)}
+body.edit-on .qt-re{pointer-events:none}
+.qt-pic{width:38px;height:38px;border-radius:50%;flex-shrink:0;overflow:hidden;border:1.5px dashed var(--line-dark);background:none;color:var(--sub);cursor:var(--cur-pointer,pointer);padding:0;margin-top:2px}
+.qt-pic img{width:100%;height:100%;object-fit:cover;display:block}
+
+/* 폴라로이드 스택 (사용자 요청) — 최대 3장 겹침, 맨 앞 장은 누르면 위로 날아가고 다음 장이 앞으로 */
+.pl-wrap{position:relative;min-width:260px;aspect-ratio:1/1;container-type:size;user-select:none;-webkit-user-select:none}
+.wgt.sized .pl-wrap{aspect-ratio:auto}
+/* 모바일은 위젯 높이를 비우므로 비율로 높이를 잡는다 */
+@media (max-width:620px){.wgt.sized .pl-wrap,.pl-wrap{aspect-ratio:5/4 !important;height:auto !important}}
+.pl-card{position:absolute;left:50%;top:50%;width:min(58cqw,60cqh);background:#fff;padding:4.5% 4.5% 0;border-radius:3px;
+  box-shadow:0 6px 18px rgba(0,0,0,.18);transition:transform .38s cubic-bezier(.3,.7,.3,1),opacity .38s;animation:plIn .4s}
+.pl-card.d0{z-index:3;transform:translate(-50%,-50%) rotate(-2deg)}
+.pl-card.d1{z-index:2;transform:translate(-36%,-54%) rotate(7deg)}
+.pl-card.d2{z-index:1;transform:translate(-64%,-47%) rotate(-9deg)}
+.pl-card.out{transform:translate(-10%,-95%) rotate(16deg);opacity:0}
+@keyframes plIn{from{opacity:0}to{opacity:1}}
+.pl-img{aspect-ratio:1/1;overflow:hidden;border-radius:1px;background:#eee}
+.pl-img img{width:100%;height:100%;object-fit:cover;display:block;pointer-events:none}
+.pl-cap{display:block;height:min(11cqw,11cqh);line-height:min(11cqw,11cqh);text-align:center;color:#4a4a4a;font-size:min(6.4cqw,6.4cqh);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 4px}
+.pl-tape{position:absolute;left:50%;top:-5%;width:36%;height:10%;transform:translateX(-50%) rotate(-4deg);background:rgba(238,214,156,.78);box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.pl-set{position:absolute;right:4px;bottom:4px;z-index:5;opacity:0;transition:opacity .15s;border:none;border-radius:999px;background:var(--dd-bg,#333);color:var(--dd-fg,#fff);font-size:11px;padding:4px 10px;cursor:var(--cur-pointer,pointer)}
+.pl-wrap:hover .pl-set,.pl-set:focus-visible{opacity:1}
+@media (hover:none){.pl-set{opacity:.85}}
+@media (prefers-reduced-motion:reduce){.pl-card{transition:none;animation:none}}

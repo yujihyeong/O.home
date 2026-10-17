@@ -15,7 +15,10 @@ export type WidgetType =
   | 'apply'
   | 'mines'
   | 'chat'
-  | 'recent';  // 새 글 — 게시판 상관없이 최신 게시글 제목 (사용자 요청)    // 메시지창 꾸미기 — 아이메시지·카카오톡·라인·기본 문자 (사용자 요청)   // 지뢰찾기 — 도트 게임기 위젯 (사용자 요청)   // 'image'는 deco(장식 이미지+링크)로 일원화 (v1.9) · apply = 커미션 신청자 (v2.0)
+  | 'recent'
+  | 'quote'      // 오늘의 대사 — 입력해 둔 문장 랜덤 (사용자 요청)
+  | 'polaroid';  // 폴라로이드 스택 — 누르면 한 장씩 넘김 (사용자 요청)
+  // 새 글 — 게시판 상관없이 최신 게시글 제목 (사용자 요청)    // 메시지창 꾸미기 — 아이메시지·카카오톡·라인·기본 문자 (사용자 요청)   // 지뢰찾기 — 도트 게임기 위젯 (사용자 요청)   // 'image'는 deco(장식 이미지+링크)로 일원화 (v1.9) · apply = 커미션 신청자 (v2.0)
 
 export interface WidgetConf {
   id: string;
@@ -62,11 +65,13 @@ export const WIDGET_META: Record<WidgetType, { title: string; desc: string }> = 
   apply: { title: 'COMMISSION', desc: '커미션 신청자 — 마감 빠른 순 (몇 명까지 볼지 설정)' },
   recent: { title: 'NEW POSTS', desc: '게시판 상관없이 최신 게시글 제목 3개/5개 — 누르면 그 글로' },
   chat: { title: '메시지창', desc: '아이메시지·카카오톡·라인·문자 모양 꾸미기 — 대화는 직접 입력' },
+  quote: { title: "TODAY'S LINE", desc: '오늘의 대사 — 입력해 둔 문장 중 하나를 랜덤으로' },
+  polaroid: { title: '폴라로이드', desc: '사진을 겹쳐 두고 누르면 한 장씩 넘어감 — 손글씨 메모' },
   mines: { title: '지뢰찾기', desc: '도트 게임기 미니게임 — 낮/밤에 따라 색이 바뀜' },
 };
 
 /** 같은 종류를 여러 개 추가할 수 있는 위젯 (v1.9 사용자 확정 — 나머지는 하나만) */
-export const MULTI_TYPES: WidgetType[] = ['freetext', 'deco', 'banner', 'chat'];   // banner: v2.0 사용자 요청 — 슬라이드 배너 여러 개
+export const MULTI_TYPES: WidgetType[] = ['freetext', 'deco', 'banner', 'chat', 'quote', 'polaroid'];   // banner: v2.0 사용자 요청 — 슬라이드 배너 여러 개
 
 /** 위젯 표시 이름 — 중복 추가 가능한 위젯이 2개 이상이면 번호를 붙여 구분 (v1.9) */
 export function widgetLabel(widgets: WidgetConf[], w: WidgetConf): string {
