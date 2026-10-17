@@ -2219,6 +2219,6 @@ html[data-scene="night"] .gbx{
 .gbx-sys i{width:30px;height:8px;border-radius:5px;background:var(--gb-sys);box-shadow:inset 0 -2px 0 rgba(0,0,0,.2)}
 .gbx-sys button:active i{transform:translateY(1px)}
 
-/* 글 읽기 폭 (사용자 요청) — 넓은 PC 화면에서도 한 줄이 너무 길어지지 않게.
+/* 글 읽기 폭 (사용자 요청 — 게시글 · 게시판 목록 · 글쓰기) — 넓은 PC 화면에서도 한 줄이 너무 길어지지 않게.
    화면 가운데에 화면 폭의 절반(양옆 여백과 1:1), 너무 좁아지지 않게 760px부터 */
-.page.post-read{max-width:clamp(760px,50vw,1400px)}
+.page.post-read{max-width:clamp(760px,50vw,1300px)}
