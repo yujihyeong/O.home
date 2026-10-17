@@ -192,7 +192,21 @@ export function useBoards(): {
 }
 
 /** 게시판 목록 페이지 경로 — 기본 게시판은 쿼리 없이 */
-export const boardHref = (id: string) => (id === MAIN_BOARD_ID ? '/board' : `/board?b=${id}`);
+/** 게시판 주소 — 직접 지은 주소(/LOG2 등)에 이어 둔 게시판이면 그 주소를 쓴다 (사용자 요청).
+ *  목록 제목·취소·삭제 뒤 돌아가기가 /board?b=… 대신 정해 둔 주소로 가게 */
+export const boardHref = (id: string) => {
+  const real = id === MAIN_BOARD_ID ? '/board' : `/board?b=${id}`;
+  try {
+    const aliases = getSetting<Record<string, string>>('ohome.aliases.v1', {}) ?? {};
+    const key = Object.keys(aliases).find(k => aliases[k] === real);
+    if (!key) return real;
+    // 메뉴(커스텀 링크)에 적은 그대로의 대소문자로 — /LOG2
+    const links = getSetting<{ href: string }[]>('ohome.links.v1', []) ?? [];
+    const norm = (v: string) => v.normalize('NFC').toLowerCase().replace(/^\/+/, '').replace(/[\s_-]+/g, '');
+    const hit = links.find(l => norm(l.href) === key && !/^https?:/i.test(l.href));
+    return hit ? (hit.href.startsWith('/') ? hit.href : `/${hit.href}`) : `/${key}`;
+  } catch { return real; }
+};
 
 /** 게시판 뱃지 스타일 — 알약형, 텍스트 정중앙 (배경까지 함께 칠해 글씨만 튀지 않게)
  *  한글 잉크는 폰트박스 위쪽에 몰려 line-height:1이면 위로 쏠려 보임 (v1.9 실측 보정) —
@@ -207,4 +221,4 @@ export function boardBadgeStyle(b?: BoardBadge): React.CSSProperties {
   };
 }
 import type React from 'react';
-import { getRawSetting, setSetting } from './settingStore';
+import { getRawSetting, getSetting, setSetting } from './settingStore';

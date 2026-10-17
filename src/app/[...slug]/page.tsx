@@ -13,7 +13,8 @@ import { usePathname, useRouter } from 'next/navigation';
 import { PageTitle } from '@/components/ui/PageText';
 import { KSelect } from '@/components/ui/Kit';
 import { useToast } from '@/components/ui/Toast';
-import { useBoards, boardHref } from '@/lib/boardStore';
+import { useBoards, boardHref, DEFAULT_BOARD_CATS } from '@/lib/boardStore';
+import { newId } from '@/lib/postStore';
 import { useSections, SECTION_KINDS, SECTION_META, sectionsOf, sectionHref, MAIN_SEC } from '@/lib/sectionStore';
 import { useAuth } from '@/lib/auth';
 import { useCustomLinks } from '@/lib/linkStore';
@@ -52,7 +53,7 @@ export default function NotFoundPage() {
   const pathname = usePathname();
   const toast = useToast();
   const { isAdmin } = useAuth();
-  const { boards, loaded: boardsLoaded } = useBoards();
+  const { boards, setBoards, loaded: boardsLoaded } = useBoards();
   const { map: secMap, loaded: secLoaded } = useSections();
   const { links } = useCustomLinks();
   const [aliases, setAlias] = useAliases();
@@ -82,13 +83,13 @@ export default function NotFoundPage() {
     return out;
   }, [boards, secMap]);
 
-  const target = useMemo(() => {
-    if (!word) return null;
-    if (aliases[word]) return aliases[word];
+  /** 한 단어 주소가 갈 곳 — 연결해 둔 곳 > 이름이 같은 게시판·섹션 */
+  const resolve = (w: string): string | null => {
+    if (aliases[w]) return aliases[w];
     // 이 주소를 건 커스텀 링크의 이름도 후보로 — 「이야기」 링크가 /LOG2를 가리키고 게시판 이름이 「이야기」인 경우
-    const keys = new Set([word]);
+    const keys = new Set([w]);
     for (const l of links) {
-      if (norm(l.href) === word && l.name.trim()) keys.add(norm(l.name));
+      if (norm(l.href) === w && l.name.trim()) keys.add(norm(l.name));
     }
     const hit = (...vals: (string | undefined)[]) => vals.some(v => !!v && keys.has(norm(v)));
     for (const b of boards) {
@@ -101,7 +102,33 @@ export default function NotFoundPage() {
       }
     }
     return null;
-  }, [word, boards, secMap, links, aliases]);
+  };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const target = useMemo(() => (word ? resolve(word) : null), [word, boards, secMap, links, aliases]);
+
+  /* 그 주소에 **새 게시판**을 만든다 (사용자 요청 — 「/LOG2가 다른 게시판으로 가는 길이 아니라
+     그 주소 자체가 있는 페이지였으면」). 게시판을 하나 새로 만들고 이 주소를 거기에 잇는다 —
+     주소창은 /LOG2 그대로, 글도 이 게시판에만 쌓인다. 이름은 메뉴에 건 이름(없으면 주소) */
+  const boardFor = (address: string, name: string) => {
+    const key = norm(address);
+    const taken = new Set(boards.map(b => b.id));
+    const id = key && /^[a-z0-9]+$/.test(key) && !taken.has(key) ? key : newId();
+    return {
+      board: {
+        id, name, desc: '', skin: 'list' as const, permWrite: 'member' as const, permComment: 'member' as const,
+        cats: DEFAULT_BOARD_CATS,
+      },
+      href: boardHref(id),
+    };
+  };
+  // 커스텀 링크 중 아직 아무 데도 이어지지 않은 내 홈 주소들 (한 단어)
+  const loose = links.filter(l => {
+    if (/^https?:/i.test(l.href)) return false;
+    const parts = l.href.split(/[?#]/)[0].split('/').filter(Boolean);
+    if (parts.length !== 1) return false;
+    const w = norm(parts[0]);
+    return !!w && !resolve(w) && !PAGES['/' + parts[0]];
+  });
 
   const ready = boardsLoaded && secLoaded;
   // 연결된 페이지 — 앞부분(경로)과 쿼리로 나눈다
@@ -128,21 +155,44 @@ export default function NotFoundPage() {
   return (
     <section className="page">
       <div className="page-head">
-        <PageTitle href="/">NOT FOUND</PageTitle>
-        <p>주소가 잘못되었거나 삭제된 페이지입니다</p>
+        {/* 관리자에게는 「없는 페이지」가 아니라 「아직 비어 있는 주소」 */}
+        <PageTitle href="/">{isAdmin && raw ? `/${raw}` : 'NOT FOUND'}</PageTitle>
+        <p>{isAdmin && raw ? '이 주소에 무엇을 둘지 골라 주세요' : '주소가 잘못되었거나 삭제된 페이지입니다'}</p>
       </div>
       <div className="panel" style={{ textAlign: 'center', padding: 56 }}>
         {/* 관리자 — 이 주소를 어디로 연결할지 바로 고른다 */}
         {isAdmin && raw ? (
           <div style={{ maxWidth: 460, margin: '0 auto 22px', textAlign: 'left', display: 'grid', gap: 12 }}>
             <p style={{ fontSize: 13.5, color: 'var(--ink)', lineHeight: 1.7 }}>
-              <b>/{raw}</b>{linkName ? <> (메뉴 「{linkName}」)</> : null}는 아직 아무 페이지에도 연결되지 않았어요.
-              <br />어디로 보낼지 고르면 이제부터 이 주소로 들어오는 사람은 그곳으로 가요.
+              <b>/{raw}</b>{linkName ? <> (메뉴 「{linkName}」)</> : null}는 아직 비어 있는 주소예요.
             </p>
+            {/* 이 주소 자체를 새 게시판으로 — 주소창은 /{raw} 그대로, 글도 여기에만 쌓인다 */}
+            <button className="btn btn-dark" style={{ justifySelf: 'start' }}
+              onClick={() => {
+                const { board, href } = boardFor(raw, (linkName ?? raw).trim() || raw);
+                setBoards([...boards, board]);
+                setAlias(raw, href);
+                toast(`/${raw} 게시판을 만들었어요`);
+              }}>＋ 이 주소에 새 게시판 만들기</button>
+            {loose.length > 1 && (
+              <button className="btn btn-ghost" style={{ justifySelf: 'start' }}
+                onClick={() => {
+                  const made = loose.map(l => ({ l, ...boardFor(l.href.replace(/^\//, ''), l.name.trim() || l.href) }));
+                  // 같은 id가 겹치지 않게 차례로 확인했으므로 한 번에 저장
+                  const seen = new Set(boards.map(b => b.id));
+                  const fresh = made.map(m => (seen.has(m.board.id)
+                    ? { ...m, board: { ...m.board, id: newId() } } : m))
+                    .map(m => { seen.add(m.board.id); return { ...m, href: boardHref(m.board.id) }; });
+                  setBoards([...boards, ...fresh.map(m => m.board)]);
+                  fresh.forEach(m => setAlias(m.l.href, m.href));
+                  toast(`커스텀 링크 ${fresh.length}개를 각자 새 게시판으로 만들었어요`);
+                }}>메뉴의 빈 주소 {loose.length}개 모두 각자 새 게시판으로 만들기</button>
+            )}
+            <p style={{ fontSize: 12, color: 'var(--sub)', marginTop: 6 }}>또는 이미 있는 곳에 연결하기</p>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
               <KSelect minWidth={240} maxWidth={320} value={pick} onChange={setPick}
                 placeholder="연결할 곳 고르기" options={targets} />
-              <button className="btn btn-dark" disabled={!pick} style={{ opacity: pick ? 1 : 0.45 }}
+              <button className="btn btn-ghost" disabled={!pick} style={{ opacity: pick ? 1 : 0.45 }}
                 onClick={() => {
                   if (!pick) return;
                   setAlias(raw, pick);
