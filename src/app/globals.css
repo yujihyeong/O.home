@@ -2114,3 +2114,6 @@ html.gate-seen .gate{display:none}
 .wg-bgimg .dday-row{border-bottom-color:color-mix(in srgb,currentColor 25%,transparent)}
 .panel.widget.dday-tall{display:flex;flex-direction:column;height:100%;box-sizing:border-box}
 .panel.widget.dday-tall>h4{flex-shrink:0}
+/* 대문이 떠 있는 동안 — 사파리 위·아래 띠가 대문 색을 따르게 (뒤의 낮 배경 녹색이 비치지 않게) */
+html.gate-day,html.gate-day body{background:#d6e2c6 linear-gradient(180deg,#f6f3e7,#d6e2c6) !important}
+html.gate-night,html.gate-night body{background:#2d2236 linear-gradient(180deg,#161a2e,#2d2236) !important}
