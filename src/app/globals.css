@@ -2076,3 +2076,27 @@ html.gate-seen .gate{display:none}
 .banner .scene-banner{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;animation:fade .5s}
 .banner .scene-banner.day{object-position:55% 50%}
 .banner .scene-banner.night{object-position:48% 40%}
+
+/* 발췌 카드 (이미지로 저장) — 왼쪽 미리보기, 오른쪽 꾸미기 */
+.mng-box:has(.exc){width:820px}
+.exc{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px;align-items:start}
+.exc-prev{border-radius:var(--radius-s);overflow:hidden;border:1px solid var(--line);background:#00000008;display:flex;justify-content:center}
+.exc-prev canvas{display:block;width:100%;height:auto;max-height:62vh;object-fit:contain}
+.exc-ctl{display:grid;gap:12px;font-size:calc(12px*var(--fs,1))}
+.exc-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.exc-row>label{width:44px;flex-shrink:0;color:var(--sub);font-weight:600}
+.exc-v{width:40px;text-align:right;color:var(--faint);font-variant-numeric:tabular-nums}
+.exc-bgs{display:flex;flex-wrap:wrap;gap:6px;flex:1}
+.exc-sw{width:38px;height:52px;border-radius:7px;border:1px solid var(--line);background-size:cover;background-position:center;cursor:var(--cur-pointer,pointer);color:var(--sub);font-size:16px;padding:0}
+.exc-sw.on{outline:2px solid var(--accent);outline-offset:2px}
+.exc-up{background-color:var(--panel-solid);border-style:dashed}
+.exc-quick{display:inline-flex;gap:5px}
+.exc-quick button{width:22px;height:22px;border-radius:50%;border:1px solid var(--line);cursor:var(--cur-pointer,pointer);padding:0}
+.k-range{flex:1;min-width:120px;accent-color:var(--accent);height:4px;cursor:var(--cur-pointer,pointer)}
+@media (max-width:720px){.exc{grid-template-columns:1fr}.exc-prev canvas{max-height:46vh}}
+
+/* 글쓰기 — 저장 버튼을 위에, 내려가도 따라오게 */
+.write-actions{position:sticky;top:10px;z-index:30;display:flex;justify-content:flex-end;margin-bottom:12px;pointer-events:none}
+.write-actions .form-actions{pointer-events:auto;width:300px;padding:6px;border-radius:999px;background:color-mix(in srgb,var(--panel-solid) 82%,transparent);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);box-shadow:0 3px 14px rgba(0,0,0,.1)}
+.write-actions .form-actions .btn{border-radius:999px}
+@media (max-width:900px){.write-actions .form-actions{width:auto}}

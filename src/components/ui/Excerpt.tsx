@@ -4,6 +4,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Modal } from '@/components/ui/Modal';
 import { useToast } from '@/components/ui/Toast';
+import { ExcerptCard } from '@/components/ui/ExcerptCard';
 
 /** 고를 수 있는 문단 — 본문 바로 아래 블록, 목록은 한 줄씩 */
 function blocksOf(root: HTMLElement): HTMLElement[] {
@@ -36,6 +37,7 @@ export function ExcerptBody({ html, active, onExit, title, author, style }: {
   const ref = useRef<HTMLDivElement>(null);
   const [picked, setPicked] = useState<number[]>([]);
   const [view, setView] = useState(false);
+  const [snap, setSnap] = useState<string[]>([]);   // 「발췌 보기」를 연 순간의 문단들 — 카드가 이걸로 그린다
 
   // 문단마다 번호 — 발췌 모드에서만 누를 수 있게 표시
   useEffect(() => {
@@ -92,20 +94,16 @@ export function ExcerptBody({ html, active, onExit, title, author, style }: {
         <div className="ex-bar">
           <span><b>{picked.length}</b>개 문단 {picked.length ? '골랐어요' : '— 발췌할 문단을 눌러 주세요'}</span>
           <button type="button" className="ghost" disabled={!picked.length} onClick={() => setPicked([])}>모두 해제</button>
-          <button type="button" disabled={!picked.length} onClick={() => setView(true)}>발췌 보기</button>
+          <button type="button" disabled={!picked.length} onClick={() => { setSnap(excerpt()); setView(true); }}>발췌 보기</button>
           <button type="button" className="ghost" onClick={onExit}>끝내기</button>
         </div>
       )}
-      <Modal open={view} onClose={() => setView(false)} title="발췌" desc={`「${title}」에서 고른 ${picked.length}개 문단 — 본문 순서대로`}>
-        {view && (
-          <div className="ex-card">
-            {excerpt().map((t, i) => <p key={i}>{t}</p>)}
-            <div className="ex-src">— 「{title}」 · {author}</div>
-          </div>
-        )}
-        <div className="form-actions" style={{ marginTop: 14 }}>
+      <Modal open={view} onClose={() => setView(false)} title="발췌" desc={`「${title}」에서 고른 ${picked.length}개 문단 — 배경·글씨를 꾸며 이미지로 저장할 수 있어요`}>
+        {/* 발췌 카드 — 배경(색·이미지, 밝기·블러)과 글씨체를 골라 이미지로 저장 */}
+        {view && <ExcerptCard paras={snap} source={`— 「${title}」 · ${author}`} fileName={`${title} 발췌`} />}
+        <div className="form-actions" style={{ marginTop: 8 }}>
           <button className="btn btn-ghost" onClick={() => setView(false)}>CLOSE</button>
-          <button className="btn btn-dark" onClick={copy}>복사하기</button>
+          <button className="btn btn-ghost" onClick={copy}>글로 복사하기</button>
         </div>
       </Modal>
     </>
