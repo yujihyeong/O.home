@@ -2127,3 +2127,6 @@ html.gate-night,html.gate-night body{background:#2d2236 linear-gradient(180deg,#
 .gate::after{bottom:0;height:max(env(safe-area-inset-bottom,0px),8px);background-color:#d6e2c6}
 .gate.night::before{background-color:#161a2e}
 .gate.night::after{background-color:#2d2236}
+
+/* 위젯 제목 숨김 (환경설정 › 메인 페이지 「제목」 토글) */
+.wgt-notitle .widget>h4{display:none}
