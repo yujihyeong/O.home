@@ -191,7 +191,7 @@ export default function BoardDetailPage() {
           {/* 로그 글 — 원하는 문단을 눌러 골라 발췌 */}
           {post.kind !== 'gallery' && (!post.fold || open) && (
             <button className={`btn ${exOn ? 'btn-dark' : 'btn-ghost'}`} style={{ padding: '6px 13px', fontSize: 11.5, flexShrink: 0 }}
-              onClick={() => setExOn(v => !v)}>✂ 발췌하기</button>
+              onClick={() => setExOn(v => !v)}>발췌하기</button>
           )}
         </div>
         <p style={{ fontSize: 11, color: 'var(--faint)', marginBottom: 18 }}>
