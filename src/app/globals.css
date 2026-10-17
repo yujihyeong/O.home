@@ -2117,3 +2117,13 @@ html.gate-seen .gate{display:none}
 /* 대문이 떠 있는 동안 — 사파리 위·아래 띠가 대문 색을 따르게 (뒤의 낮 배경 녹색이 비치지 않게) */
 html.gate-day,html.gate-day body{background:#d6e2c6 linear-gradient(180deg,#f6f3e7,#d6e2c6) !important}
 html.gate-night,html.gate-night body{background:#2d2236 linear-gradient(180deg,#161a2e,#2d2236) !important}
+/* 아이폰 사파리(iOS 26)는 위·아래 띠 색을 화면 가장자리에 붙은 고정 요소의 「배경색」에서 고른다 —
+   그라데이션(background-image)은 보지 않아서 대문을 건너뛰고 뒤의 상단바·낮 배경 색을 집었다.
+   대문에 단색 배경색을 주고, 위·아래 가장자리에 그 끝 색 띠를 깐다 */
+.gate{background-color:#d6e2c6}
+.gate.night{background-color:#2d2236}
+.gate::before,.gate::after{content:"";position:fixed;left:0;right:0;height:max(env(safe-area-inset-top,0px),8px);pointer-events:none;z-index:-1}
+.gate::before{top:0;background-color:#f6f3e7}
+.gate::after{bottom:0;height:max(env(safe-area-inset-bottom,0px),8px);background-color:#d6e2c6}
+.gate.night::before{background-color:#161a2e}
+.gate.night::after{background-color:#2d2236}
