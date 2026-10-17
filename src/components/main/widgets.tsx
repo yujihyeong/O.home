@@ -8,7 +8,7 @@ import { boardEntries, useMenuSettings, buildMenu, canViewHref } from '@/lib/men
 import { useTheme } from '@/lib/ThemeProvider';
 import { sectionHref, MAIN_SEC, useSections, sectionMenuEntries } from '@/lib/sectionStore';
 import { useCustomLinks, linkEntries } from '@/lib/linkStore';
-import { useBoards } from '@/lib/boardStore';
+import { useBoards, MAIN_BOARD_ID } from '@/lib/boardStore';
 import { Modal } from '@/components/ui/Modal';
 import { KTextarea, KSelect, KStep, KCheck } from '@/components/ui/Kit';
 import { ColorField } from '@/components/ui/ColorField';
@@ -17,7 +17,7 @@ import { BlurBg } from '@/components/ui/BlurBg';
 import { ChatWidget } from '@/components/main/ChatWidget';
 import { BannerEditor, BannerSlide, DEMO_SLIDES, DdayEditor, DdayLook, DecoEditor, TodoEditor, TodoSetItem } from '@/components/main/widgetEditors';
 import { CroppedBlobImg, CropValue } from '@/components/ui/CropEditor';
-import { useLocalList } from '@/lib/postStore';
+import { useLocalList, Post, BOARD_SEED } from '@/lib/postStore';
 import { RoadItem, ROAD_SEED, BackupPost, BACKUP_SEED } from '@/lib/galleryStore';
 import { DiaryPost, DIARY_SEED, Mood, MOOD_SEED, moodTint } from '@/lib/diaryStore';
 import { useSched, eventColor } from '@/lib/schedStore';
@@ -302,6 +302,51 @@ export function DdayWidget({ conf }: { conf: WidgetConf }) {
         desc="추가 · 수정 · 삭제 · ⠿ 드래그로 순서 조정 — 환경설정 「위젯」에서도 관리 가능"
         actions={<button className="btn btn-dark" onClick={() => setOpen(false)}>CLOSE</button>}>
         {open && <DdayEditor conf={conf} />}
+      </Modal>
+    </div>
+  );
+}
+
+/* ---------- 새 글 — 게시판 상관없이 최신 게시글 제목 3개/5개 (사용자 요청) ---------- */
+// 비밀글과 메뉴에서 비공개로 둔 게시판의 글은 빼고, 누르면 그 글로 이동한다
+export function RecentPostsWidget({ conf }: { conf: WidgetConf }) {
+  const router = useRouter();
+  const { user, isAdmin } = useAuth();
+  const { editOn, updateWidget } = useMainStore();
+  const [posts] = useLocalList<Post>('ohome.board.v1', BOARD_SEED);
+  const [menuSet] = useMenuSettings();
+  const [open, setOpen] = useState(false);
+  useEditEvent(conf.id, () => setOpen(true));
+  const count = conf.settings.count === 5 ? 5 : 3;
+  const viewer = { loggedIn: !!user, isAdmin, id: user?.id };
+  const list = posts
+    .filter(p => !p.secret)
+    .filter(p => {
+      const b = p.boardId ?? MAIN_BOARD_ID;
+      return canViewHref(menuSet, b === MAIN_BOARD_ID ? '/board' : `/board?b=${b}`, viewer);
+    })
+    .sort((a, b) => b.date.localeCompare(a.date))
+    .slice(0, count);
+  return (
+    <div className="panel widget rp-widget">
+      <h4>NEW POSTS {isAdmin && <span className="more" onClick={e => { e.stopPropagation(); if (!editOn) setOpen(true); }}>설정 ›</span>}</h4>
+      <ul className="rp-list">
+        {list.map(p => (
+          <li key={p.id} onClick={() => { if (!editOn) router.push(`/board/${p.id}`); }}>{p.title}</li>
+        ))}
+      </ul>
+      {list.length === 0 && <p className="hint">아직 게시글이 없습니다</p>}
+      <Modal open={open} onClose={() => setOpen(false)} small title="새 글 위젯" desc="게시판 상관없이 최신 게시글 제목을 보여 줍니다 — 비밀글은 빠집니다"
+        actions={<button className="btn btn-dark" onClick={() => setOpen(false)}>CLOSE</button>}>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          <span className="cp-lb">보여 줄 글</span>
+          <div className="mini-seg">
+            {[3, 5].map(n => (
+              <button key={n} type="button" className={count === n ? 'on' : ''}
+                onClick={() => updateWidget(conf.id, { settings: { ...conf.settings, count: n } }, { persist: true })}>{n}개</button>
+            ))}
+          </div>
+        </div>
       </Modal>
     </div>
   );
@@ -698,6 +743,7 @@ export function renderWidget(conf: WidgetConf) {
     case 'apply': return <ApplyWidget conf={conf} />;
     case 'mines': return <MinesMoved />;
     case 'chat': return <ChatWidget conf={conf} />;
+    case 'recent': return <RecentPostsWidget conf={conf} />;
     default: return <div className="panel widget"><h4>{WIDGET_META[conf.type]?.title ?? conf.type}</h4></div>;
   }
 }
