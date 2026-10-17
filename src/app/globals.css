@@ -2270,7 +2270,7 @@ html[data-scene="night"] .gbx{
 
 /* 아이메시지 — 흰 화면 · 회색/파란 말풍선 · 꼬리 */
 .cw-imessage{background:#fff;color:#000}
-.cw-imessage .cw-head{flex-direction:row;justify-content:space-between;background:rgba(248,248,250,.94);border-bottom:.5px solid #d8d8dc;padding:8px 12px 7px;color:#0a84ff}
+.cw-imessage .cw-head{display:grid;grid-template-columns:1fr auto 1fr;justify-items:start;background:rgba(248,248,250,.94);border-bottom:.5px solid #d8d8dc;padding:8px 12px 7px;color:#0a84ff}
 .cw-imessage .cw-who{display:flex;flex-direction:column;align-items:center;gap:3px;color:#000}
 .cw-imessage .cw-who b{font-size:10.5px;font-weight:500}
 .cw-imessage .cw-av{width:34px;height:34px;border-radius:50%;background:linear-gradient(#a8aeb8,#878d97);font-size:14px}
@@ -2360,3 +2360,15 @@ html[data-scene="night"] .gdock-btn.on{color:#2a2443;background:#f08fb0;box-shad
 /* 편집모드 — 위젯 오른쪽 위 삭제(✕) 버튼 */
 .wgt .rx{display:none;position:absolute;right:5px;top:5px;width:20px;height:20px;border-radius:50%;background:#c9505f;color:#fff;font-size:11px;line-height:20px;text-align:center;z-index:7;box-shadow:0 2px 6px rgba(0,0,0,.35);cursor:var(--cur-pointer,pointer)}
 body.edit-on .page-main-wrap .wgt .rx{display:block}
+
+/* 아이메시지 위쪽 사진·이름은 가운데 (사용자 요청) — 양옆 칸을 같은 폭으로 */
+.cw-imessage .cw-head .cw-who{justify-self:center}
+.cw-imessage .cw-head .cw-r{margin-left:0;justify-self:end}
+
+/* 새 글 위젯 — 제목만, 줄마다 가는 선으로 구분 (배경을 꺼도 구분되게) */
+.rp-widget{min-width:230px}
+.rp-list{list-style:none;margin:0;padding:0}
+.rp-list li{padding:8px 2px;font-size:calc(12.5px*var(--fs,1));white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:var(--cur-pointer,pointer);
+  border-bottom:1px solid color-mix(in srgb,currentColor 16%,transparent);transition:color .15s}
+.rp-list li:last-child{border-bottom:none}
+.rp-list li:hover{color:var(--accent)}
