@@ -42,11 +42,13 @@ export function MemberBox() {
           </div>
         </>
       ) : (
-        /* 비로그인 (사용자 요청) — 로그인했을 때와 같은 모양으로: 동그란 프로필(낮 🐹 / 밤 🐰) · 이름 · 「로그인 하지 않은 사용자」
+        /* 비로그인 (사용자 요청) — 로그인했을 때와 같은 모양으로: 동그란 프로필(낮/밤 그림) · 이름 · 「로그인 하지 않은 사용자」
            아래 버튼은 반씩 로그인 / 회원가입 */
         <>
           <div style={{ display: 'flex', alignItems: 'center', gap: 11, marginBottom: 14 }}>
-            <div className="mb-guest-av" aria-hidden>{night ? '🐰' : '🐹'}</div>
+            {/* 프로필 그림 (사용자 제공 — 얼굴 중심 크롭, public/guest) */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img className="mb-guest-av" src={night ? '/guest/night.webp' : '/guest/day.webp'} alt="" />
             <div style={{ flex: 1 }}>
               <b style={{ fontSize: 13.5 }}>{night ? '토끼' : '햄스터'}</b>
               <small style={{ display: 'block', fontSize: 10.5, color: 'var(--faint)' }}>로그인 하지 않은 사용자</small>
