@@ -1,7 +1,7 @@
 'use client';
 // 위젯 설정 공용 에디터 (5장 「위젯」 카테고리 · 메인 위젯 관리 모달 공유)
 // 같은 mainStore를 갱신하므로 메인에서 바꾸든 환경설정에서 바꾸든 즉시 서로 반영됨
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { WidgetConf, useMainStore, decoSlides, DecoSlide } from '@/lib/mainStore';
 import { KInput, KTextarea, KCheck, KStep, KDate } from '@/components/ui/Kit';
 import { DragList } from '@/components/ui/DragList';
@@ -63,6 +63,15 @@ export function TextSettingEditor({ conf }: { conf: WidgetConf }) {
 /* ---------- D-DAY — settings.items: {title, date, plusOne?}[] ---------- */
 // plusOne: 시작일을 1일로 세는 기념일 카운트 (+1 Day — 커플 기념일 등, 당일 = D+1)
 export interface DdaySetItem { title: string; date: string; plusOne?: boolean }
+/** D-day 위젯 꾸밈 (사용자 요청) — 배경 이미지(밝기·블러) · 배치 · 제목 글씨색 */
+export interface DdayLook {
+  bgImg?: string;                            // 배경 이미지 (putBlob 참조 — 메타데이터 없이 올라간다)
+  bgBright?: number;                         // 밝기 % (30~150, 기본 70)
+  bgBlur?: number;                           // 블러 0~20
+  align?: 'side' | 'center';                 // 양쪽(제목 왼쪽·날짜 오른쪽) / 가운데(위아래로 겹쳐 가운데)
+  vAlign?: 'top' | 'center' | 'bottom';      // 배경 이미지가 있을 때 세로 위치
+  textColor?: string;                        // 제목 글씨색 (배경 이미지가 있으면 기본 흰색)
+}
 
 export function DdayEditor({ conf }: { conf: WidgetConf }) {
   const { updateWidget } = useMainStore();
@@ -124,6 +133,79 @@ export function DdayEditor({ conf }: { conf: WidgetConf }) {
           options={fonts.map(f => ({ value: f.id, label: <span style={{ fontFamily: familyOf(f.id) }}>{f.name}</span> }))} />
         <span className="cp-lb">색</span>
         <ColorField value={color ?? '#e6ebf2'} onChange={hex => setMeta({ color: hex })} />
+      </div>
+      <DdayLookEditor look={conf.settings as DdayLook} setMeta={setMeta} />
+    </div>
+  );
+}
+
+/** D-day 배경 이미지 · 밝기 · 블러 · 배치 · 제목색 */
+function DdayLookEditor({ look, setMeta }: { look: DdayLook; setMeta: (p: Record<string, unknown>) => void }) {
+  const toast = useToast();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState(false);
+  const thumb = useBlobUrl(look.bgImg);
+  const row: React.CSSProperties = { display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', marginTop: 10 };
+  const upload = async (f?: File) => {
+    if (!f) return;
+    setBusy(true);
+    try { setMeta({ bgImg: await putBlob(f) }); }
+    catch (e) { toast(`이미지를 올리지 못했습니다 — ${e instanceof Error ? e.message : String(e)}`); }
+    setBusy(false);
+  };
+  const seg = <T extends string>(val: T, opts: [T, string][], key: keyof DdayLook) => (
+    <div className="mini-seg">
+      {opts.map(([v, l]) => (
+        <button key={v} type="button" className={val === v ? 'on' : ''} onClick={() => setMeta({ [key]: v })}>{l}</button>
+      ))}
+    </div>
+  );
+  return (
+    <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px dashed var(--line)' }}>
+      <div style={row}>
+        <span className="cp-lb">배치</span>
+        {seg(look.align ?? 'side', [['side', '양쪽'], ['center', '가운데']], 'align')}
+        {look.bgImg && <>
+          <span className="cp-lb">세로</span>
+          {seg(look.vAlign ?? 'top', [['top', '위'], ['center', '가운데'], ['bottom', '아래']], 'vAlign')}
+        </>}
+      </div>
+      <div style={row}>
+        <span className="cp-lb">배경 이미지</span>
+        {thumb && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={thumb} alt="" style={{ width: 54, height: 36, objectFit: 'cover', borderRadius: 6, border: '1px solid var(--line)' }} />
+        )}
+        <button type="button" className="btn btn-ghost" style={{ padding: '4px 12px', fontSize: 11 }}
+          onClick={() => { if (!busy) fileRef.current?.click(); }}>{busy ? '올리는 중…' : look.bgImg ? '바꾸기' : '＋ 이미지'}</button>
+        {look.bgImg && (
+          <button type="button" className="btn btn-ghost" style={{ padding: '4px 12px', fontSize: 11 }}
+            onClick={() => setMeta({ bgImg: undefined })}>빼기</button>
+        )}
+        <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }}
+          onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; void upload(f); }} />
+      </div>
+      {look.bgImg && <>
+        <div style={row}>
+          <span className="cp-lb">밝기</span>
+          <input type="range" className="k-range" min={30} max={150} value={look.bgBright ?? 70}
+            onChange={e => setMeta({ bgBright: Number(e.target.value) })} />
+          <span style={{ width: 40, textAlign: 'right', fontSize: 11, color: 'var(--faint)' }}>{look.bgBright ?? 70}%</span>
+        </div>
+        <div style={row}>
+          <span className="cp-lb">블러</span>
+          <input type="range" className="k-range" min={0} max={20} value={look.bgBlur ?? 0}
+            onChange={e => setMeta({ bgBlur: Number(e.target.value) })} />
+          <span style={{ width: 40, textAlign: 'right', fontSize: 11, color: 'var(--faint)' }}>{look.bgBlur ?? 0}</span>
+        </div>
+      </>}
+      <div style={row}>
+        <span className="cp-lb">제목 글씨색</span>
+        <ColorField value={look.textColor ?? (look.bgImg ? '#ffffff' : '#2c3037')} onChange={hex => setMeta({ textColor: hex })} />
+        {look.textColor && (
+          <button type="button" className="btn btn-ghost" style={{ padding: '4px 10px', fontSize: 10.5 }}
+            onClick={() => setMeta({ textColor: undefined })}>기본색</button>
+        )}
       </div>
     </div>
   );

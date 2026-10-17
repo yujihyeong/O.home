@@ -2100,3 +2100,17 @@ html.gate-seen .gate{display:none}
 .write-actions .form-actions{pointer-events:auto;width:300px;padding:6px;border-radius:999px;background:color-mix(in srgb,var(--panel-solid) 82%,transparent);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);box-shadow:0 3px 14px rgba(0,0,0,.1)}
 .write-actions .form-actions .btn{border-radius:999px}
 @media (max-width:900px){.write-actions .form-actions{width:auto}}
+
+/* 위젯 배경 이미지 (D-day 등) — 부모를 꽉 채우는 캔버스 + 밝기 덮개 */
+.blur-bg{position:absolute;inset:0;width:100%;height:100%;display:block;pointer-events:none}
+.wg-bgimg{position:relative;isolation:isolate}
+.wg-bgimg>.blur-bg{z-index:-1}
+.wg-bgimg h4,.wg-bgimg h4 .more{color:inherit}
+.dday-wrap{display:flex;flex-direction:column;flex:1}
+.dday-wrap.v-center{justify-content:center}
+.dday-wrap.v-bottom{justify-content:flex-end}
+.dday-wrap.center .dday-row{flex-direction:column;justify-content:center;gap:2px;text-align:center;border-bottom:none;padding:6px 0}
+.dday-wrap.center .dday-row b{font-size:calc(22px*var(--fs,1))}
+.wg-bgimg .dday-row{border-bottom-color:color-mix(in srgb,currentColor 25%,transparent)}
+.panel.widget.dday-tall{display:flex;flex-direction:column;height:100%;box-sizing:border-box}
+.panel.widget.dday-tall>h4{flex-shrink:0}
