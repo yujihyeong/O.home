@@ -898,9 +898,16 @@ body.edit-on .main-grid{grid-template-columns:230px 1fr 260px}
 }
 /* LATEST 축소 규칙 (v1.9): 레이아웃 전환으로 아래를 채움 */
 .latest-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.lat-cell{aspect-ratio:1;border-radius:9px;overflow:hidden;position:relative;min-height:0}
+/* 크기를 직접 정한 위젯이면 이미지가 위젯을 채우며 같이 커진다 (사용자 요청) */
+.wgt.sized .lat-panel{display:flex;flex-direction:column}
+.wgt.sized .lat-panel>h4{flex-shrink:0}
+.wgt.sized .latest-grid{flex:1;min-height:0;grid-auto-rows:1fr}
+.wgt.sized .latest-grid>.lat-cell{aspect-ratio:auto !important;height:100%}
 @container (max-width:240px){
   .latest-grid{grid-template-columns:1fr 1fr}
   .latest-grid>*:first-child{grid-column:1/-1;aspect-ratio:16/10 !important}
+  .wgt.sized .latest-grid{grid-template-rows:1.4fr 1fr}
 }
 @container (max-width:150px){
   .latest-grid{grid-template-columns:1fr}
@@ -2224,3 +2231,6 @@ html[data-scene="night"] .gbx{
 .page.post-read{max-width:680px}   /* 모바일처럼 좁게 (사용자 요청) */
 /* 좁은 폭에서는 글쓰기 오른쪽 설정 칸을 본문 아래로 */
 .page.post-read .write-grid{grid-template-columns:1fr}
+
+/* 위젯 배경 끄기 (환경설정 › 메인 페이지 「배경」 토글) — 판·그림자 없이 내용만 */
+.wgt-nobg .panel.widget,.wgt-nobg .panel{background:transparent !important;box-shadow:none !important;backdrop-filter:none !important;-webkit-backdrop-filter:none !important;border-color:transparent !important}

@@ -605,6 +605,10 @@ function MainPagePane() {
               <span style={{ display: 'inline-flex', gap: 6, alignItems: 'center', fontSize: 11, color: 'var(--sub)' }}>
                 제목 <KToggle checked={!w.noTitle} onChange={v => updateWidget(w.id, { noTitle: !v }, { persist: true })} />
               </span>
+              {/* 위젯 배경(판·그림자) 켜기/끄기 (사용자 요청) */}
+              <span style={{ display: 'inline-flex', gap: 6, alignItems: 'center', fontSize: 11, color: 'var(--sub)' }}>
+                배경 <KToggle checked={!w.noBg} onChange={v => updateWidget(w.id, { noBg: !v }, { persist: true })} />
+              </span>
               <span style={{ display: 'inline-flex', gap: 6, alignItems: 'center', fontSize: 11, color: 'var(--sub)' }}>
                 모바일 <KToggle checked={!w.mOff} onChange={v => setMobileOff(w.id, !v)} />
               </span>
@@ -612,6 +616,7 @@ function MainPagePane() {
           </div>
         )}
       />
+      <p className="hint"><b>배경</b>을 끄면 위젯의 판(배경색·그림자)이 사라지고 내용만 남습니다</p>
       <p className="hint"><b>제목</b>을 끄면 위젯 왼쪽 위 이름(D-DAY·TO-DO 등)이 숨습니다 — 같은 줄의 「더보기」·「관리」도 함께 숨으니, 관리는 위젯을 눌러서</p>
       <p className="hint"><b>모바일</b> 토글을 끄면 <b>모바일에서만</b> 빠지고 PC 메인에는 그대로 표시됩니다 · 순서는 <b>모바일 세로 나열 순서</b> — PC 배치는 메인에서 편집모드로 자유 조정</p>
       <p className="hint">메인에서 위젯을 완전히 빼거나 더하려면 편집모드에서 — 추가는 상단바 [＋ 위젯], 삭제는 위젯 우클릭 → 위젯 삭제</p>

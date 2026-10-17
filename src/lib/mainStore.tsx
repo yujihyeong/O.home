@@ -25,6 +25,7 @@ export interface WidgetConf {
   tx: number; ty: number;
   w?: number; h?: number; z?: number;
   freeMove?: boolean;   // 그리드 무시 요소 (v1.9 — 우클릭 토글, 텍스트·이미지 자유 배치용)
+  noBg?: boolean;       // 위젯 배경(패널 판·그림자) 끄기 (사용자 요청)
   noTitle?: boolean;    // 위젯 왼쪽 위 제목(D-DAY·TO-DO 등) 숨김 (사용자 요청 — 「더보기」·「관리」 줄째 숨는다)
   mOff?: boolean;       // 모바일에서 제외 (v1.9 사용자 확정 — 토글은 모바일 표시만 제어, PC 제거는 우클릭 삭제)
   rot?: number;         // 기울기(도) — 이미지·자유 텍스트, 편집모드 왼쪽 위 핸들 드래그 (v1.9 사용자 요청)
