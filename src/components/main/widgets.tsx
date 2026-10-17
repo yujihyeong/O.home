@@ -15,6 +15,8 @@ import { ColorField } from '@/components/ui/ColorField';
 import { useFonts } from '@/lib/fontStore';
 import { BlurBg } from '@/components/ui/BlurBg';
 import { ChatWidget } from '@/components/main/ChatWidget';
+import { QuoteWidget } from '@/components/main/QuoteWidget';
+import { PolaroidWidget } from '@/components/main/PolaroidWidget';
 import { BannerEditor, BannerSlide, DEMO_SLIDES, DdayEditor, DdayLook, DecoEditor, TodoEditor, TodoSetItem } from '@/components/main/widgetEditors';
 import { CroppedBlobImg, CropValue } from '@/components/ui/CropEditor';
 import { useLocalList, Post, BOARD_SEED } from '@/lib/postStore';
@@ -744,6 +746,8 @@ export function renderWidget(conf: WidgetConf) {
     case 'mines': return <MinesMoved />;
     case 'chat': return <ChatWidget conf={conf} />;
     case 'recent': return <RecentPostsWidget conf={conf} />;
+    case 'quote': return <QuoteWidget conf={conf} />;
+    case 'polaroid': return <PolaroidWidget conf={conf} />;
     default: return <div className="panel widget"><h4>{WIDGET_META[conf.type]?.title ?? conf.type}</h4></div>;
   }
 }
