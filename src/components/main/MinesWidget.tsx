@@ -39,35 +39,42 @@ const MINE = [
   '..KKKK..',
   '........',
 ];
+// 얼굴은 10×10 좌우 대칭 — 눈 2×2(왼쪽 위에 반짝), 볼터치, ω 입
 const FACE_OK = [
-  '..YYYY..',
-  '.YYYYYY.',
-  'YYKYYKYY',
-  'YPYYYYPY',
-  'YYKYYKYY',
-  'YYYKKYYY',
-  '.YYYYYY.',
-  '..YYYY..',
+  '...YYYY...',
+  '.YYYYYYYY.',
+  'YYYYYYYYYY',
+  'YYWKYYKWYY',
+  'YYKKYYKKYY',
+  'YPPYYYYPPY',
+  'YYYKYYKYYY',
+  'YYYYKKYYYY',
+  '.YYYYYYYY.',
+  '...YYYY...',
 ];
 const FACE_WIN = [
-  '..YYYY..',
-  '.YYYYYY.',
-  'KKKKKKKK',
-  'YKKYYKKY',
-  'YPYYYYPY',
-  'YKYYYYKY',
-  '.YKKKKY.',
-  '..YYYY..',
+  '...YYYY...',
+  '.YYYYYYYY.',
+  'YYYYYYYYYY',
+  'KKKKKKKKKK',
+  'YKKKYYKKKY',
+  'YPPYYYYPPY',
+  'YYKYYYYKYY',
+  'YYYKKKKYYY',
+  '.YYYYYYYY.',
+  '...YYYY...',
 ];
 const FACE_LOSE = [
-  '..YYYY..',
-  '.YYYYYY.',
-  'YKYKYKYK',
-  'YYKYYKYY',
-  'YKYKYKYK',
-  'YYYKKYYY',
-  '.YYKKYY.',
-  '..YYYY..',
+  '...YYYY...',
+  '.YYYYYYYY.',
+  'YKYKYYKYKY',
+  'YYKYYYYKYY',
+  'YKYKYYKYKY',
+  'YPPYYYYPPY',
+  'YYYYKKYYYY',
+  'YYYKYYKYYY',
+  '.YYYYYYYY.',
+  '...YYYY...',
 ];
 const HEART = [
   '.RR.RR.',
@@ -244,7 +251,7 @@ export function MinesWidget() {
         <div className="gbx-hud">
           <span className="gbx-num" data-tip="남은 지뢰"><Pix rows={MINE} pal={{ K: 'currentColor', W: 'var(--gb-lcd)', S: 'var(--gb-spark)' }} className="gbx-ico" />{pad3(left)}</span>
           <button type="button" className="gbx-face" onClick={() => reset()} aria-label="새 게임">
-            <Pix rows={face} pal={{ Y: 'var(--gb-face)', K: 'var(--gb-face-ink)', P: 'var(--gb-cheek)' }} />
+            <Pix rows={face} pal={{ Y: 'var(--gb-face)', K: 'var(--gb-face-ink)', P: 'var(--gb-cheek)', W: '#ffffff' }} />
           </button>
           <span className="gbx-num">⏱{pad3(time)}</span>
         </div>
@@ -281,7 +288,11 @@ export function MinesWidget() {
       </div>
 
       <div className="gbx-ctrl">
-        <div className="gbx-dpad" aria-hidden><i /><i /></div>
+        {/* 십자키 — 한 덩어리 도형 + 아래로 2px 그림자 (막대 두 개를 겹치면 가운데에 그림자 줄이 생겼다) */}
+        <svg className="gbx-dpad" viewBox="0 0 52 54" aria-hidden>
+          <path d="M17 2h18v15h15v18H35v15H17V35H2V17h15z" fill="var(--gb-dpad-lo)" transform="translate(0 2)" />
+          <path d="M17 2h18v15h15v18H35v15H17V35H2V17h15z" fill="var(--gb-dpad)" />
+        </svg>
         <div className="gbx-ab">
           {/* 글자는 버튼 아래에 작게 — 진짜 게임기처럼 */}
           <span className="gbx-abw b">
@@ -299,7 +310,6 @@ export function MinesWidget() {
         <button type="button" onClick={nextLevel}><i />SELECT</button>
         <button type="button" onClick={() => reset()}><i />START</button>
       </div>
-      <div className="gbx-hint">{flagMode ? '🚩 깃발 모드' : '누르면 열기 · 길게/우클릭은 깃발'}</div>
     </div>
   );
 }
