@@ -2,13 +2,16 @@
 // 리치 텍스트 에디터 (TipTap) — 프로필 탭 등 HTML 콘텐츠 작성용
 // 자체 스타일 툴바 (7장 — 기본 UI 금지) · 출력은 HTML, 저장 시 새니타이즈는 렌더 쪽에서 (6.3)
 import React, { useEffect, useRef, useState } from 'react';
-import { useEditor, EditorContent } from '@tiptap/react';
+import { useEditor, EditorContent, Mark } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Image from '@tiptap/extension-image';
 import { putBlob } from '@/lib/blobStore';
 import { stripImageMeta } from '@/lib/imageMeta';
 import { useToast } from '@/components/ui/Toast';
-import { SpellPanel, SpellSession, shiftAfter } from '@/components/ui/WriteTools';
+import {
+  SpellPanel, SpellSession, shiftAfter, FontControls, FontPick, WholeFont, wholeFontStyle,
+} from '@/components/ui/WriteTools';
+import { useFonts } from '@/lib/fontStore';
 import { findSpelling, SpellIssue } from '@/lib/writeTools';
 
 /** 로컬 모드용 — 파일을 그대로 본문에 심는다 (서버가 없어 올릴 곳이 없을 때) */
@@ -21,6 +24,29 @@ function toDataUrl(f: Blob): Promise<string> {
   });
 }
 
+/** 드래그한 부분의 글씨체·크기 — <span style="font-family / font-size"> (저장되는 HTML 그대로) */
+const FontMark = Mark.create({
+  name: 'fontStyle',
+  addAttributes() {
+    return {
+      fontFamily: {
+        default: null,
+        parseHTML: el => el.style.fontFamily || null,
+        renderHTML: a => (a.fontFamily ? { style: `font-family:${a.fontFamily}` } : {}),
+      },
+      fontSize: {
+        default: null,
+        parseHTML: el => el.style.fontSize || null,
+        renderHTML: a => (a.fontSize ? { style: `font-size:${a.fontSize}` } : {}),
+      },
+    };
+  },
+  parseHTML() {
+    return [{ tag: 'span[style]', getAttrs: el => ((el as HTMLElement).style.fontFamily || (el as HTMLElement).style.fontSize ? {} : false) }];
+  },
+  renderHTML({ HTMLAttributes }) { return ['span', HTMLAttributes, 0]; },
+});
+
 function TBtn({ on, label, title, onClick }: { on?: boolean; label: React.ReactNode; title: string; onClick: () => void }) {
   return (
     <button type="button" data-tip={title} className={`re-btn ${on ? 'on' : ''}`}
@@ -30,17 +56,20 @@ function TBtn({ on, label, title, onClick }: { on?: boolean; label: React.ReactN
   );
 }
 
-export function RichEditor({ value, onChange, placeholder }: {
+export function RichEditor({ value, onChange, placeholder, font }: {
   value: string;
   onChange: (html: string) => void;
   placeholder?: string;
+  /** 글씨체·크기 — 드래그한 부분이 있으면 그 부분만, 없으면 글 전체(setWhole) */
+  font?: { whole: WholeFont; setWhole: (w: WholeFont) => void };
 }) {
   const toast = useToast();
+  const { familyOf } = useFonts();
   const fileRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [spell, setSpell] = useState<SpellSession | null>(null);   // 맞춤법 검사 결과
   const editor = useEditor({
-    extensions: [StarterKit, Image],
+    extensions: [StarterKit, Image, FontMark],
     content: value || '<p></p>',
     immediatelyRender: false,
     editorProps: {
@@ -76,6 +105,23 @@ export function RichEditor({ value, onChange, placeholder }: {
       toast(`이미지를 올리지 못했습니다 — ${e instanceof Error ? e.message : String(e)}`);
     }
     setBusy(false);
+  };
+
+  const pickFont = (p: FontPick) => {
+    if (!font) return;
+    const { empty } = editor.state.selection;
+    if (!empty) {
+      const attrs = 'fontId' in p
+        ? { fontFamily: p.fontId ? (familyOf(p.fontId) ?? null) : null }
+        : { fontSize: p.fontSize ? `${p.fontSize}px` : null };
+      editor.chain().focus().setMark('fontStyle', attrs).run();
+      toast('드래그한 부분에 적용했습니다');
+      return;
+    }
+    font.setWhole('fontId' in p
+      ? { ...font.whole, fontId: p.fontId || undefined }
+      : { ...font.whole, fontSize: p.fontSize ? Number(p.fontSize) : undefined });
+    toast('글 전체에 적용했습니다');
   };
 
   /* 맞춤법 검사 — 드래그한 부분이 있으면 그 부분만, 없으면 글 전체.
@@ -137,6 +183,7 @@ export function RichEditor({ value, onChange, placeholder }: {
         <span className="re-sep" />
         <TBtn title="맞춤법 검사 — 드래그하면 그 부분만, 아니면 글 전체" label="가✓" on={!!spell} onClick={runSpell} />
         <span className="re-sep" />
+        {font && <><FontControls whole={font.whole} onPick={pickFont} /><span className="re-sep" /></>}
         <TBtn title={busy ? '올리는 중…' : '이미지 올리기'} label={busy ? '⏳' : '🖼'}
           onClick={() => { if (!busy) fileRef.current?.click(); }} />
         <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }}
@@ -166,7 +213,7 @@ export function RichEditor({ value, onChange, placeholder }: {
           onClose={() => setSpell(null)} />
       )}
       {/* 플레이스홀더는 본문 영역 기준으로 — 툴바가 두 줄이 돼도 안 밀림 (v1.9 사용자 발견) */}
-      <div className="re-body">
+      <div className="re-body" style={font ? wholeFontStyle(familyOf, font.whole) : undefined}>
         <EditorContent editor={editor} />
         {placeholder && editor.isEmpty && <div className="re-ph">{placeholder}</div>}
       </div>

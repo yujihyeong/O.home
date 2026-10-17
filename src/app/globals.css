@@ -689,7 +689,9 @@ a{color:inherit;text-decoration:none}
 .re-sep{width:1px;height:16px;background:var(--line);margin:0 5px}
 .re-content{min-height:260px;padding:14px 16px;outline:none;font-size:calc(14.5px*var(--fs,1));line-height:1.85}
 /* TipTap이 .prose를 함께 붙임 — .prose(뒤 정의)가 이기지 않도록 상위 셀렉터로 고정 */
-.re-wrap .re-content{font-size:calc(14.5px*var(--fs,1))}
+.re-wrap .re-content{font-size:var(--post-fs,calc(14.5px*var(--fs,1)))}
+.wt-font{display:inline-flex;gap:6px;align-items:center}
+.wt-font .k-select .cur{height:28px;font-size:11.5px;padding-top:0;padding-bottom:0;display:flex;align-items:center}
 .re-content:focus{outline:none}
 .re-content h2{font-size:calc(20px*var(--fs,1));margin:14px 0 6px}
 .re-content h3{font-size:calc(17px*var(--fs,1));margin:12px 0 5px}
@@ -1585,7 +1587,7 @@ body.edit-on .main-grid.gridlines .wgt{outline-offset:0}
   .bticket .bt-title{font-size:calc(14.5px*var(--fs,1))}
 }
 /* 본문 렌더 (MD/HTML 공통) */
-.post-body{font-size:calc(14.5px*var(--fs,1));line-height:1.85;color:#2c3037;word-break:break-word}
+.post-body{font-size:var(--post-fs,calc(14.5px*var(--fs,1)));line-height:1.85;color:#2c3037;word-break:break-word}
 /* 빈 문단도 한 줄 높이 유지 (v2.0 사용자 제보 — 「엔터가 잘 안 먹힘」).
    에디터의 빈 줄은 <p></p>로 저장되는데 그대로는 높이가 0이라 발행 글에서 줄이 사라진다 */
 .post-body p:empty::after,.prose p:empty::after,.html-body p:empty::after{content:"\00a0"}

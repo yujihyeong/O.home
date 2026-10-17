@@ -17,6 +17,8 @@ import { GuestIdBar } from '@/components/ui/GuestId';
 import { useToast } from '@/components/ui/Toast';
 import { PageTitle } from '@/components/ui/PageText';
 import { ExcerptBody } from '@/components/ui/Excerpt';
+import { wholeFontStyle } from '@/components/ui/WriteTools';
+import { useFonts } from '@/lib/fontStore';
 import { pushNotif } from '@/lib/notifStore';
 
 const FOLD_LABEL = { spoiler: '스포일러 주의', adult: '수위 주의' };
@@ -25,6 +27,7 @@ export default function BoardDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const { user, isAdmin } = useAuth();
+  const { familyOf } = useFonts();
   const toast = useToast();
   const [posts, setPosts, loaded] = useLocalList<Post>('ohome.board.v1', BOARD_SEED);
   // 댓글은 글과 따로 저장된다 (v2.0) — 글 안에 두면 댓글을 달 때 글을 UPDATE 해야 해서
@@ -210,7 +213,10 @@ export default function BoardDetailPage() {
             </div>
           )}
           <ExcerptBody html={html} active={exOn} onExit={() => setExOn(false)} title={post.title} author={post.author}
-            style={post.fold && !open ? { minHeight: 120, filter: 'blur(6px)' } : undefined} />
+            style={{
+              ...wholeFontStyle(familyOf, post),   // 글 전체 글씨체·크기 (글쓰기에서 고른 것)
+              ...(post.fold && !open ? { minHeight: 120, filter: 'blur(6px)' } : {}),
+            }} />
         </div>
       </div>
 
