@@ -1,7 +1,7 @@
 'use client';
 // Supabase 백엔드 — Postgres 테이블(행 단위) + Auth + Storage + Realtime
 // 스키마·권한: supabase/schema.sql
-import type { SupabaseClient } from '@supabase/supabase-js';
+import type { RealtimeChannel, SupabaseClient } from '@supabase/supabase-js';
 import {
   Backend, BackendCheck, BackendConfig, BackendUser, ListItem, diffList, metaOf,
 } from './types';
@@ -9,6 +9,9 @@ import { visFloorOf } from '../visFloor';
 
 const BUCKET = 'ohome';
 const PROBE = ['profiles', 'site_settings', 'posts', 'characters'];
+
+/** 표별 실시간 채널 (아래 subscribe) — 브라우저 클라이언트가 한 페이지에 하나라서 모듈 단위로 둔다 */
+const channels = new Map<string, { ch: RealtimeChannel; listeners: Set<() => void> }>();
 
 export async function createSupabaseBackend(
   cfg: Extract<BackendConfig, { kind: 'supabase' }>,
@@ -239,11 +242,31 @@ export async function createSupabaseBackend(
       return n;
     },
 
+    /* 표마다 실시간 채널은 하나만 열고, 듣는 쪽(화면 여러 곳)은 그 채널에 붙는다 (사용자 제보 —
+       검색 위젯을 추가하자 「cannot add postgres_changes callbacks … after subscribe()」).
+       같은 이름으로 sb.channel()을 다시 부르면 이미 구독된 채널을 돌려주는데, 거기에 .on()을 더 달 수 없다.
+       같은 화면에서 posts 표를 보는 위젯이 둘 이상이면(새 글 + 검색) 두 번째가 오류로 멈췄다. */
     subscribe(coll, onChange) {
-      const ch = sb.channel(`ohome:${coll}`)
-        .on('postgres_changes', { event: '*', schema: 'public', table: coll }, () => onChange())
-        .subscribe();
-      return () => { void sb.removeChannel(ch); };
+      let hub = channels.get(coll);
+      if (!hub) {
+        const listeners = new Set<() => void>();
+        const ch = sb.channel(`ohome:${coll}`)
+          .on('postgres_changes', { event: '*', schema: 'public', table: coll }, () => listeners.forEach(f => f()))
+          .subscribe();
+        hub = { ch, listeners };
+        channels.set(coll, hub);
+      }
+      const fn = () => onChange();
+      hub.listeners.add(fn);
+      const mine = hub;
+      return () => {
+        mine.listeners.delete(fn);
+        // 마지막으로 듣던 쪽이 떠나면 채널을 닫는다 — 다음에 다시 붙으면 새로 연다
+        if (!mine.listeners.size && channels.get(coll) === mine) {
+          channels.delete(coll);
+          void sb.removeChannel(mine.ch);
+        }
+      };
     },
 
     async fetchSetting<T>(key: string) {
