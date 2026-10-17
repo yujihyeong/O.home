@@ -232,13 +232,13 @@ export function LatestWidget() {
   const phFallback = ['cool', 'warm', 'red'];
   if (!seeRoad && !seeGal) return null;   // 둘 다 비공개면 위젯 자체를 띄우지 않는다 (v2.0)
   return (
-    <div className="panel widget" style={{ margin: 0 }}>
+    <div className="panel widget lat-panel" style={{ margin: 0 }}>
       <h4>LATEST <span className="more" onClick={() => router.push('/gallery')}>더보기 ›</span></h4>
       <div className="latest-grid">
         {[0, 1, 2].map(i => {
           const it = latest[i];
           return (
-            <div key={it?.id ?? i} style={{ aspectRatio: '1', borderRadius: 9, overflow: 'hidden', position: 'relative', cursor: it ? 'pointer' : undefined }}
+            <div key={it?.id ?? i} className="lat-cell" style={{ cursor: it ? 'pointer' : undefined }}
               onClick={() => { if (it) router.push(it.href); }} data-tip={it?.tip}>
               <BlobImg fileRef={it?.ref} ph={it?.ph || phFallback[i]} />
             </div>

@@ -161,7 +161,7 @@ export function WidgetFrame({ conf, mobileOrder, children, className, style, onC
     <div
       ref={ref}
       data-wid={conf.id}
-      className={`wgt ${useSize && conf.w != null ? 'sized' : ''} ${conf.mOff ? 'wgt-hide-m' : ''} ${conf.noTitle ? 'wgt-notitle' : ''} ${className ?? ''}`}
+      className={`wgt ${useSize && conf.w != null ? 'sized' : ''} ${conf.mOff ? 'wgt-hide-m' : ''} ${conf.noTitle ? 'wgt-notitle' : ''} ${conf.noBg ? 'wgt-nobg' : ''} ${className ?? ''}`}
       style={{
         ...style,
         order: mobileOrder,
