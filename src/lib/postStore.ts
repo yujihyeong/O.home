@@ -83,6 +83,9 @@ export interface Post {
   /** 갤러리 글의 이미지·설명 — 수정 화면을 다시 채우는 용도. 보여 주기는 body(HTML)로 한다 */
   images?: string[];
   caption?: string;
+  /** 글 전체 글씨체(폰트 id)·크기(px) — 글쓰기에서 드래그 없이 고르면 여기에. 드래그한 부분은 본문 안 <span style>로 */
+  fontId?: string;
+  fontSize?: number;
 }
 
 export type PostKind = 'gallery' | 'log';

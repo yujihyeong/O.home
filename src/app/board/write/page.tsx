@@ -13,7 +13,8 @@ import { KInput, KTextarea, KCheck } from '@/components/ui/Kit';
 import { CropEditor, CropImg, CropValue } from '@/components/ui/CropEditor';
 import { ConfirmModal } from '@/components/ui/Modal';
 import { RichEditor } from '@/components/ui/RichEditor';
-import { TextTools } from '@/components/ui/WriteTools';
+import { TextTools, WholeFont, wholeFontStyle } from '@/components/ui/WriteTools';
+import { useFonts } from '@/lib/fontStore';
 import { useToast } from '@/components/ui/Toast';
 import { PageTitle, EditableDesc } from '@/components/ui/PageText';
 
@@ -65,6 +66,10 @@ function WriteInner() {
   const [htmlView, setHtmlView] = useState<'code' | 'preview'>('code');
   const [askRich, setAskRich] = useState<null | (() => void)>(null);   // 정리 경고 후 실행할 전환
   const [secret, setSecret] = useState(false);
+  // 글 전체 글씨체·크기 — 드래그 없이 고르면 여기에 (드래그한 부분은 본문 안에 직접)
+  const [whole, setWhole] = useState<WholeFont>({});
+  const { familyOf } = useFonts();
+  const font = { whole, setWhole };
   // 태그 (v2.0 사용자 요청) — 쉼표로 구분해 입력, 저장할 때 배열로
   const [tagsText, setTagsText] = useState('');
   const parseTags = (s: string) =>
@@ -101,6 +106,7 @@ function WriteInner() {
     // 에디터로 쓴 글을 수정하면 갑자기 태그가 보였다 (authored 없는 옛 글은 지금까지대로 HTML)
     setWriteMode(p.mode === 'md' ? (p.authored === 'log' ? 'log' : 'md') : (p.authored === 'editor' ? 'editor' : 'html'));
     setSecret(p.secret);
+    setWhole({ fontId: p.fontId, fontSize: p.fontSize });
     setFoldType(p.fold?.type ?? 'none'); setFoldLabel(p.fold?.label ?? '');
     setTagsText((p.tags ?? []).join(', '));
     setThumbSrc(p.thumbSrc); setThumbCrop(p.thumbCrop);
@@ -153,6 +159,7 @@ function WriteInner() {
       setPosts(posts.map(p => (p.id === editing.id ? {
         ...p,
         title: title.trim(), ...content, kind,
+        fontId: whole.fontId, fontSize: whole.fontSize,
         secret,
         tags: parseTags(tagsText),
         fold: foldType === 'none' ? null : { type: foldType, label: foldType === 'custom' ? foldLabel : undefined },
@@ -163,7 +170,7 @@ function WriteInner() {
       return;
     }
     const p: Post = {
-      id: newId(), title: title.trim(), ...content, kind, category: '',
+      id: newId(), title: title.trim(), ...content, kind, category: '', fontId: whole.fontId, fontSize: whole.fontSize,
       author: user.nickname, authorId: user.id, date: new Date().toISOString(),
       secret, notice: false,
       tags: parseTags(tagsText),
@@ -210,7 +217,7 @@ function WriteInner() {
               <input ref={imgRef} type="file" accept="image/*" multiple style={{ display: 'none' }}
                 onChange={e => { const f = e.target.files; void addImages(f).then(() => { e.target.value = ''; }); }} />
               <label className="k-label" style={{ margin: '14px 0 7px' }}>설명 (선택) — 마크다운</label>
-              <TextTools value={caption} onChange={setCaption}>
+              <TextTools value={caption} onChange={setCaption} font={font}>
                 <KTextarea style={{ minHeight: 90 }} placeholder="그림에 대한 설명을 적어 주세요"
                   value={caption} onChange={e => setCaption(e.target.value)} />
               </TextTools>
@@ -242,7 +249,7 @@ function WriteInner() {
             )}
           </div>
           {writeMode === 'editor' || (writeMode === 'html' && htmlView === 'preview') ? (
-            <RichEditor value={body} onChange={setBody} placeholder='내용을 작성하세요 — 이미지 삽입 가능 (스크립트 불허 6.3)' />
+            <RichEditor value={body} onChange={setBody} font={font} placeholder='내용을 작성하세요 — 이미지 삽입 가능 (스크립트 불허 6.3)' />
           ) : (
             <>
               {(() => {
@@ -257,12 +264,12 @@ function WriteInner() {
                 );
                 // HTML 코드에는 맞춤법 검사를 걸지 않는다 — 태그가 걸린다 (미리보기 편집은 에디터 쪽 검사를 쓴다)
                 return isMd
-                  ? <TextTools value={body} onChange={setBody} log={writeMode === 'log'}>{ta}</TextTools>
-                  : ta;
+                  ? <TextTools value={body} onChange={setBody} log={writeMode === 'log'} font={font}>{ta}</TextTools>
+                  : <TextTools value={body} onChange={setBody} spell={false} font={{ ...font, html: true }}>{ta}</TextTools>;
               })()}
               <div className="preview-box" style={{ marginTop: 14 }}>
                 <div className="pv-label">PREVIEW — 실시간 미리보기</div>
-                <div className="post-body" dangerouslySetInnerHTML={{ __html: preview }} />
+                <div className="post-body" style={wholeFontStyle(familyOf, whole)} dangerouslySetInnerHTML={{ __html: preview }} />
               </div>
             </>
           )}

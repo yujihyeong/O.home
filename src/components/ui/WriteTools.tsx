@@ -5,6 +5,51 @@
 import React, { useRef, useState } from 'react';
 import { expandToLines, findSpelling, SpellIssue, tidyLog } from '@/lib/writeTools';
 import { useToast } from '@/components/ui/Toast';
+import { KSelect } from '@/components/ui/Kit';
+import { useFonts } from '@/lib/fontStore';
+
+/* ---------- 글씨체 · 글씨 크기 ----------
+   드래그한 부분이 있으면 그 부분만(<span style>), 없으면 글 전체(글에 fontId·fontSize로 저장) */
+export interface WholeFont { fontId?: string; fontSize?: number }
+/** 고른 값 — 바뀐 쪽만 들어 있다. '' = 기본으로 */
+export type FontPick = { fontId: string } | { fontSize: string };
+export const FONT_SIZES = [12, 13, 14, 15, 16, 18, 20, 24, 28, 32];
+
+/** 글 전체 글씨체·크기 → 본문(.post-body / 에디터)에 거는 스타일 */
+export function wholeFontStyle(familyOf: (id?: string) => string | undefined, w: WholeFont): React.CSSProperties {
+  const st: Record<string, string> = {};
+  if (w.fontId) { const f = familyOf(w.fontId); if (f) st.fontFamily = f; }
+  if (w.fontSize) st['--post-fs'] = `${w.fontSize}px`;
+  return st as React.CSSProperties;
+}
+
+/** 고른 값 → CSS 한 줄 (드래그한 부분용). 기본으로 되돌리면 inherit */
+export function pickCss(familyOf: (id?: string) => string | undefined, p: FontPick): string {
+  if ('fontId' in p) return `font-family:${(p.fontId && familyOf(p.fontId)) || 'inherit'}`.replace(/"/g, "'");
+  return `font-size:${p.fontSize ? `${p.fontSize}px` : 'inherit'}`;
+}
+
+/** 글씨체 · 크기 고르기 — 보이는 값은 「글 전체」 설정 */
+export function FontControls({ whole, onPick }: { whole: WholeFont; onPick: (p: FontPick) => void }) {
+  const { fonts, familyOf } = useFonts();
+  return (
+    <span className="wt-font" onMouseDown={e => e.preventDefault()}>
+      <KSelect minWidth={118} maxWidth={160} value={whole.fontId ?? ''} onChange={v => onPick({ fontId: v })}
+        options={[{ value: '', label: '글씨체 기본' },
+          ...fonts.map(f => ({ value: f.id, label: <span style={{ fontFamily: familyOf(f.id) }}>{f.name}</span> }))]} />
+      <KSelect minWidth={78} value={whole.fontSize ? String(whole.fontSize) : ''} onChange={v => onPick({ fontSize: v })}
+        options={[{ value: '', label: '크기 기본' }, ...FONT_SIZES.map(n => ({ value: String(n), label: `${n}px` }))]} />
+    </span>
+  );
+}
+
+/** 마크다운 글에서 고른 부분을 줄마다 <span>으로 — 제목·인용·목록 기호는 바깥에 둔다 */
+function wrapMd(text: string, open: string): string {
+  return text.split('\n').map(line => {
+    const m = /^(\s*(?:#{1,6}\s+|>\s?|[-*+]\s+|\d+[.)]\s+)*)(.*?)(\s*)$/.exec(line);
+    return m && m[2] ? `${m[1]}${open}${m[2]}</span>${m[3]}` : line;
+  }).join('\n');
+}
 
 export interface SpellSession {
   issues: SpellIssue[];
@@ -73,13 +118,17 @@ const CTX = 14;
  * 텍스트에리어 위에 얹는 도구 막대.
  * children으로 텍스트에리어(KTextarea 등)를 감싸면 그 안의 <textarea>에서 선택 범위를 읽는다.
  */
-export function TextTools({ value, onChange, log, children }: {
+export function TextTools({ value, onChange, log, spell: spellOn = true, font, children }: {
   value: string;
   onChange: (v: string) => void;
   log?: boolean;              // 로그 정리 버튼 (글쓰기 「로그 정리」 모드)
+  spell?: boolean;            // 맞춤법 검사 버튼 (HTML 코드에는 끈다)
+  /** 글씨체·크기 — html이면 고른 부분을 통째로, 아니면(마크다운) 줄마다 감싼다 */
+  font?: { whole: WholeFont; setWhole: (w: WholeFont) => void; html?: boolean };
   children: React.ReactNode;
 }) {
   const toast = useToast();
+  const { familyOf } = useFonts();
   const wrap = useRef<HTMLDivElement>(null);
   const latest = useRef(value);
   latest.current = value;
@@ -125,6 +174,28 @@ export function TextTools({ value, onChange, log, children }: {
     setSpell({ issues, scope: r.scope });
   };
 
+  const pickFont = (p: FontPick) => {
+    if (!font) return;
+    const el = ta();
+    const v = latest.current;
+    if (el && el.selectionEnd > el.selectionStart) {
+      const a = el.selectionStart, b = el.selectionEnd;
+      const open = `<span style="${pickCss(familyOf, p)}">`;
+      const done = font.html ? `${open}${v.slice(a, b)}</span>` : wrapMd(v.slice(a, b), open);
+      const next = v.slice(0, a) + done + v.slice(b);
+      latest.current = next;
+      onChange(next);
+      setSpell(null);
+      select(a, a + done.length);
+      toast('드래그한 부분에 적용했습니다');
+      return;
+    }
+    font.setWhole('fontId' in p
+      ? { ...font.whole, fontId: p.fontId || undefined }
+      : { ...font.whole, fontSize: p.fontSize ? Number(p.fontSize) : undefined });
+    toast('글 전체에 적용했습니다');
+  };
+
   const applyOne = (v: string, i: SpellIssue) =>
     (v.slice(i.from, i.to) === i.wrong ? v.slice(0, i.from) + i.fix + v.slice(i.to) : null);
 
@@ -159,10 +230,13 @@ export function TextTools({ value, onChange, log, children }: {
             ✎ 로그 정리
           </button>
         )}
-        <button type="button" onMouseDown={e => e.preventDefault()} onClick={runSpell}
-          data-tip="자주 틀리는 맞춤법·띄어쓰기 찾기 — 드래그하면 그 부분만">
-          가✓ 맞춤법 검사
-        </button>
+        {spellOn && (
+          <button type="button" onMouseDown={e => e.preventDefault()} onClick={runSpell}
+            data-tip="자주 틀리는 맞춤법·띄어쓰기 찾기 — 드래그하면 그 부분만">
+            가✓ 맞춤법 검사
+          </button>
+        )}
+        {font && <FontControls whole={font.whole} onPick={pickFont} />}
         <small>드래그하면 그 부분만, 아니면 글 전체에 적용</small>
       </div>
       <div ref={wrap}>{children}</div>
