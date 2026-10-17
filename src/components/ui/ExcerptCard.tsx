@@ -23,8 +23,51 @@ interface CardStyle {
   fontId: string;          // 폰트 라이브러리 id ('' = 기본)
   color: string;           // 글씨색
   size: number;            // 글씨 크기 (1080px 폭 기준)
+  hl: string;              // 형광펜 색
 }
-const DEF: CardStyle = { bg: '#f7f3ea', img: null, bright: 70, blur: 0, fontId: '', color: '#2c3037', size: 38 };
+const DEF: CardStyle = { bg: '#f7f3ea', img: null, bright: 70, blur: 0, fontId: '', color: '#2c3037', size: 38, hl: '#ffe066' };
+
+/* ---------- 문장 꾸미기 — 굵게 · 기울임 · 형광펜 (사용자 요청) ----------
+   문단마다 글 조각(run)의 목록으로 들고 있는다. 드래그한 범위에 켜고/끄고, 캔버스는 조각마다 글꼴을 바꿔 그린다 */
+export interface Run { t: string; b?: boolean; i?: boolean; h?: boolean }
+type Mark = 'b' | 'i' | 'h';
+const same = (a: Run, b: Run) => !!a.b === !!b.b && !!a.i === !!b.i && !!a.h === !!b.h;
+function merge(runs: Run[]): Run[] {
+  const out: Run[] = [];
+  for (const r of runs) {
+    if (!r.t) continue;
+    const last = out[out.length - 1];
+    if (last && same(last, r)) last.t += r.t; else out.push({ ...r });
+  }
+  return out.length ? out : [{ t: '' }];
+}
+/** from~to 글자 범위가 조각 경계가 되게 쪼갠다 */
+function splitAt(runs: Run[], from: number, to: number): Run[] {
+  const out: Run[] = [];
+  let pos = 0;
+  for (const r of runs) {
+    const a = pos, b = pos + r.t.length;
+    const cuts = [a, Math.max(a, Math.min(b, from)), Math.max(a, Math.min(b, to)), b];
+    for (let k = 0; k < 3; k++) if (cuts[k + 1] > cuts[k]) out.push({ ...r, t: r.t.slice(cuts[k] - a, cuts[k + 1] - a) });
+    pos = b;
+  }
+  return out;
+}
+/** 범위 안이 모두 켜져 있으면 끄고, 아니면 켠다 */
+function toggleMark(runs: Run[], from: number, to: number, m: Mark): Run[] {
+  const parts = splitAt(runs, from, to);
+  let pos = 0;
+  const inRange: Run[] = [];
+  parts.forEach(r => { if (pos >= from && pos + r.t.length <= to && r.t) inRange.push(r); pos += r.t.length; });
+  const on = !inRange.every(r => r[m]);
+  pos = 0;
+  return merge(parts.map(r => {
+    const hit = pos >= from && pos + r.t.length <= to;
+    pos += r.t.length;
+    return hit ? { ...r, [m]: on || undefined } : r;
+  }));
+}
+
 const KEY = 'ohome.excerptCard.v1';
 const W = 1080;
 const PAD = 96;
@@ -65,43 +108,58 @@ function loadImg(src: string): Promise<HTMLImageElement> {
 }
 
 /** 글자 단위 줄바꿈 (한글은 띄어쓰기 없이도 끊긴다 — 영어 단어는 되도록 통째로) */
-function wrap(ctx: CanvasRenderingContext2D, text: string, max: number): string[] {
-  const out: string[] = [];
-  for (const raw of text.split('\n')) {
-    let line = '';
-    const tokens = raw.match(/[A-Za-z0-9'’.,!?-]+\s*|\s+|./gu) ?? [];
-    for (const t of tokens) {
-      // 쉼표·마침표·닫는 따옴표는 줄 맨 앞으로 넘기지 않는다 — 살짝 넘쳐도 앞 줄에 붙인다
-      if (line && /^[,.!?;:、。」』)\]}"'”’…~]/.test(t) && ctx.measureText(line + t.trimEnd()).width <= max + ctx.measureText('，，').width) {
-        line += t;
-        continue;
+interface Piece { t: string; r: Run }
+/** 글자 단위 줄바꿈 — 조각마다 글꼴이 달라 조각별로 잰다 (한글은 띄어쓰기 없이도 끊긴다 — 영어 단어는 되도록 통째로) */
+function wrap(ctx: CanvasRenderingContext2D, runs: Run[], max: number, fontOf: (r: Run) => string): Piece[][] {
+  const lines: Piece[][] = [];
+  let line: Piece[] = [], w = 0;
+  const m = (t: string, r: Run) => { ctx.font = fontOf(r); return ctx.measureText(t).width; };
+  const push = () => {
+    // 줄 끝 공백은 떼어 낸다
+    while (line.length && !line[line.length - 1].t.trimEnd()) line.pop();
+    if (line.length) line[line.length - 1] = { ...line[line.length - 1], t: line[line.length - 1].t.trimEnd() };
+    lines.push(line); line = []; w = 0;
+  };
+  const add = (t: string, r: Run) => {
+    if (!line.length) t = t.trimStart();
+    if (!t) return;
+    line.push({ t, r }); w += m(t, r);
+  };
+  for (const r of runs) {
+    const parts = r.t.split('\n');
+    parts.forEach((raw, pi) => {
+      if (pi) push();
+      const tokens = raw.match(/[A-Za-z0-9'’.,!?-]+\s*|\s+|./gu) ?? [];
+      for (const t of tokens) {
+        const tw = m(t, r);
+        // 쉼표·마침표·닫는 따옴표는 줄 맨 앞으로 넘기지 않는다 — 살짝 넘쳐도 앞 줄에 붙인다
+        if (line.length && /^[,.!?;:、。」』)\]}"'”’…~]/.test(t) && w + m(t.trimEnd(), r) <= max + m('，，', r)) { add(t, r); continue; }
+        if (w + tw <= max || !line.length) {
+          if (tw > max) {   // 혼자서도 넘치는 긴 단어 — 글자씩
+            for (const ch of t) { if (w + m(ch, r) > max && line.length) push(); add(ch, r); }
+          } else add(t, r);
+        } else { push(); add(t, r); }
       }
-      if (ctx.measureText(line + t).width <= max || !line) {
-        if (ctx.measureText(t).width > max) {   // 혼자서도 넘치는 긴 단어 — 글자씩
-          for (const ch of t) {
-            if (ctx.measureText(line + ch).width > max && line) { out.push(line); line = ''; }
-            line += ch;
-          }
-        } else line += t;
-      } else {
-        out.push(line.trimEnd());
-        line = t.trimStart();
-      }
-    }
-    out.push(line.trimEnd());
+    });
   }
-  return out;
+  push();
+  return lines;
 }
 
 /** 카드를 캔버스에 그린다 — 높이는 글 길이에 맞추되 정사각형보다 작아지지 않게 */
-async function draw(canvas: HTMLCanvasElement, paras: string[], source: string, st: CardStyle, family: string) {
+async function draw(canvas: HTMLCanvasElement, paras: Run[][], source: string, st: CardStyle, family: string) {
   const ctx = canvas.getContext('2d')!;
   const font = `${st.size}px ${family}`;
+  const fontOf = (r: Run) => `${r.i ? 'italic ' : ''}${r.b ? 'bold ' : ''}${st.size}px ${family}`;
   const small = `${Math.round(st.size * 0.62)}px ${family}`;
-  try { await Promise.all([document.fonts.load(font, paras.join('')), document.fonts.load(small, source)]); } catch { /* 기본 글꼴로 */ }
+  const all = paras.map(p => p.map(r => r.t).join('')).join('');
+  try {
+    await Promise.all([document.fonts.load(font, all), document.fonts.load(small, source),
+      document.fonts.load(`bold ${font}`, all), document.fonts.load(`italic ${font}`, all)]);
+  } catch { /* 기본 글꼴로 */ }
   ctx.font = font;
   const lh = st.size * 1.75;
-  const lines = paras.map(p => wrap(ctx, p, W - PAD * 2));
+  const lines = paras.map(p => wrap(ctx, p, W - PAD * 2, fontOf));
   const textH = lines.reduce((n, l) => n + l.length * lh, 0) + (paras.length - 1) * st.size * 0.9;
   const srcH = st.size * 2.2;
   const H = Math.max(W, Math.ceil(textH + srcH + PAD * 2));
@@ -144,10 +202,35 @@ async function draw(canvas: HTMLCanvasElement, paras: string[], source: string, 
   ctx.textBaseline = 'top';
   if (st.img) { ctx.shadowColor = 'rgba(0,0,0,.28)'; ctx.shadowBlur = 10; }
   let y = (H - textH - srcH) / 2;
-  ctx.font = font;
   lines.forEach((ls, i) => {
     if (i) y += st.size * 0.9;
-    for (const l of ls) { ctx.fillText(l, PAD, y + (lh - st.size) / 2); y += lh; }
+    for (const l of ls) {
+      // 형광펜 먼저 (글자 아래쪽 2/3쯤만 칠해 손으로 그은 느낌), 그 위에 글자
+      // 이어진 형광펜 조각은 한 번에 칠한다 — 조각마다 칠하면 겹친 곳이 진해져 줄무늬가 생긴다
+      let x = PAD, hs: number | null = null;
+      const sh = ctx.shadowBlur;
+      const stroke = (from: number, to: number) => {
+        ctx.shadowBlur = 0; ctx.globalAlpha = 0.6; ctx.fillStyle = st.hl;
+        ctx.fillRect(from - 3, y + lh * 0.38, to - from + 6, lh * 0.46);
+        ctx.globalAlpha = 1; ctx.shadowBlur = sh;
+      };
+      for (const pc of l) {
+        ctx.font = fontOf(pc.r);
+        const w = ctx.measureText(pc.t).width;
+        if (pc.r.h && hs === null) hs = x;
+        if (!pc.r.h && hs !== null) { stroke(hs, x); hs = null; }
+        x += w;
+      }
+      if (hs !== null) stroke(hs, x);
+      x = PAD;
+      ctx.fillStyle = st.color;
+      for (const pc of l) {
+        ctx.font = fontOf(pc.r);
+        ctx.fillText(pc.t, x, y + (lh - st.size) / 2);
+        x += ctx.measureText(pc.t).width;
+      }
+      y += lh;
+    }
   });
   ctx.font = small;
   ctx.globalAlpha = 0.75;
@@ -156,7 +239,32 @@ async function draw(canvas: HTMLCanvasElement, paras: string[], source: string, 
   ctx.globalAlpha = 1; ctx.textAlign = 'left'; ctx.shadowBlur = 0;
 }
 
-export function ExcerptCard({ paras, source, fileName }: { paras: string[]; source: string; fileName: string }) {
+export function ExcerptCard({ paras: plain, source, fileName }: { paras: string[]; source: string; fileName: string }) {
+  // 문단마다 글 조각 — 처음엔 꾸밈 없이 한 조각
+  const [paras, setParas] = useState<Run[][]>(() => plain.map(t => [{ t }]));
+  const markBox = useRef<HTMLDivElement>(null);
+  /** 드래그한 범위 → (문단, 글자 위치) — 문단 시작부터의 글자 수로 센다 */
+  const selRange = () => {
+    const sel = window.getSelection();
+    const box = markBox.current;
+    if (!sel || sel.isCollapsed || !box || !sel.rangeCount) return null;
+    const rg = sel.getRangeAt(0);
+    const pOf = (n: Node) => (n.nodeType === 1 ? n as HTMLElement : n.parentElement)?.closest<HTMLElement>('[data-p]');
+    const sp = pOf(rg.startContainer), ep = pOf(rg.endContainer);
+    if (!sp || !ep || !box.contains(sp) || !box.contains(ep)) return null;
+    const off = (p: HTMLElement, node: Node, o: number) => { const r = document.createRange(); r.setStart(p, 0); r.setEnd(node, o); return r.toString().length; };
+    return { sp: Number(sp.dataset.p), so: off(sp, rg.startContainer, rg.startOffset), ep: Number(ep.dataset.p), eo: off(ep, rg.endContainer, rg.endOffset) };
+  };
+  const applyMark = (m: Mark) => {
+    const r = selRange();
+    if (!r) { toast('꾸밀 부분을 아래 글에서 드래그해 주세요'); return; }
+    setParas(ps => ps.map((runs, i) => {
+      if (i < r.sp || i > r.ep) return runs;
+      const len = runs.reduce((n, x) => n + x.t.length, 0);
+      const from = i === r.sp ? r.so : 0, to = i === r.ep ? r.eo : len;
+      return to > from ? toggleMark(runs, from, to, m) : runs;
+    }));
+  };
   const toast = useToast();
   const { fonts, familyOf } = useFonts();
   const [st, setSt] = useState<CardStyle>(DEF);
@@ -232,6 +340,31 @@ export function ExcerptCard({ paras, source, fileName }: { paras: string[]; sour
     <div className="exc">
       <div className="exc-prev"><canvas ref={ref} /></div>
       <div className="exc-ctl">
+        {/* 문장 꾸미기 — 아래 글에서 드래그한 뒤 버튼 (다시 누르면 꺼짐) */}
+        <div className="exc-mark">
+          <div className="exc-mark-bar">
+            <span>문장 꾸미기</span>
+            <button type="button" onMouseDown={e => e.preventDefault()} onClick={() => applyMark('b')} data-tip="굵게"><b>B</b></button>
+            <button type="button" onMouseDown={e => e.preventDefault()} onClick={() => applyMark('i')} data-tip="기울임"><i>I</i></button>
+            <button type="button" onMouseDown={e => e.preventDefault()} onClick={() => applyMark('h')} data-tip="형광펜">
+              <span className="exc-hl" style={{ background: st.hl }}>형광펜</span>
+            </button>
+            <ColorField value={st.hl} onChange={hl => set({ hl })} />
+            <button type="button" className="ghost" onMouseDown={e => e.preventDefault()}
+              onClick={() => setParas(plain.map(t => [{ t }]))} data-tip="꾸밈 모두 지우기">지우기</button>
+          </div>
+          <div className="exc-mark-text" ref={markBox}>
+            {paras.map((runs, i) => (
+              <p key={i} data-p={i}>
+                {runs.map((r, k) => (
+                  <span key={k} style={{ fontWeight: r.b ? 700 : undefined, fontStyle: r.i ? 'italic' : undefined,
+                    background: r.h ? `linear-gradient(transparent 45%, ${st.hl}aa 45%)` : undefined }}>{r.t}</span>
+                ))}
+              </p>
+            ))}
+          </div>
+          <small>꾸밀 부분을 드래그하고 버튼을 눌러요 — 다시 누르면 꺼져요</small>
+        </div>
         <div className="exc-row">
           <label>배경</label>
           <div className="exc-bgs">

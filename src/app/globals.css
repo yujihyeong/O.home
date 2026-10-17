@@ -2372,3 +2372,15 @@ body.edit-on .page-main-wrap .wgt .rx{display:block}
   border-bottom:1px solid color-mix(in srgb,currentColor 16%,transparent);transition:color .15s}
 .rp-list li:last-child{border-bottom:none}
 .rp-list li:hover{color:var(--accent)}
+
+/* 발췌 — 문장 꾸미기 (굵게 · 기울임 · 형광펜) */
+.exc-mark{display:grid;gap:7px;padding-bottom:12px;border-bottom:1px dashed var(--line)}
+.exc-mark-bar{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.exc-mark-bar>span{font-weight:600;color:var(--sub);margin-right:4px}
+.exc-mark-bar button{min-width:30px;height:28px;padding:0 9px;border-radius:8px;border:1px solid var(--line);background:var(--panel-solid);font-size:12.5px;color:var(--ink);cursor:var(--cur-pointer,pointer)}
+.exc-mark-bar button:hover{border-color:var(--accent-soft)}
+.exc-mark-bar button.ghost{color:var(--sub)}
+.exc-hl{padding:1px 4px;border-radius:3px;font-size:11.5px}
+.exc-mark-text{max-height:150px;overflow:auto;padding:9px 11px;border-radius:9px;background:color-mix(in srgb,var(--accent-soft) 6%,var(--panel-solid));border:1px solid var(--line);font-size:12.5px;line-height:1.7;user-select:text;-webkit-user-select:text}
+.exc-mark-text p+p{margin-top:6px}
+.exc-mark small{color:var(--faint);font-size:10.5px}
