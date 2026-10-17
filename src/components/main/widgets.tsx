@@ -13,7 +13,8 @@ import { Modal } from '@/components/ui/Modal';
 import { KTextarea, KSelect, KStep, KCheck } from '@/components/ui/Kit';
 import { ColorField } from '@/components/ui/ColorField';
 import { useFonts } from '@/lib/fontStore';
-import { BannerEditor, BannerSlide, DEMO_SLIDES, DdayEditor, DecoEditor, TodoEditor, TodoSetItem } from '@/components/main/widgetEditors';
+import { BlurBg } from '@/components/ui/BlurBg';
+import { BannerEditor, BannerSlide, DEMO_SLIDES, DdayEditor, DdayLook, DecoEditor, TodoEditor, TodoSetItem } from '@/components/main/widgetEditors';
 import { CroppedBlobImg, CropValue } from '@/components/ui/CropEditor';
 import { useLocalList } from '@/lib/postStore';
 import { RoadItem, ROAD_SEED, BackupPost, BACKUP_SEED } from '@/lib/galleryStore';
@@ -271,22 +272,30 @@ export function DdayWidget({ conf }: { conf: WidgetConf }) {
   // 'serif'는 폰트 라이브러리의 실제(잠금) 폰트라 편집기의 기본 옵션과 값이 늘 일치한다
   const dFontId = (conf.settings.fontId as string | undefined) ?? 'serif';
   const dColor = conf.settings.color as string | undefined;
+  // 배경 이미지(밝기·블러) · 배치(양쪽/가운데 · 세로 위치) · 제목 글씨색 (사용자 요청)
+  const s = conf.settings as DdayLook;
+  const bgUrl = useBlobUrl(s.bgImg);
+  const tColor = s.textColor ?? (s.bgImg ? '#ffffff' : undefined);
   useEditEvent(conf.id, () => setOpen(true));   // 편집모드 우클릭 → 설정 (v1.9)
   return (
-    <div className="panel widget" style={{ cursor: isAdmin ? 'pointer' : undefined }}
+    <div className={`panel widget ${s.bgImg ? 'wg-bgimg dday-tall' : ''}`}
+      style={{ cursor: isAdmin ? 'pointer' : undefined, color: tColor }}
       onClick={e => { if ((e.target as HTMLElement).closest('.modal-ov')) return; if (isAdmin && !editOn) setOpen(true); }}>
+      {bgUrl && <BlurBg src={bgUrl} blur={s.bgBlur ?? 0} bright={s.bgBright ?? 70} />}
       <h4>D-DAY {isAdmin && <span className="more">관리 ›</span>}</h4>
-      {items.map(it => {
-        const d = ddayLabel(it.date, it.plusOne);
-        return (
-          <div className="dday-row" key={it.title}>
-            <span>{it.title}</span>
-            <b className={d.near && !dColor ? 'd-red' : ''}
-              style={{ fontFamily: familyOf(dFontId), color: dColor }}>{d.label}</b>
-          </div>
-        );
-      })}
-      {items.length === 0 && <p className="hint">등록된 D-day가 없습니다</p>}
+      <div className={`dday-wrap ${s.align === 'center' ? 'center' : ''} ${s.bgImg && s.vAlign ? `v-${s.vAlign}` : ''}`}>
+        {items.map(it => {
+          const d = ddayLabel(it.date, it.plusOne);
+          return (
+            <div className="dday-row" key={it.title}>
+              <span>{it.title}</span>
+              <b className={d.near && !dColor ? 'd-red' : ''}
+                style={{ fontFamily: familyOf(dFontId), color: dColor }}>{d.label}</b>
+            </div>
+          );
+        })}
+        {items.length === 0 && <p className="hint">등록된 D-day가 없습니다</p>}
+      </div>
 
       <Modal open={open} onClose={() => setOpen(false)} title="D-day 관리"
         desc="추가 · 수정 · 삭제 · ⠿ 드래그로 순서 조정 — 환경설정 「위젯」에서도 관리 가능"
