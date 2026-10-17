@@ -194,7 +194,7 @@ export function WidgetFrame({ conf, mobileOrder, children, className, style, onC
         if (!editOn) return;
         const t = e.target as HTMLElement;
         if (!ref.current?.contains(t)) return;
-        if (t.closest('.rs') || t.closest('.rr')) return;
+        if (t.closest('.rs') || t.closest('.rr') || t.closest('.rx')) return;
         e.stopPropagation(); e.preventDefault();
       }}
     >
@@ -230,6 +230,12 @@ export function WidgetFrame({ conf, mobileOrder, children, className, style, onC
           { label: '그대로 두기', kind: 'ghost', onClick: () => setCenterAsk(null) },
         ]} />
       <span className="rs" data-tip="드래그로 크기 조절" onPointerDown={onResizeDown} />
+      {/* 위젯 삭제 (사용자 요청 — 우클릭을 몰라도 바로 지울 수 있게). 확인은 메인 페이지의 경고 모달에서 */}
+      {!conf.fixed && (
+        <button type="button" className="rx" data-tip="위젯 삭제" aria-label="위젯 삭제"
+          onPointerDown={e => e.stopPropagation()}
+          onClick={() => window.dispatchEvent(new CustomEvent('ohome-widget-del', { detail: { id: conf.id } }))}>✕</button>
+      )}
       {rotatable && (
         <span className="rr" data-tip="드래그로 기울기 · 더블클릭 = 초기화"
           onPointerDown={onRotDown}

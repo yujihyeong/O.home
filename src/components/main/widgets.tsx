@@ -14,7 +14,6 @@ import { KTextarea, KSelect, KStep, KCheck } from '@/components/ui/Kit';
 import { ColorField } from '@/components/ui/ColorField';
 import { useFonts } from '@/lib/fontStore';
 import { BlurBg } from '@/components/ui/BlurBg';
-import { MinesWidget } from '@/components/main/MinesWidget';
 import { ChatWidget } from '@/components/main/ChatWidget';
 import { BannerEditor, BannerSlide, DEMO_SLIDES, DdayEditor, DdayLook, DecoEditor, TodoEditor, TodoSetItem } from '@/components/main/widgetEditors';
 import { CroppedBlobImg, CropValue } from '@/components/ui/CropEditor';
@@ -671,6 +670,17 @@ export function ApplyWidget({ conf }: { conf: WidgetConf }) {
   );
 }
 
+/** 예전에 추가한 지뢰찾기 위젯 — 게임은 화면 왼쪽 아래 팝업으로 옮겼다. 편집모드에서만 안내를 보여 지울 수 있게 */
+function MinesMoved() {
+  const { editOn } = useMainStore();
+  if (!editOn) return null;
+  return (
+    <div className="panel widget" style={{ fontSize: 12, color: 'var(--sub)', lineHeight: 1.6 }}>
+      지뢰찾기는 화면 왼쪽 아래 🎮 버튼으로 옮겼어요 — 오른쪽 위 ✕로 이 자리를 지워 주세요
+    </div>
+  );
+}
+
 /* ---------- 타입 → 렌더러 ---------- */
 export function renderWidget(conf: WidgetConf) {
   switch (conf.type) {
@@ -686,7 +696,7 @@ export function renderWidget(conf: WidgetConf) {
     case 'deco': return <DecoWidget conf={conf} />;
     case 'memoboard': return <MemoBoardWidget />;
     case 'apply': return <ApplyWidget conf={conf} />;
-    case 'mines': return <MinesWidget />;
+    case 'mines': return <MinesMoved />;
     case 'chat': return <ChatWidget conf={conf} />;
     default: return <div className="panel widget"><h4>{WIDGET_META[conf.type]?.title ?? conf.type}</h4></div>;
   }
