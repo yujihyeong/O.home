@@ -146,8 +146,9 @@ function wrap(ctx: CanvasRenderingContext2D, runs: Run[], max: number, fontOf: (
   return lines;
 }
 
-/** 카드를 캔버스에 그린다 — 높이는 글 길이에 맞추되 정사각형보다 작아지지 않게 */
-async function draw(canvas: HTMLCanvasElement, paras: Run[][], source: string, st: CardStyle, family: string) {
+/** 카드를 캔버스에 그린다 — 높이는 글 길이에 맞추되 정사각형보다 작아지지 않게.
+ *  scale: 실제 픽셀 배율 — 미리보기는 1, 저장은 2(고화질, 사용자 요청). 좌표는 전부 1배 기준으로 쓰고 변환으로 키운다 */
+async function draw(canvas: HTMLCanvasElement, paras: Run[][], source: string, st: CardStyle, family: string, scale = 1) {
   const ctx = canvas.getContext('2d')!;
   const font = `${st.size}px ${family}`;
   const fontOf = (r: Run) => `${r.i ? 'italic ' : ''}${r.b ? 'bold ' : ''}${st.size}px ${family}`;
@@ -163,7 +164,11 @@ async function draw(canvas: HTMLCanvasElement, paras: Run[][], source: string, s
   const textH = lines.reduce((n, l) => n + l.length * lh, 0) + (paras.length - 1) * st.size * 0.9;
   const srcH = st.size * 2.2;
   const H = Math.max(W, Math.ceil(textH + srcH + PAD * 2));
-  canvas.width = W; canvas.height = H;
+  // 아주 긴 글이면 휴대폰 캔버스 한도(약 1,600만 화소)를 넘지 않게 배율을 낮춘다
+  const S = Math.max(1, Math.min(scale, Math.sqrt(16_000_000 / (W * H))));
+  canvas.width = Math.round(W * S); canvas.height = Math.round(H * S);
+  ctx.setTransform(S, 0, 0, S, 0, 0);
+  ctx.imageSmoothingEnabled = true;
 
   // 배경
   ctx.fillStyle = st.bg;
@@ -182,12 +187,13 @@ async function draw(canvas: HTMLCanvasElement, paras: Run[][], source: string, s
         // 가장자리는 끝 픽셀을 이어 써서 확대하지 않아도 테두리가 비치지 않는다
         const q = 0.5;
         const tmp = document.createElement('canvas');
-        tmp.width = Math.round(W * q); tmp.height = Math.round(H * q);
+        const qs = q * S;
+        tmp.width = Math.round(W * qs); tmp.height = Math.round(H * qs);
         const tc = tmp.getContext('2d')!;
         tc.imageSmoothingQuality = 'high';
-        tc.drawImage(im, (W - dw) / 2 * q, (H - dh) / 2 * q, dw * q, dh * q);
+        tc.drawImage(im, (W - dw) / 2 * qs, (H - dh) / 2 * qs, dw * qs, dh * qs);
         const data = tc.getImageData(0, 0, tmp.width, tmp.height);
-        gaussBlur(data, st.blur * 3 * q);
+        gaussBlur(data, st.blur * 3 * qs);
         tc.putImageData(data, 0, 0);
         ctx.drawImage(tmp, 0, 0, W, H);
       }
@@ -200,7 +206,7 @@ async function draw(canvas: HTMLCanvasElement, paras: Run[][], source: string, s
   // 글
   ctx.fillStyle = st.color;
   ctx.textBaseline = 'top';
-  if (st.img) { ctx.shadowColor = 'rgba(0,0,0,.28)'; ctx.shadowBlur = 10; }
+  if (st.img) { ctx.shadowColor = 'rgba(0,0,0,.28)'; ctx.shadowBlur = 10 * S; }   // 그림자 흐림은 변환을 따르지 않아 배율을 직접 곱한다
   let y = (H - textH - srcH) / 2;
   lines.forEach((ls, i) => {
     if (i) y += st.size * 0.9;
@@ -294,16 +300,18 @@ export function ExcerptCard({ paras: plain, source, fileName }: { paras: string[
   const upload = async (f?: File) => {
     if (!f) return;
     try {
-      // 메타데이터 없이, 1080px로 줄여서 — 이 브라우저 안에만 둔다 (서버에 올리지 않음)
+      // 메타데이터 없이, 긴 변 2160px까지만 — 고화질 저장(2배)에 맞춘 크기. 이 브라우저 안에만 둔다 (서버에 올리지 않음)
       const clean = await stripImageMeta(f);
       const url = URL.createObjectURL(clean);
       const im = await loadImg(url);
-      const k = Math.min(1, 1440 / Math.max(im.width, im.height));
+      const k = Math.min(1, 2160 / Math.max(im.width, im.height));
       const c = document.createElement('canvas');
       c.width = Math.round(im.width * k); c.height = Math.round(im.height * k);
-      c.getContext('2d')!.drawImage(im, 0, 0, c.width, c.height);
+      const cx = c.getContext('2d')!;
+      cx.imageSmoothingQuality = 'high';
+      cx.drawImage(im, 0, 0, c.width, c.height);
       URL.revokeObjectURL(url); imgCache.delete(url);
-      set({ img: c.toDataURL('image/jpeg', 0.86) });
+      set({ img: c.toDataURL('image/jpeg', 0.92) });
     } catch (e) {
       toast(`이미지를 넣지 못했습니다 — ${e instanceof Error ? e.message : String(e)}`);
     }
@@ -313,7 +321,7 @@ export function ExcerptCard({ paras: plain, source, fileName }: { paras: string[
     setBusy(true);
     try {
       const c = document.createElement('canvas');
-      await draw(c, paras, source, st, family);
+      await draw(c, paras, source, st, family, 2);
       const blob = await new Promise<Blob | null>(r => c.toBlob(r, 'image/png'));
       if (!blob) throw new Error('이미지를 만들지 못했습니다');
       const name = `${fileName.replace(/[\\/:*?"<>|]+/g, '').slice(0, 40) || '발췌'}.png`;
