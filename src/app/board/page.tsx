@@ -70,11 +70,11 @@ function BoardInner() {
      둘 다 undefined라 `undefined === undefined`가 참이었기 때문 */
   const canRead = (p: Post) => !p.secret || isAdmin || (!!p.authorId && p.authorId === user?.id);
 
-  if (!boardsLoaded) return <section className="page" />;
+  if (!boardsLoaded) return <section className="page post-read" />;
 
 
   return (
-    <section className="page">
+    <section className="page post-read">
       <div className="page-head">
         <PageTitle href={boardHref(board.id)}>{board.id === MAIN_BOARD_ID ? 'BOARD' : board.name}</PageTitle>
         <EditableDesc k={board.id === MAIN_BOARD_ID ? 'board-desc' : `board-desc-${board.id}`} def={board.desc} />
@@ -182,5 +182,5 @@ function BoardInner() {
 
 export default function BoardPage() {
   // useSearchParams는 Suspense 경계 필요 (Next App Router)
-  return <Suspense fallback={<section className="page" />}><BoardInner /></Suspense>;
+  return <Suspense fallback={<section className="page post-read" />}><BoardInner /></Suspense>;
 }
