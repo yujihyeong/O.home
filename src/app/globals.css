@@ -1925,7 +1925,7 @@ html.gate-seen .gate{display:none}
 .gate picture,.gate img{position:absolute;inset:0;width:100%;height:100%}
 .gate img{object-fit:cover;object-position:center 46%;animation:fade .6s ease}
 .gate-enter{position:absolute;left:50%;bottom:calc(9dvh + env(safe-area-inset-bottom,0px));transform:translateX(-50%);
-  padding:10px 30px;border-radius:999px;font-family:var(--serif);font-size:calc(14px*var(--fs,1));letter-spacing:.42em;text-indent:.42em;
+  padding:10px 30px;border-radius:999px;font-family:'Fredoka',var(--sans);font-weight:700;font-size:calc(17px*var(--fs,1));letter-spacing:.16em;text-indent:.16em;
   color:#5f6c56;background:rgba(255,253,246,.7);border:1.5px solid rgba(125,116,137,.45);backdrop-filter:blur(4px);
   animation:gate-breathe 2.6s ease-in-out infinite;transition:background .2s}
 .gate.night .gate-enter{color:#f1e8ef;background:rgba(40,36,64,.55);border-color:rgba(231,168,191,.4)}
@@ -2478,3 +2478,6 @@ html[data-bgtone="light"] .wgt-nobg{
    크기를 정해 둔 칸 안에서는 검색창을 세로 가운데로 (사용자 요청) */
 .wgt-nobg .sw-widget{padding:0}
 .wgt.sized .sw-widget{display:flex;flex-direction:column;justify-content:center}
+
+/* 대문 ENTER 글씨 — 뚱뚱하고 둥근 Fredoka Bold (사용자 요청, 사이트에 직접 담아 둠 · SIL OFL) */
+@font-face{font-family:'Fredoka';font-style:normal;font-weight:700;font-display:swap;src:url('/fonts/fredoka-700.woff2') format('woff2')}
