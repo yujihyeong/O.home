@@ -38,6 +38,13 @@ export const BUILTIN_FONTS: FontDef[] = [
   { id: 'songmyung', name: '송명', family: "'Song Myung', serif", gfont: 'Song+Myung', builtin: true },
   { id: 'dohyeon', name: '도현', family: "'Do Hyeon', sans-serif", gfont: 'Do+Hyeon', builtin: true },
   { id: 'blackhan', name: '검은고딕', family: "'Black Han Sans', sans-serif", gfont: 'Black+Han+Sans', builtin: true },
+  // 영문 필기체 (사용자 요청) — 한글 글자가 없어 한글은 Noto Serif KR로 보인다
+  { id: 'greatvibes', name: 'Great Vibes (영문 필기체)', family: "'Great Vibes', 'Noto Serif KR', serif", gfont: 'Great+Vibes', builtin: true },
+  { id: 'pinyon', name: 'Pinyon Script (영문 필기체)', family: "'Pinyon Script', 'Noto Serif KR', serif", gfont: 'Pinyon+Script', builtin: true },
+  { id: 'parisienne', name: 'Parisienne (영문 필기체)', family: "'Parisienne', 'Noto Serif KR', serif", gfont: 'Parisienne', builtin: true },
+  { id: 'allura', name: 'Allura (영문 필기체)', family: "'Allura', 'Noto Serif KR', serif", gfont: 'Allura', builtin: true },
+  { id: 'alexbrush', name: 'Alex Brush (영문 필기체)', family: "'Alex Brush', 'Noto Serif KR', serif", gfont: 'Alex+Brush', builtin: true },
+  { id: 'dancing', name: 'Dancing Script (영문 필기체)', family: "'Dancing Script', 'Noto Serif KR', serif", gfont: 'Dancing+Script:wght@400;700', builtin: true },
   // 눈누식 CSS URL 등록 예시 (v1.9 사용자 요청) — 목록에서 URL·family 형식을 그대로 참고
   { id: 'nanumsqneo', name: '나눔스퀘어 네오 (눈누식 예시)', family: "'NanumSquareNeo', sans-serif",
     cssUrl: 'https://hangeul.pstatic.net/hangeul_static/css/nanum-square-neo.css', builtin: true },
