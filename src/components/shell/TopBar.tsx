@@ -3,6 +3,7 @@
 // 로고 클릭 = 메인 이동 (v1.5) · 상위 메뉴 클릭 = 첫 하위 페이지 이동 (v1.8)
 // 편집모드 중 페이지 이동 시도 → 종료 확인 모달 (v1.8)
 import React, { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { usePathname, useRouter } from 'next/navigation';
 import { boardEntries, useMenuSettings, buildMenu } from '@/lib/menuStore';
 import { useBoards } from '@/lib/boardStore';
@@ -30,6 +31,20 @@ const BellIcon = () => (
   </svg>
 );
 
+/* 모바일 상단바 아이콘 (사용자 요청) — 집(메인으로) · 메뉴(햄버거 ↔ X) */
+const HomeIcon = () => (
+  <svg viewBox="0 0 24 24" aria-hidden>
+    <path d="M4 11.2 12 5l8 6.2" /><path d="M6.2 10v8.3h11.6V10" /><path d="M3.4 20.4h17.2" />
+  </svg>
+);
+const BurgerIcon = ({ open }: { open: boolean }) => (
+  <svg viewBox="0 0 24 24" aria-hidden>
+    {open
+      ? <><path d="M6 6l12 12" /><path d="M18 6 6 18" /></>
+      : <><path d="M4 7h16" /><path d="M8 12h12" /><path d="M4 17h16" /></>}
+  </svg>
+);
+
 export function TopBar() {
   const { user, isAdmin, logout } = useAuth();
   const { editOn, editAvailable, gridOn, setGridOn, toggleEdit, requestExit, guardNav } = useMainStore();
@@ -38,6 +53,7 @@ export function TopBar() {
   const toast = useToast();
   const [menuOpen, setMenuOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
+  const [mOpen, setMOpen] = useState(false);   // 모바일 메뉴 창 (사용자 요청)
   const [menuSet, , menuLoaded] = useMenuSettings(); // 메뉴 관리 (5.2) — 노출·순서·이름
   const { boards, loaded: boardsLoaded } = useBoards(); // 다중 게시판 (5.2) — 게시판 그룹에 동적 반영
   const { map: secMap } = useSections();
@@ -107,6 +123,17 @@ export function TopBar() {
     if (href === cur) { refreshPage(); return; }
     router.push(href);
   };
+
+  // 모바일 메뉴 창 — 페이지가 바뀌면 닫고, 열려 있는 동안 Esc로도 닫는다
+  useEffect(() => { setMOpen(false); }, [pathname]);
+  useEffect(() => {
+    if (!mOpen) return;
+    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') setMOpen(false); };
+    window.addEventListener('keydown', esc);
+    return () => window.removeEventListener('keydown', esc);
+  }, [mOpen]);
+  const mNav = (href: string) => { setMOpen(false); nav(href); };
+  const curHref = typeof window === 'undefined' ? pathname : pathname + window.location.search;
 
   // 상위 메뉴 개수 무제한 (v1.9) — 바 폭을 넘치는 항목은 「⋯」 드롭다운으로 자동 이동 (priority+)
   const gnbRef = useRef<HTMLElement>(null);
@@ -231,6 +258,9 @@ export function TopBar() {
         ✎ 편집중
       </span>
 
+      {/* 모바일 — 홈 제목 대신 집 모양 (누르면 메인으로, 사용자 요청) */}
+      <button type="button" className="m-ico m-home" aria-label="메인으로" onClick={() => mNav('/')}><HomeIcon /></button>
+
       {/* 낮/밤 스위치 — 누르면 배경색과 메뉴가 함께 바뀐다 (사이트 모드가 낮·밤일 때만) */}
       <SceneToggle />
 
@@ -307,6 +337,51 @@ export function TopBar() {
         </div>
       ) : (
         <button className="login-link" onClick={() => nav('/login')}>로그인</button>
+      )}
+
+      {/* 모바일 메뉴 (사용자 요청) — 누르면 창이 열리며 메뉴·게시판이 차례로 나타난다 */}
+      <button type="button" className="m-ico m-burger" aria-label={mOpen ? '메뉴 닫기' : '메뉴 열기'} aria-expanded={mOpen}
+        onClick={() => setMOpen(o => !o)}><BurgerIcon open={mOpen} /></button>
+      {/* 상단바의 흐림(backdrop-filter)이 fixed 자식을 가둬서, 창은 body에 직접 그린다 */}
+      {mOpen && createPortal(
+        <div className="m-menu" role="dialog" aria-label="메뉴" onClick={e => { if (e.target === e.currentTarget) setMOpen(false); }}>
+          <div className="mm-head"><span>MENU</span><i />{siteLoaded && <small>{site.title}</small>}</div>
+          {(() => {
+            let n = 0;   // 차례로 나타나는 순서
+            const row = (href: string, label: string, side?: string) => {
+              const on = href === curHref || (href === '/' && pathname === '/');
+              return (
+                <button key={href} type="button" className={`mm-row ${on ? 'on' : ''}`} style={{ '--i': n++ } as React.CSSProperties}
+                  onClick={() => mNav(href)}>
+                  <span className="mm-l">{label}{dotHrefs.has(href) && <small className="nd">●</small>}</span>
+                  <i className="mm-dots" />
+                  {side && <span className="mm-r">{side}</span>}
+                </button>
+              );
+            };
+            return (
+              <>
+                {row('/', '메인', 'MAIN')}
+                {menu.map(item => item.children
+                  ? (
+                    <div className="mm-grp" key={item.label}>
+                      <div className="mm-cap" style={{ '--i': n++ } as React.CSSProperties}>{item.label}</div>
+                      {item.children.map(c => row(c.href, c.label))}
+                    </div>
+                  )
+                  : row(item.href!, item.label))}
+                <div className="mm-sep" style={{ '--i': n++ } as React.CSSProperties}><i /><b>◆</b><i /></div>
+                <div className="mm-foot" style={{ '--i': n++ } as React.CSSProperties}>
+                  <button type="button" onClick={() => mNav('/')}>HOME <small>홈</small></button>
+                  {user
+                    ? <button type="button" onClick={() => mNav('/mypage')}>MY PAGE <small>마이페이지</small></button>
+                    : <button type="button" onClick={() => mNav('/login')}>LOGIN <small>로그인</small></button>}
+                </div>
+              </>
+            );
+          })()}
+        </div>,
+        document.body,
       )}
     </header>
   );
