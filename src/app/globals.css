@@ -2502,7 +2502,7 @@ html[data-scene="night"] .mb-guest-av{background:#e6def2;box-shadow:inset 0 0 0 
   .topbar .brand{display:none}
   .m-ico{display:grid}
   .m-home{margin-left:auto}
-  .scene-tg{margin-left:0}
+  .scene-tg{margin-left:0;order:-1}   /* 낮밤 버튼은 상단바 맨 왼쪽 (사용자 요청) */
   .topbar{gap:8px}
   .m-menu{display:block;position:fixed;left:0;right:0;top:58px;bottom:0;z-index:95;overflow-y:auto;
     padding:18px 26px calc(40px + var(--bgm-h,0px));color:var(--top-fg);
