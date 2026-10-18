@@ -17,6 +17,7 @@ import { BlurBg } from '@/components/ui/BlurBg';
 import { ChatWidget } from '@/components/main/ChatWidget';
 import { QuoteWidget } from '@/components/main/QuoteWidget';
 import { GuideWaveWidget } from '@/components/main/GuideWaveWidget';
+import { ClockWidget } from '@/components/main/ClockWidget';
 import { PolaroidWidget } from '@/components/main/PolaroidWidget';
 import { SearchWidget } from '@/components/main/SearchWidget';
 import { BannerEditor, BannerSlide, DEMO_SLIDES, DdayEditor, DdayLook, DecoEditor, TodoEditor, TodoSetItem } from '@/components/main/widgetEditors';
@@ -758,6 +759,7 @@ export function renderWidget(conf: WidgetConf) {
     case 'polaroid': return <PolaroidWidget conf={conf} />;
     case 'search': return <SearchWidget conf={conf} />;
     case 'guidewave': return <GuideWaveWidget conf={conf} />;
+    case 'clock': return <ClockWidget conf={conf} />;
     default: return <div className="panel widget"><h4>{WIDGET_META[conf.type]?.title ?? conf.type}</h4></div>;
   }
 }

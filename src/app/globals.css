@@ -2606,3 +2606,15 @@ html[data-scene="night"] .mb-guest-av{background:#e6def2;box-shadow:inset 0 0 0 
 .ic-chip{font-size:11.5px;padding:5px 11px;border-radius:99px;border:1px solid var(--line);color:var(--sub);background:none}
 .ic-chip.on{background:var(--accent);border-color:var(--accent);color:#fff}
 .ic-acts{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;margin-top:14px}
+
+/* ===== 시계 위젯 (사용자 요청 — 배경 없이 투명하게 쓰기 좋게) ===== */
+.ck-widget{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;min-width:160px;padding:12px 14px}
+.wgt.sized .ck-widget{height:100%}
+.ck-time{display:flex;align-items:baseline;justify-content:center;gap:.25em;line-height:1;font-family:var(--serif);font-variant-numeric:lining-nums tabular-nums;font-feature-settings:"lnum" 1,"tnum" 1}
+.ck-hm{font-size:clamp(30px,24cqw,96px);font-weight:400;letter-spacing:.02em}
+.ck-sec{font-size:clamp(14px,8cqw,32px);opacity:.7}
+.ck-ampm{font-size:clamp(11px,5.5cqw,20px);letter-spacing:.14em;opacity:.75;align-self:flex-start;margin-top:.5em}
+.ck-date{margin-top:.6em;font-size:clamp(11px,4.6cqw,16px);letter-spacing:.12em;opacity:.8}
+.ck-analog .ck-face{width:min(100%,220px);height:auto;aspect-ratio:1;display:block}
+.wgt.sized .ck-analog .ck-face{flex:1;min-height:0;width:auto;max-width:100%}
+.wgt-nobg .ck-face{filter:drop-shadow(0 1px 2px rgba(0,0,0,.25))}
