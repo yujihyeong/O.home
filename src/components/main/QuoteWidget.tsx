@@ -57,7 +57,7 @@ export const QUOTE_THEMES: { id: string; label: string }[] = [
   { id: 'letter', label: '편지지' },
   { id: 'memo', label: '메모지' },
 ];
-/** 꾸밈 장식 (사용자 요청) — 켜 두면 화면에서 대사가 **두 줄 이하일 때만** 위·아래에 붙어 빈 곳을 채운다.
+/** 꾸밈 장식 (사용자 요청) — 켜 두면 화면에서 대사가 **두 줄 이하일 때만** 아래에 붙어 빈 곳을 채운다.
  *  기본은 꺼짐. 무늬는 한 줄로 쭉 이어지는 이모지 줄 중에서 고르거나 직접 입력 */
 export const QUOTE_DECO: { id: string; label: string; pattern?: string }[] = [
   { id: 'off', label: '없음' },
@@ -221,8 +221,6 @@ export function QuoteWidget({ conf }: { conf: WidgetConf }) {
       {cur ? (
         // 대사는 위젯 위아래 한가운데에 — 짧은 대사도 아래가 텅 비어 보이지 않게 (사용자 요청)
         <div className={`qt-stage ${showDeco ? 'deco' : ''}`} ref={stageRef}>
-          {showDeco && deco === 'quote' && themeOf(conf) !== 'card' && <i className="qt-deco-top" aria-hidden>“</i>}
-          {showDeco && deco !== 'quote' && <DecoLine pattern={pattern} cls="top" />}
           <QuoteBody theme={themeOf(conf)} text={cur.text} who={who} img={img} />
           {showDeco && deco === 'quote' && <div className="qt-deco-bottom" aria-hidden>— TODAY&apos;S LINE{today && ` · ${today}`} —</div>}
           {showDeco && deco !== 'quote' && <DecoLine pattern={pattern} cls="bottom" />}
@@ -291,7 +289,7 @@ export function QuoteEditor({ conf }: { conf: WidgetConf }) {
             onClick={() => set({ theme: t.id })}>{t.label}</button>
         ))}
       </div>
-      <span className="cp-lb" style={{ display: 'block', marginTop: 14 }}>꾸밈 장식 — 대사가 두 줄 이하일 때 위·아래에 한 줄씩</span>
+      <span className="cp-lb" style={{ display: 'block', marginTop: 14 }}>꾸밈 장식 — 대사가 두 줄 이하일 때 아래에 한 줄</span>
       <div className="qt-themes">
         {QUOTE_DECO.map(t => (
           <button key={t.id} type="button" className={`qt-theme-chip ${decoOf(conf) === t.id ? 'on' : ''}`}
