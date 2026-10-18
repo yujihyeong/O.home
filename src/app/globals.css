@@ -926,6 +926,9 @@ body.edit-on .main-grid{grid-template-columns:230px 1fr 260px}
    등록한 이동 > 등록한 포인터(핸드) > 등록한 기본 > 시스템 grab 순으로 내려간다. */
 body{--cur-drag:var(--cur-grab,var(--cur-pointer,var(--cur-default,grab)))}
 body.edit-on .page-main-wrap .wgt{outline:1.5px dashed rgba(201,106,115,.6);outline-offset:3px;cursor:var(--cur-drag,grab);user-select:none}
+/* 끌기 중 브라우저가 스크롤 위치를 제멋대로 보정하거나(스크롤 앵커링) 터치로 화면을 굴리지 않게 (사용자 제보: 끌 때 배경이 위아래로 움직임) */
+body.edit-on #appMain{overflow-anchor:none}
+body.edit-on .page-main-wrap .wgt{touch-action:none}
 /* 드래그 중 커서가 위젯 내부 요소(버튼·링크)를 지나며 모양이 튀지 않게 — 영역 전체 통일
    핸들(.rs·.rr)은 제외 — 자기 커서를 쓴다 */
 body.edit-on .page-main-wrap, body.edit-on .page-main-wrap *:not(.rs):not(.rr){cursor:var(--cur-drag,grab)}
