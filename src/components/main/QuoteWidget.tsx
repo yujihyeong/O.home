@@ -19,8 +19,16 @@ export interface QuoteChar { id: string; name: string; img?: string }
 const DEFAULT_CHARS: QuoteChar[] = [
   { id: 'jsw', name: '지선우', img: '/quote-chars/1.webp' },
   { id: 'dove', name: '도브', img: '/quote-chars/2.webp' },
+  { id: 'sio', name: '시오', img: '/quote-chars/3.webp' },          // 도브와 페어
+  { id: 'chunym', name: '춘열망', img: '/quote-chars/4.webp' },     // 지선우와 페어
 ];
-const charsOf = (conf: WidgetConf) => (conf.settings.chars as QuoteChar[] | undefined) ?? DEFAULT_CHARS;
+/** 저장된 캐릭터 + 나중에 추가된 기본 캐릭터 (지운 기본 캐릭터는 removedChars에 남겨 다시 안 나오게) */
+const charsOf = (conf: WidgetConf) => {
+  const saved = conf.settings.chars as QuoteChar[] | undefined;
+  if (!saved) return DEFAULT_CHARS;
+  const removed = (conf.settings.removedChars as string[] | undefined) ?? [];
+  return [...saved, ...DEFAULT_CHARS.filter(d => !saved.some(c => c.id === d.id) && !removed.includes(d.id))];
+};
 
 const uid = (p: string) => `${p}${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 
@@ -142,7 +150,11 @@ export function QuoteEditor({ conf }: { conf: WidgetConf }) {
         {chars.map(c => (
           <CharRow key={c.id} c={c}
             patch={p => setChars(chars.map(x => (x.id === c.id ? { ...x, ...p } : x)))}
-            del={() => setChars(chars.filter(x => x.id !== c.id))} />
+            del={() => set({
+              chars: chars.filter(x => x.id !== c.id),
+              ...(DEFAULT_CHARS.some(d => d.id === c.id)
+                ? { removedChars: [...((conf.settings.removedChars as string[] | undefined) ?? []), c.id] } : {}),
+            })} />
         ))}
         <button type="button" className="btn btn-ghost" style={{ alignSelf: 'flex-start' }}
           onClick={() => setChars([...chars, { id: uid('c'), name: '' }])}>＋ 캐릭터 추가</button>
