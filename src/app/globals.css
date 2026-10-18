@@ -2756,7 +2756,25 @@ html[data-scene="night"] .if-card .if-day{display:none}
 .if-pic img{width:100%;height:100%;object-fit:cover;border-radius:10px;display:block}
 .if-pn{font-family:var(--serif);font-weight:700;font-size:calc(16px*var(--fs,1));margin-top:12px;display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;word-break:keep-all}
 .if-pn em{font:italic 500 calc(15px*var(--fs,1)) 'Cormorant Garamond',var(--serif);color:var(--if-accent)}
-.if-foot{text-align:center;margin-top:34px;font:italic 500 calc(13px*var(--fs,1)) 'Cormorant Garamond',var(--serif);letter-spacing:.3em;color:var(--if-faint)}
+/* ETC. — 다른 계정. 줄마다 @아이디 · 짧은 설명 · ↗ (누르면 트위터 프로필) */
+.if-card{padding-bottom:70px}
+.if-etc{display:flex;flex-direction:column;gap:8px}
+.if-acct{display:flex;align-items:center;gap:12px;padding:11px 16px;border-radius:14px;border:1px solid var(--if-line);color:var(--if-ink);text-decoration:none;transition:border-color .2s,background .2s}
+a.if-acct:hover{border-color:var(--if-accent);background:var(--if-soft)}
+.if-acct-h{font-weight:600;font-size:calc(14px*var(--fs,1));color:var(--if-accent);white-space:nowrap;display:inline-flex;align-items:center}
+.if-acct-d{flex:1;min-width:0;font-size:calc(13.5px*var(--fs,1));color:var(--if-sub);word-break:break-word}
+.if-acct-go{margin-left:auto;color:var(--if-faint);font-size:13px;transition:transform .2s,color .2s}
+a.if-acct:hover .if-acct-go{color:var(--if-accent);transform:translate(2px,-2px)}
+.if-acct.edit{padding:6px 8px 6px 14px;gap:8px}
+.if-acct.edit .if-acct-h .if-in{width:170px;border:0;background:transparent;color:var(--if-accent);font-weight:600;padding:2px 4px}
+.if-acct.edit .if-acct-d{padding:4px 8px;font-size:calc(13.5px*var(--fs,1));color:var(--if-ink)}
+.if-acct.edit button{border:0;background:var(--if-chip);color:var(--if-chipfg);width:20px;height:20px;border-radius:50%;line-height:20px;padding:0;font-size:12px;flex-shrink:0;cursor:var(--cur-pointer,pointer)}
+.if-etc .if-ng-add{align-self:flex-start}
+@media (max-width:620px){
+  .if-acct{flex-wrap:wrap;gap:4px 10px}
+  .if-acct-d{flex-basis:100%;order:3}
+  .if-acct.edit .if-acct-h .if-in{width:130px}
+}
 /* 편집 — 같은 카드 모양 그대로 칸만 입력창으로 */
 .if-in{font:inherit;color:inherit;background:var(--if-in);border:1px dashed var(--if-line);border-radius:8px;padding:2px 8px;outline:none;min-width:0}
 .if-in:focus{border-color:var(--if-accent);border-style:solid}
