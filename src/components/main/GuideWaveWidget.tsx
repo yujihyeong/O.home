@@ -62,33 +62,18 @@ function Waves({ sync, id }: { sync: number; id: string }) {
     const p = Math.min(1, 0.15 + (1 - s) * 3.5);          // 이 지점(0~1)까지 오면 거의 겹친다
     const a0 = Math.min(1, 0.6 + (1 - s) * 1.2);          // 왼쪽 끝 흔들림
     const rest = (1 - s) * 0.5;                           // 끝까지 남는 잔흔들림
-    // 센티넬 파장은 심전도(ECG) 모양 — 평평하다가 뾰족하게 튀는 박동 (사용자 요청)
-    // 박동 한 번의 모양: (박동 안 위치 0~1, 높이) 꼭짓점을 곧은 선으로 잇는다
-    const BEAT: [number, number][] = [[0, 0], [0.3, 0], [0.33, -0.15], [0.37, 0.3], [0.4, -0.05], [0.45, 1], [0.5, -0.85],
-      [0.55, -0.05], [0.58, 0], [0.63, 0.35], [0.68, 0], [1, 0]];
-    const beatAt = (u: number) => {
-      for (let i = 1; i < BEAT.length; i++) {
-        const [u1, v1] = BEAT[i];
-        if (u <= u1) { const [u0, v0] = BEAT[i - 1]; return v0 + (v1 - v0) * ((u - u0) / (u1 - u0)); }
-      }
-      return 0;
-    };
-    const hash = (k: number) => { const v = Math.sin(k * 127.1 + 311.7) * 43758.5453; return v - Math.floor(v); };
-    const PERIOD = 85 + 45 * s;                            // 불안정할수록 박동이 빠르다
+    // 센티넬 파장도 가이드처럼 둥근 곡선 — 다만 더 빠르고 높게 출렁이다가 오른쪽으로 갈수록 가이드 파장에 겹친다 (사용자 요청)
     const draw = (ph: number) => {
       let ds = '', dg = '';
-      const shift = ph * 30;                               // 박동이 왼쪽으로 흘러간다
-      for (let x = 0; x <= W; x += 1.5) {
+      for (let x = 0; x <= W; x += 3) {
         const t = x / W;
         const sine = Math.sin(x / 16 + ph) * AMP * 0.8;
-        if (x % 3 === 0) dg += `${x ? 'L' : 'M'}${x},${(CY + sine).toFixed(1)}`;
-        // m: 이 자리에서 센티넬이 얼마나 「자기 박동」인지 (1이면 심전도, 0이면 가이드 파장과 같음)
+        dg += `${x ? 'L' : 'M'}${x},${(CY + sine).toFixed(1)}`;
+        // m: 이 자리에서 센티넬이 얼마나 「자기 파동」인지 (1이면 제멋대로, 0이면 가이드 파장과 같음)
         const m0 = Math.min(1, a0 * Math.max(0, 1 - t / p) + rest);
-        const m = m0 * m0 * (3 - 2 * m0);                  // 경계가 흐리멍덩하지 않게 — 박동↔파장 전환을 짧게
-        const pos = (x + shift) / PERIOD;
-        const k = Math.floor(pos);
-        const ecg = -beatAt(pos - k) * AMP * 1.9 * (0.75 + 0.25 * hash(k));
-        ds += `${x ? 'L' : 'M'}${x},${(CY + sine * (1 - m) + ecg * m).toFixed(1)}`;
+        const m = m0 * m0 * (3 - 2 * m0);
+        const own = Math.sin(x / 8.5 + ph * 1.7) * AMP * 1.05 + Math.sin(x / 27 - ph * 0.8) * AMP * 0.35;
+        ds += `${x ? 'L' : 'M'}${x},${(CY + sine * (1 - m) + own * m).toFixed(1)}`;
       }
       sRef.current?.setAttribute('d', ds);
       gRef.current?.setAttribute('d', dg);
@@ -117,7 +102,7 @@ function Waves({ sync, id }: { sync: number; id: string }) {
       {[22, 44, 66, 88].map(y => <path key={y} d={`M0,${y}H${W}`} stroke="rgba(127,214,224,.07)" vectorEffect="non-scaling-stroke" />)}
       <path ref={glowRef} fill="none" stroke="#7fd6e0" strokeWidth={sync >= 95 ? 8 : 6} opacity={sync >= 95 ? 0.45 : 0.22} filter={`url(#${fid})`} />
       <path ref={gRef} fill="none" stroke="#7fd6e0" strokeWidth="2" opacity={sync < 40 ? 0.45 : 1} strokeLinecap="round" vectorEffect="non-scaling-stroke" />
-      <path ref={sRef} fill="none" stroke={`url(#${gid})`} strokeWidth="2" strokeLinecap="butt" strokeLinejoin="miter" strokeMiterlimit="8" vectorEffect="non-scaling-stroke" />
+      <path ref={sRef} fill="none" stroke={`url(#${gid})`} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
     </svg>
   );
 }
