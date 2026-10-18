@@ -10,7 +10,6 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/lib/auth';
 import { useInfo, InfoDoc, normInfo, handleOf, profileUrl } from '@/lib/infoStore';
 import { putBlob, useBlobUrl } from '@/lib/blobStore';
-import { PageTitle, EditableDesc } from '@/components/ui/PageText';
 import { useToast } from '@/components/ui/Toast';
 
 /** 사진 주소 — 사이트에 든 그림(/…)은 그대로, 올린 사진은 저장소에서 */
@@ -222,22 +221,19 @@ export default function InfoPage() {
 
   return (
     <section className="page">
-      <div className="page-head">
-        <PageTitle>INFO</PageTitle>
-        <EditableDesc k="info-desc" def="자기소개" />
-        {isAdmin && (
-          <div className="head-actions">
-            {editing ? (
-              <>
-                <button className="btn btn-dark" onClick={done}>SAVE</button>
-                <button className="btn btn-ghost" onClick={() => { setDraft(doc); setEditing(false); }}>CANCEL</button>
-              </>
-            ) : (
-              <button className="btn btn-dark" onClick={start}>✎ EDIT</button>
-            )}
-          </div>
-        )}
-      </div>
+      {/* 큰 제목(INFO · 자기소개)은 두지 않는다 (사용자 요청) — 관리자 버튼만 카드 위 오른쪽에 */}
+      {isAdmin && (
+        <div className="if-actions">
+          {editing ? (
+            <>
+              <button className="btn btn-dark" onClick={done}>SAVE</button>
+              <button className="btn btn-ghost" onClick={() => { setDraft(doc); setEditing(false); }}>CANCEL</button>
+            </>
+          ) : (
+            <button className="btn btn-dark" onClick={start}>✎ EDIT</button>
+          )}
+        </div>
+      )}
 
       {editing
         ? <InfoCard doc={draft} editing set={p => setDraft(d => ({ ...d, ...p }))} />
