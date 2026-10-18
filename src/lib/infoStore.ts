@@ -11,17 +11,30 @@ const KEY = 'ohome.info.v1';
 
 export interface InfoPair { img: string | null; name: string }
 
+/** ETC. — 다른 계정 (사용자 요청). 누르면 그 트위터(X) 프로필로 */
+export interface InfoAcct { handle: string; desc: string }
+
+/** 「@abc」·「abc」·「https://x.com/abc」·「twitter.com/abc」 어느 모양으로 적어도 아이디만 */
+export function handleOf(raw: string): string {
+  const s = raw.trim();
+  const m = s.match(/(?:twitter\.com|x\.com)\/(?:#!\/)?@?([A-Za-z0-9_]+)/i);
+  return (m ? m[1] : s.replace(/^@+/, '')).trim();
+}
+export const profileUrl = (handle: string) => `https://x.com/${encodeURIComponent(handleOf(handle))}`;
+
 export interface InfoDoc {
   nick: string;
   uid: string;
   notice: string;
   ng: string[];
   pairs: InfoPair[];
+  etc: InfoAcct[];
 }
 
 export const EMPTY_INFO: InfoDoc = {
   nick: '', uid: '', notice: '', ng: [],
   pairs: [{ img: null, name: '' }, { img: null, name: '' }],
+  etc: [],
 };
 
 /** 저장본이 옛 모양이거나 일부만 있어도 늘 같은 모양으로 */
@@ -36,6 +49,10 @@ export function normInfo(raw: Partial<InfoDoc> | null | undefined): InfoDoc {
     pairs: [0, 1].map(i => ({
       img: typeof pairs[i]?.img === 'string' ? pairs[i].img : null,
       name: typeof pairs[i]?.name === 'string' ? pairs[i].name : '',
+    })),
+    etc: (Array.isArray(r.etc) ? r.etc : []).map(a => ({
+      handle: typeof a?.handle === 'string' ? a.handle : '',
+      desc: typeof a?.desc === 'string' ? a.desc : '',
     })),
   };
 }

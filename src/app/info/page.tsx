@@ -2,13 +2,13 @@
 /**
  * 인포 페이지 (사용자 요청) — 목록 없이 **자기소개 글 하나**만 보이는 페이지.
  *
- * 글은 정해진 템플릿이다: 닉네임 · 아이디 · 공지 · NG · 페어 소개(이미지 + 페어명) 2칸.
+ * 글은 정해진 템플릿이다: 닉네임 · 아이디 · 공지 · NG · 페어 소개(이미지 + 페어명) 2칸 · ETC.(다른 계정).
  * 관리자는 EDIT을 누르면 **같은 카드 모양 그대로** 칸이 입력창으로 바뀌어, 칸만 채우고 저장한다.
  * 카드 색·장식은 홈의 낮/밤 장면을 따라 저절로 바뀐다 (낮 = 풀잎·들꽃, 밤 = 별·달·벚꽃잎).
  */
 import React, { useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/lib/auth';
-import { useInfo, InfoDoc, normInfo } from '@/lib/infoStore';
+import { useInfo, InfoDoc, normInfo, handleOf, profileUrl } from '@/lib/infoStore';
 import { putBlob, useBlobUrl } from '@/lib/blobStore';
 import { PageTitle, EditableDesc } from '@/components/ui/PageText';
 import { useToast } from '@/components/ui/Toast';
@@ -110,6 +110,7 @@ function Deco() {
 function InfoCard({ doc, editing, set }: { doc: InfoDoc; editing: boolean; set: (p: Partial<InfoDoc>) => void }) {
   const ng = editing ? doc.ng : doc.ng.map(s => s.trim()).filter(Boolean);
   const showPairs = editing || doc.pairs.some(p => p.img || p.name.trim());
+  const etc = editing ? doc.etc : doc.etc.filter(a => handleOf(a.handle));
   return (
     <article className={`if-card ${editing ? 'editing' : ''}`}>
       <Deco />
@@ -134,7 +135,7 @@ function InfoCard({ doc, editing, set }: { doc: InfoDoc; editing: boolean; set: 
 
       {(editing || ng.length > 0) && (
         <section className="if-sec">
-          <div className="if-sh"><b>NG</b><small>지양해 주세요</small></div>
+          <div className="if-sh"><b>NG</b></div>
           <div className="if-ng">
             {ng.map((s, i) => editing ? (
               <span key={i} className="edit">
@@ -166,7 +167,30 @@ function InfoCard({ doc, editing, set }: { doc: InfoDoc; editing: boolean; set: 
           </div>
         </section>
       )}
-      <div className="if-foot">— thank you —</div>
+
+      {(editing || etc.length > 0) && (
+        <section className="if-sec">
+          <div className="if-sh"><b>ETC.</b><small>다른 계정</small></div>
+          <div className="if-etc">
+            {editing ? doc.etc.map((a, i) => (
+              <div key={i} className="if-acct edit">
+                <span className="if-acct-h">@<input className="if-in" value={a.handle} placeholder="아이디 또는 프로필 주소"
+                  onChange={e => { const n = [...doc.etc]; n[i] = { ...a, handle: e.target.value }; set({ etc: n }); }} /></span>
+                <input className="if-in if-acct-d" value={a.desc} placeholder="짧은 계정 설명"
+                  onChange={e => { const n = [...doc.etc]; n[i] = { ...a, desc: e.target.value }; set({ etc: n }); }} />
+                <button type="button" aria-label="계정 빼기" onClick={() => set({ etc: doc.etc.filter((_, j) => j !== i) })}>−</button>
+              </div>
+            )) : etc.map((a, i) => (
+              <a key={i} className="if-acct" href={profileUrl(a.handle)} target="_blank" rel="noopener noreferrer">
+                <span className="if-acct-h">@{handleOf(a.handle)}</span>
+                {a.desc.trim() && <span className="if-acct-d">{a.desc}</span>}
+                <span className="if-acct-go" aria-hidden>↗</span>
+              </a>
+            ))}
+            {editing && <button type="button" className="if-ng-add" onClick={() => set({ etc: [...doc.etc, { handle: '', desc: '' }] })}>＋ 계정 추가</button>}
+          </div>
+        </section>
+      )}
     </article>
   );
 }
@@ -183,13 +207,18 @@ export default function InfoPage() {
 
   const start = () => { setDraft(doc); setEditing(true); };
   const done = () => {
-    save(normInfo({ ...draft, ng: draft.ng.map(s => s.trim()).filter(Boolean) }));
+    save(normInfo({
+      ...draft,
+      ng: draft.ng.map(s => s.trim()).filter(Boolean),
+      etc: draft.etc.map(a => ({ handle: handleOf(a.handle), desc: a.desc.trim() })).filter(a => a.handle),
+    }));
     setEditing(false);
     toast('저장되었습니다');
   };
 
   const empty = !doc.nick.trim() && !doc.uid.trim() && !doc.notice.trim()
-    && !doc.ng.some(s => s.trim()) && !doc.pairs.some(p => p.img || p.name.trim());
+    && !doc.ng.some(s => s.trim()) && !doc.pairs.some(p => p.img || p.name.trim())
+    && !doc.etc.some(a => handleOf(a.handle));
 
   return (
     <section className="page">
