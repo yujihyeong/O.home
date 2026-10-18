@@ -2758,6 +2758,14 @@ html[data-scene="night"] .if-card .if-day{display:none}
 .if-pic img,.if-pic-empty{width:100%;height:auto;aspect-ratio:4/3;object-fit:cover;border-radius:10px;display:block}
 .if-pn{font-family:var(--serif);font-weight:700;font-size:calc(16px*var(--fs,1));margin-top:12px;display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;word-break:keep-all}
 .if-pn em{font:italic 500 calc(15px*var(--fs,1)) 'Cormorant Garamond',var(--serif);color:var(--if-accent)}
+/* 주플랫폼 — 고른 것만 아이디 칸과 같은 알약으로. 편집 땐 다섯 개 다 보이고 누르면 켜고 끈다 */
+.if-plat{display:flex;flex-wrap:wrap;gap:8px}
+.if-plat>span,.if-plat>button{font-size:calc(13.5px*var(--fs,1));font-weight:500;padding:7px 15px;border-radius:999px;background:var(--if-chip);color:var(--if-chipfg);border:1px solid transparent;display:inline-flex;align-items:center;gap:6px;font-family:inherit}
+.if-plat>button{background:transparent;border:1px dashed var(--if-line);color:var(--if-faint);cursor:var(--cur-pointer,pointer);transition:.15s}
+.if-plat>button:hover{border-color:var(--if-accent);color:var(--if-sub)}
+.if-plat>button.on{background:var(--if-chip);color:var(--if-chipfg);border:1px solid var(--if-accent)}
+.if-plat>button i{font-style:normal;color:var(--if-accent);font-size:11px;font-weight:700}
+.if-hint{margin:8px 0 0;font-size:calc(11.5px*var(--fs,1));color:var(--if-faint)}
 /* 관리자 버튼 — 큰 제목을 없앤 자리, 카드 위 오른쪽 */
 .page:has(> .if-card), .page:has(> .if-actions){padding-top:28px}
 .if-actions{max-width:640px;margin:0 auto 12px;display:flex;justify-content:flex-end;gap:8px}

@@ -25,14 +25,19 @@ export const profileUrl = (handle: string) => `https://x.com/${encodeURIComponen
 export interface InfoDoc {
   nick: string;
   uid: string;
+  /** 주플랫폼 — 아래 목록 중 고른 것만 보인다 (사용자 요청) */
+  platforms: string[];
   notice: string;
   ng: string[];
   pairs: InfoPair[];
   etc: InfoAcct[];
 }
 
+/** 고를 수 있는 주플랫폼 — 보여 줄 때도 이 순서 */
+export const INFO_PLATFORMS = ['Caveduck', 'Rofan AI', 'teapot', 'elyn', 'Plaitoon'];
+
 export const EMPTY_INFO: InfoDoc = {
-  nick: '', uid: '', notice: '', ng: [],
+  nick: '', uid: '', platforms: [], notice: '', ng: [],
   pairs: [{ img: null, name: '' }, { img: null, name: '' }],
   etc: [],
 };
@@ -44,6 +49,7 @@ export function normInfo(raw: Partial<InfoDoc> | null | undefined): InfoDoc {
   return {
     nick: typeof r.nick === 'string' ? r.nick : '',
     uid: typeof r.uid === 'string' ? r.uid : '',
+    platforms: Array.isArray(r.platforms) ? INFO_PLATFORMS.filter(p => r.platforms!.includes(p)) : [],
     notice: typeof r.notice === 'string' ? r.notice : '',
     ng: Array.isArray(r.ng) ? r.ng.filter(s => typeof s === 'string') : [],
     pairs: [0, 1].map(i => ({
