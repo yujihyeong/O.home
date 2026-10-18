@@ -2534,3 +2534,13 @@ html[data-scene="night"] .mb-guest-av{background:#e6def2;box-shadow:inset 0 0 0 
 .mm-foot button{background:none;border:none;color:inherit;font-family:var(--serif);font-size:13px;letter-spacing:.3em;cursor:var(--cur-pointer,pointer)}
 .mm-foot small{font-family:var(--sans);font-size:10.5px;letter-spacing:.04em;opacity:.6;margin-left:4px}
 @media (prefers-reduced-motion:reduce){.m-menu,.mm-row,.mm-cap,.mm-sep,.mm-foot{animation:none}}
+
+/* ===== 모바일 메뉴 창 영어 = 나눔명조 (사용자 요청) =====
+   나눔명조의 라틴(영문·숫자) 부분만 따로 실어서, 영어만 나눔명조로 바뀌고 한글은 원래 글꼴 그대로 둔다 */
+@font-face{font-family:'NMJ Latin';font-weight:400;font-display:swap;src:url(/fonts/nanum-myeongjo-latin-400.woff2) format('woff2');
+  unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+2000-206F,U+20AC,U+2122,U+2212}
+@font-face{font-family:'NMJ Latin';font-weight:700;font-display:swap;src:url(/fonts/nanum-myeongjo-latin-700.woff2) format('woff2');
+  unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+2000-206F,U+20AC,U+2122,U+2212}
+.m-menu{font-family:'NMJ Latin',var(--sans)}
+.m-menu .mm-r,.m-menu .mm-cap,.m-menu .mm-foot small{font-family:'NMJ Latin',var(--sans)}
+.m-menu .mm-head,.m-menu .mm-row .mm-l,.m-menu .mm-foot button{font-family:'NMJ Latin',var(--serif)}
