@@ -28,7 +28,14 @@ const str = (v: unknown) => (typeof v === 'string' ? v : '');
 export const DEFAULT_PROMPT_NOTICE = '모든 프롬프트 타인에게 전달 금지\n가중치 및 의상 수정 가능';
 
 interface Lock { salt: string; iv: string; data: string; imgs: string[] }
-interface Stored { notice?: string; posts?: unknown; lock?: Lock }
+interface Stored { notice?: string; posts?: unknown; lock?: Lock; ordered?: boolean }
+
+/** 처음 한 번 맞춰 둘 글 순서 (사용자 요청) — 관리자가 순서를 한 번이라도 저장하면(ordered) 그 순서를 따른다 */
+const PREFERRED_ORDER = ['도브', '시오', '지선우', '춘열망'];
+function preferredSort(list: PromptPost[]): PromptPost[] {
+  const rank = (p: PromptPost) => { const i = PREFERRED_ORDER.indexOf(p.title.trim()); return i < 0 ? PREFERRED_ORDER.length : i; };
+  return list.map((p, i) => ({ p, i })).sort((a, b) => rank(a.p) - rank(b.p) || a.i - b.i).map(x => x.p);
+}
 
 function normPosts(list: unknown): PromptPost[] {
   return (Array.isArray(list) ? list : []).map(p => {
@@ -46,6 +53,9 @@ const enc = new TextEncoder(), dec = new TextDecoder();
 const toB64 = (b: ArrayBuffer | Uint8Array) => btoa(String.fromCharCode(...new Uint8Array(b instanceof Uint8Array ? b : new Uint8Array(b))));
 const fromB64 = (s: string) => Uint8Array.from(atob(s), c => c.charCodeAt(0));
 const SESSION_KEY = 'ohome.prompt.unlock';   // 이 탭에서 한 번 열면 새로고침해도 다시 묻지 않게 (탭을 닫으면 사라짐)
+/* 관리자는 비밀번호를 걸어도 그냥 들어가게 (사용자 요청) — 관리자가 이 기기에서 한 번 열거나 비밀번호를 걸면
+   키를 이 기기에 남겨 두고, 관리자로 로그인해 있을 때만 그 키로 바로 연다. 서버로는 올라가지 않는다(설정 키 목록 밖) */
+const ADMIN_KEY = 'ohome.prompt.adminkey';
 
 async function deriveKey(pw: string, salt: Uint8Array): Promise<CryptoKey> {
   const base = await crypto.subtle.importKey('raw', enc.encode(pw), 'PBKDF2', false, ['deriveKey']);
@@ -62,12 +72,16 @@ async function open(key: CryptoKey, lock: Lock): Promise<PromptPost[]> {
   const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: fromB64(lock.iv) as BufferSource }, key, fromB64(lock.data) as BufferSource);
   return normPosts(JSON.parse(dec.decode(plain)));
 }
-async function rememberKey(key: CryptoKey, salt: string) {
-  try { sessionStorage.setItem(SESSION_KEY, JSON.stringify({ salt, k: toB64(await crypto.subtle.exportKey('raw', key)) })); } catch { /* 무시 */ }
-}
-async function recallKey(salt: string): Promise<CryptoKey | null> {
+async function rememberKey(key: CryptoKey, salt: string, admin: boolean) {
   try {
-    const r = JSON.parse(sessionStorage.getItem(SESSION_KEY) ?? 'null');
+    const v = JSON.stringify({ salt, k: toB64(await crypto.subtle.exportKey('raw', key)) });
+    sessionStorage.setItem(SESSION_KEY, v);
+    if (admin) localStorage.setItem(ADMIN_KEY, v);
+  } catch { /* 무시 */ }
+}
+async function recallKey(salt: string, admin: boolean): Promise<CryptoKey | null> {
+  try {
+    const r = JSON.parse(sessionStorage.getItem(SESSION_KEY) ?? (admin ? localStorage.getItem(ADMIN_KEY) : null) ?? 'null');
     if (!r || r.salt !== salt) return null;
     return await crypto.subtle.importKey('raw', fromB64(r.k) as BufferSource, 'AES-GCM', true, ['encrypt', 'decrypt']);
   } catch { return null; }
@@ -88,7 +102,7 @@ export interface PromptBoard {
   setPassword: (pw: string | null) => Promise<void>;
 }
 
-export function usePromptBoard(): PromptBoard {
+export function usePromptBoard(isAdmin = false): PromptBoard {
   const [loaded, setLoaded] = useState(false);
   const [notice, setNoticeS] = useState(DEFAULT_PROMPT_NOTICE);
   const [lock, setLock] = useState<Lock | null>(null);
@@ -96,7 +110,10 @@ export function usePromptBoard(): PromptBoard {
   const [sealed, setSealed] = useState(false);
   const keyRef = useRef<CryptoKey | null>(null);
   // 저장은 항상 최신 값을 모아서 — 공지·글·잠금을 한 칸에 같이 쓴다
-  const cur = useRef<{ notice: string; posts: PromptPost[]; lock: Lock | null }>({ notice: DEFAULT_PROMPT_NOTICE, posts: [], lock: null });
+  const cur = useRef<{ notice: string; posts: PromptPost[]; lock: Lock | null; ordered: boolean }>({ notice: DEFAULT_PROMPT_NOTICE, posts: [], lock: null, ordered: false });
+  const adminRef = useRef(isAdmin);
+  adminRef.current = isAdmin;
+  const arrange = (list: PromptPost[]) => (cur.current.ordered ? list : preferredSort(list));
 
   useEffect(() => {
     let alive = true;
@@ -105,23 +122,46 @@ export function usePromptBoard(): PromptBoard {
       try { const raw = getRawSetting(KEY); if (raw) st = JSON.parse(raw) ?? {}; } catch { /* 기본값 */ }
       const n = typeof st.notice === 'string' ? st.notice : DEFAULT_PROMPT_NOTICE;
       const lk = st.lock && typeof st.lock.data === 'string' ? st.lock : null;
+      cur.current.ordered = st.ordered === true;
       let list: PromptPost[] = [], isSealed = false;
       if (lk) {
-        const key = await recallKey(lk.salt);
+        const key = await recallKey(lk.salt, adminRef.current);
         if (key) {
           try { list = await open(key, lk); keyRef.current = key; } catch { isSealed = true; }
         } else isSealed = true;
       } else list = normPosts(st.posts);
       if (!alive) return;
-      cur.current = { notice: n, posts: list, lock: lk };
+      list = arrange(list);
+      cur.current = { ...cur.current, notice: n, posts: list, lock: lk };
       setNoticeS(n); setLock(lk); setPosts(list); setSealed(isSealed); setLoaded(true);
     })();
     return () => { alive = false; };
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const write = useCallback((c: { notice: string; posts: PromptPost[]; lock: Lock | null }) => {
+  // 로그인 확인이 늦게 끝나 관리자로 판정되면, 이 기기에 남겨 둔 키로 바로 연다
+  useEffect(() => {
+    if (!isAdmin || !loaded || !sealed) return;
+    const lk = cur.current.lock;
+    if (!lk) return;
+    let alive = true;
+    (async () => {
+      const key = await recallKey(lk.salt, true);
+      if (!key) return;
+      try {
+        const list = arrange(await open(key, lk));
+        if (!alive) return;
+        keyRef.current = key;
+        cur.current = { ...cur.current, posts: list };
+        setPosts(list); setSealed(false);
+      } catch { /* 옛 키 — 비밀번호를 넣어야 한다 */ }
+    })();
+    return () => { alive = false; };
+  }, [isAdmin, loaded, sealed]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const write = useCallback((c: { notice: string; posts: PromptPost[]; lock: Lock | null; ordered: boolean }) => {
     cur.current = c;
     const out: Stored = c.lock ? { notice: c.notice, lock: c.lock } : { notice: c.notice, posts: c.posts };
+    if (c.ordered) out.ordered = true;
     try { setSetting(KEY, out); } catch { /* 무시 */ }
   }, []);
 
@@ -132,7 +172,7 @@ export function usePromptBoard(): PromptBoard {
 
   const savePosts = useCallback((next: PromptPost[]) => {
     setPosts(next);
-    const c = cur.current;
+    const c = { ...cur.current, ordered: true };   // 글을 저장하면 지금 보이는 순서가 곧 정해진 순서
     if (c.lock && keyRef.current) {
       const key = keyRef.current, salt = c.lock.salt;
       cur.current = { ...c, posts: next };
@@ -145,9 +185,9 @@ export function usePromptBoard(): PromptBoard {
     if (!lk) return true;
     try {
       const key = await deriveKey(pw, fromB64(lk.salt));
-      const list = await open(key, lk);
+      const list = arrange(await open(key, lk));
       keyRef.current = key;
-      await rememberKey(key, lk.salt);
+      await rememberKey(key, lk.salt, adminRef.current);
       cur.current = { ...cur.current, posts: list };
       setPosts(list); setSealed(false);
       return true;
@@ -159,9 +199,9 @@ export function usePromptBoard(): PromptBoard {
     if (c.lock && !keyRef.current) throw new Error('먼저 잠금을 풀어 주세요');
     if (pw === null) {
       keyRef.current = null;
-      try { sessionStorage.removeItem(SESSION_KEY); } catch { /* 무시 */ }
+      try { sessionStorage.removeItem(SESSION_KEY); localStorage.removeItem(ADMIN_KEY); } catch { /* 무시 */ }
       setLock(null);
-      write({ notice: c.notice, posts: c.posts, lock: null });
+      write({ notice: c.notice, posts: c.posts, lock: null, ordered: true });
       return;
     }
     const saltB = crypto.getRandomValues(new Uint8Array(16));
@@ -169,9 +209,9 @@ export function usePromptBoard(): PromptBoard {
     const key = await deriveKey(pw, saltB);
     const lk = await seal(key, salt, c.posts);
     keyRef.current = key;
-    await rememberKey(key, salt);
+    await rememberKey(key, salt, adminRef.current);
     setLock(lk);
-    write({ notice: c.notice, posts: c.posts, lock: lk });
+    write({ notice: c.notice, posts: c.posts, lock: lk, ordered: true });
   }, [write]);
 
   return { loaded, notice, setNotice, locked: !!lock, sealed, posts, savePosts, unlock, setPassword };
