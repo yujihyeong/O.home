@@ -2,7 +2,8 @@
 // 위젯 프레임 (4.0 편집모드) — 드래그 이동 · 우하단 리사이즈 · 우클릭 겹침 순서 · 클릭 차단
 // 프로토타입의 편집 모델을 계승: 그리드 배치는 유지하고 transform 오프셋 + 크기 동결(px)로 조작
 import React, { useEffect, useRef, useState } from 'react';
-import { WidgetConf, useMainStore } from '@/lib/mainStore';
+import { WidgetConf, useMainStore, EDITABLE_TYPES, TITLELESS_TYPES } from '@/lib/mainStore';
+import { useAuth } from '@/lib/auth';
 import { ConfirmModal } from '@/components/ui/Modal';
 
 /** 위젯 하나가 오류로 멈춰도 메인 전체가 하얗게 죽지 않게 — 그 위젯 자리에만 오류 내용을 띄운다 (사용자 제보) */
@@ -32,6 +33,9 @@ export function WidgetFrame({ conf, mobileOrder, children, className, style, onC
   onCtx: (id: string, x: number, y: number) => void;
 }) {
   const { editOn, gridOn, updateWidget } = useMainStore();
+  const { isAdmin } = useAuth();
+  // 제목을 숨겨서(또는 원래 제목이 없어서) 「설정 ›」이 안 보이는 위젯 — 모서리에 ⚙ 버튼 (사용자 요청)
+  const gear = isAdmin && !editOn && EDITABLE_TYPES.includes(conf.type) && conf.type !== 'polaroid' && (conf.noTitle || TITLELESS_TYPES.includes(conf.type));
   // 메인은 항상 고정 캔버스 (v1.9 — 반응형 옵션 제거, PC/모바일 두 가지만) — 저장 크기 상시 유지
   const useSize = true;
   const ref = useRef<HTMLDivElement>(null);
@@ -200,7 +204,7 @@ export function WidgetFrame({ conf, mobileOrder, children, className, style, onC
         height: useSize && conf.h != null ? conf.h : undefined,
         zIndex: conf.z,
         // 모바일 스택에서 배너·이미지 위젯이 PC 비율 그대로 보이게 (모바일은 높이를 비우므로 0으로 접히던 문제)
-        ...((conf.type === 'banner' || (conf.type === 'deco' && !conf.settings.hPx)) && conf.w && conf.h
+        ...((conf.type === 'banner' || conf.type === 'images' || (conf.type === 'deco' && !conf.settings.hPx)) && conf.w && conf.h
           ? { '--wr': `${conf.w} / ${conf.h}` } as React.CSSProperties : {}),
       }}
       onPointerDown={onPointerDown}
@@ -220,6 +224,10 @@ export function WidgetFrame({ conf, mobileOrder, children, className, style, onC
       }}
     >
       <WidgetGuard name={conf.type}>{children}</WidgetGuard>
+      {gear && (
+        <button type="button" className="wgt-gear" aria-label="위젯 설정" data-tip="설정"
+          onClick={e => { e.stopPropagation(); window.dispatchEvent(new CustomEvent('ohome-widget-edit', { detail: { id: conf.id } })); }}>⚙</button>
+      )}
       {/* Shift+드래그 중앙 정렬 — 폭이 안 맞아 5px 치우칠 때 가로를 어느 쪽으로 맞출지 (v1.9 사용자 요청) */}
       <ConfirmModal open={centerAsk !== null}
         title="가운데에 딱 맞추려면 가로 크기를 조정해야 합니다"

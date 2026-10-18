@@ -1,7 +1,7 @@
 'use client';
 // 메인 페이지 (4.0 위젯 시스템) — 고정 요소(배너·회원정보창) + 자유 배치 위젯 + 편집모드
 import React, { useEffect, useState } from 'react';
-import { useMainStore, WidgetConf, WidgetType, WIDGET_META, MULTI_TYPES, widgetLabel } from '@/lib/mainStore';
+import { useMainStore, WidgetConf, WidgetType, WIDGET_META, MULTI_TYPES, EDITABLE_TYPES, widgetLabel } from '@/lib/mainStore';
 import { WidgetFrame } from '@/components/main/WidgetFrame';
 import { renderWidget } from '@/components/main/widgets';
 import { MemberBox } from '@/components/main/MemberBox';
@@ -9,9 +9,9 @@ import { Modal, ConfirmModal } from '@/components/ui/Modal';
 import { KRadio } from '@/components/ui/Kit';
 import { useToast } from '@/components/ui/Toast';
 
-const ADDABLE: WidgetType[] = ['banner', 'memo', 'dday', 'todo', 'upcoming', 'freetext', 'deco', 'diary', 'latest', 'apply', 'chat', 'recent', 'quote', 'polaroid', 'search', 'guidewave', 'clock'];   // 지뢰찾기는 위젯 대신 화면 왼쪽 아래 팝업 (사용자 요청)   // banner: 여러 개 추가 (v2.0 사용자 요청)
+const ADDABLE: WidgetType[] = ['banner', 'memo', 'dday', 'todo', 'upcoming', 'freetext', 'deco', 'diary', 'latest', 'apply', 'chat', 'recent', 'quote', 'polaroid', 'search', 'guidewave', 'clock', 'images'];   // 지뢰찾기는 위젯 대신 화면 왼쪽 아래 팝업 (사용자 요청)   // banner: 여러 개 추가 (v2.0 사용자 요청)
 /** 내용 설정 모달이 있는 위젯 — 우클릭 「설정」 노출 대상 (v1.9) */
-const EDITABLE: WidgetType[] = ['banner', 'memo', 'dday', 'todo', 'freetext', 'deco', 'apply', 'chat', 'recent', 'quote', 'polaroid', 'guidewave', 'clock'];
+const EDITABLE: WidgetType[] = EDITABLE_TYPES;
 
 export default function MainPage() {
   const { state, editOn, gridOn, updateWidget, addWidget, removeWidget } = useMainStore();
