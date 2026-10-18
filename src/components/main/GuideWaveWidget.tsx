@@ -6,7 +6,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { WidgetConf, useMainStore } from '@/lib/mainStore';
 import { useAuth } from '@/lib/auth';
 import { Modal } from '@/components/ui/Modal';
-import { KInput, KSelect } from '@/components/ui/Kit';
+import { KInput, KSelect, KToggle } from '@/components/ui/Kit';
 import { putBlob, useBlobUrl } from '@/lib/blobStore';
 import { useToast } from '@/components/ui/Toast';
 
@@ -22,6 +22,13 @@ const personOf = (conf: WidgetConf, k: 'a' | 'b') =>
 const syncOf = (conf: WidgetConf) => {
   const n = Number(conf.settings.sync ?? 87);
   return Number.isFinite(n) ? Math.max(0, Math.min(100, Math.round(n))) : 87;
+};
+/** 매번 랜덤 (사용자 요청 — 기본 켜짐) · 랜덤 범위 */
+const randomOf = (conf: WidgetConf) => conf.settings.random !== false;
+const rangeOf = (conf: WidgetConf): [number, number] => {
+  const clamp = (v: unknown, d: number) => { const n = Number(v ?? d); return Number.isFinite(n) ? Math.max(0, Math.min(100, Math.round(n))) : d; };
+  const lo = clamp(conf.settings.min, 10), hi = clamp(conf.settings.max, 99);
+  return lo <= hi ? [lo, hi] : [hi, lo];
 };
 
 /** 일치율 → 상태 이름·색 */
@@ -123,7 +130,14 @@ export function GuideWaveWidget({ conf }: { conf: WidgetConf }) {
   const [open, setOpen] = useState(false);
   useEditEvent(conf.id, () => setOpen(true));
   const a = personOf(conf, 'a'), b = personOf(conf, 'b');
-  const sync = syncOf(conf);
+  // 랜덤이면 들어올 때마다 한 번 뽑는다 — 뽑기는 화면에 뜬 뒤에 (서버 렌더와 어긋나지 않게)
+  const random = randomOf(conf);
+  const [lo, hi] = rangeOf(conf);
+  const [rolled, setRolled] = useState<number | null>(null);
+  useEffect(() => {
+    if (random) setRolled(lo + Math.floor(Math.random() * (hi - lo + 1)));
+  }, [random, lo, hi]);
+  const sync = random ? (rolled ?? Math.round((lo + hi) / 2)) : syncOf(conf);
   const st = stateOf(sync);
   // 센티넬을 먼저(빨간 선), 가이드를 다음(청록 선)으로 보여 준다
   const [sen, gui] = a.role === 'guide' && b.role === 'sentinel' ? [b, a] : [a, b];
@@ -152,7 +166,7 @@ export function GuideWaveWidget({ conf }: { conf: WidgetConf }) {
       </div>
       {note && <div className="gw-note">{note}</div>}
       <Modal open={open} onClose={() => setOpen(false)} title="가이딩 파장"
-        desc="일치율만 바꾸면 파장 모양·색·상태가 알아서 바뀌어요 (40% 아래 불안정 · 80% 아래 가이딩 중 · 95% 아래 동조 중 · 그 위 완전 동조)"
+        desc="일치율은 매번 랜덤으로 뽑거나 고정할 수 있어요. 일치율만 바꾸면 파장 모양·색·상태가 알아서 바뀌어요 (40% 아래 불안정 · 80% 아래 가이딩 중 · 95% 아래 동조 중 · 그 위 완전 동조)"
         actions={<button className="btn btn-dark" onClick={() => setOpen(false)}>CLOSE</button>}>
         {open && <GuideWaveEditor conf={conf} />}
       </Modal>
@@ -193,9 +207,22 @@ export function GuideWaveEditor({ conf }: { conf: WidgetConf }) {
     updateWidget(conf.id, { settings: { ...conf.settings, ...p } }, { persist: true });
   const a = personOf(conf, 'a'), b = personOf(conf, 'b');
   const sync = syncOf(conf);
+  const random = randomOf(conf);
+  const [lo, hi] = rangeOf(conf);
   return (
     <div>
-      <span className="cp-lb">파장 일치율</span>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <span className="cp-lb">파장 일치율</span>
+        <KToggle label="매번 랜덤" checked={random} onChange={v => set({ random: v })} />
+      </div>
+      {random ? (
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', margin: '6px 0 14px', flexWrap: 'wrap' }}>
+          <KInput type="number" min={0} max={100} value={lo} style={{ width: 70 }} onChange={e => set({ min: Number(e.target.value) })} />
+          <span>~</span>
+          <KInput type="number" min={0} max={100} value={hi} style={{ width: 70 }} onChange={e => set({ max: Number(e.target.value) })} />
+          <span className="hint">% 사이에서 들어올 때마다 랜덤</span>
+        </div>
+      ) : (
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', margin: '6px 0 14px' }}>
         <input type="range" min={0} max={100} value={sync} style={{ flex: 1, accentColor: stateOf(sync).col }}
           onChange={e => set({ sync: Number(e.target.value) })} />
@@ -203,6 +230,7 @@ export function GuideWaveEditor({ conf }: { conf: WidgetConf }) {
           onChange={e => set({ sync: Number(e.target.value) })} />
         <span className="hint" style={{ minWidth: 56 }}>{stateOf(sync).label}</span>
       </div>
+      )}
       <span className="cp-lb">두 사람</span>
       <div className="qt-chars">
         <PersonRow p={a} patch={x => set({ a: { ...a, ...x } })} />
