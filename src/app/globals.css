@@ -1786,20 +1786,25 @@ body.edit-on .main-grid.gridlines .wgt{outline-offset:0}
   .main-grid.abs > .wgt[style*="--wr"]{aspect-ratio:var(--wr)}
   .main-grid.abs > .wgt[style*="--wr"] > .banner,.main-grid.abs > .wgt[style*="--wr"] > .deco-wgt{height:100% !important;min-height:0 !important}
   .settings-layout{grid-template-columns:1fr}
-  /* BGM — 화면 하단에 딱 붙는 슬림 풀폭 바 (8장·4.1 v1.9): 볼륨 생략, 재생 컨트롤 오른쪽 정렬 */
-  .bgm,.bgm.bgm-left{left:0;right:0;bottom:0;border-radius:0;border-left:none;border-right:none;border-bottom:none;padding:7px 14px;gap:10px}
-  .bgm .vol,.bgm .fold-btn{display:none}
-  .bgm .title{flex:1;max-width:none}
-  .bgm .title .mq{max-width:none}
-  .bgm .ctrl{margin-left:auto}
-  /* 접힘 저장 상태(PC에서 접고 온 경우)여도 모바일에선 풀폭 바 유지 */
-  .bgm.folded{padding:7px 14px;gap:10px;cursor:default}
-  .bgm.folded .title{display:block}
-  .bgm.folded .ctrl{display:flex}
-  /* 모바일 BGM은 더 납작하게 — 레코드판(디스크) 없이 제목+컨트롤 한 줄 (v1.9 사용자 요청) */
-  .bgm .disc,.bgm.folded .disc{display:none}
-  .bgm,.bgm.bgm-left,.bgm.folded{padding:4px 12px}
-  .bgm .ctrl button{width:24px;height:24px}
+  /* BGM — 모바일은 오른쪽 가장자리에 떠 있는 세로로 긴 캡슐 (사용자 요청: 바닥 전폭 바가 너무 박혀 있어 불편)
+     위에서부터 레코드판 · 세로 제목 · 이전/재생/다음/목록 · 접기. 접으면 레코드판만 남는다 */
+  .bgm,.bgm.bgm-left,.bgm.folded{left:auto !important;right:10px !important;bottom:calc(16px + env(safe-area-inset-bottom,0px));
+    flex-direction:column;align-items:center;width:44px;padding:8px 0;gap:6px;border-radius:24px}
+  .bgm.bgm-left,.bgm.bgm-left.folded{left:10px !important;right:auto !important}
+  .bgm .disc{width:30px;height:30px;flex-shrink:0}
+  .bgm .vol{display:none}
+  .bgm .title{writing-mode:vertical-rl;max-width:none;max-height:120px;overflow:hidden;display:flex;gap:2px}
+  .bgm .title .mq{max-width:none;max-height:120px;text-overflow:ellipsis}
+  .bgm .title .mq:not(.tt){display:none}
+  .bgm .mq-in{animation:none}
+  .bgm .mq-in>span+span{display:none}
+  .bgm .ctrl{flex-direction:column;gap:0}
+  .bgm .ctrl button{width:30px;height:28px}
+  .bgm .fold-btn{transform:rotate(90deg)}
+  .bgm.folded{padding:6px 0;width:42px}
+  /* 곡 목록은 캡슐 옆으로 펼친다 */
+  .bgm-list{bottom:0;right:calc(100% + 8px);max-height:60vh;overflow-y:auto;min-width:200px}
+  .bgm.bgm-left .bgm-list{right:auto;left:calc(100% + 8px)}
 
   /* 캐릭터 리스트 — 모바일 1열 3개 (v1.9 사용자 확정) */
   .chars-grid{grid-template-columns:repeat(3,1fr);gap:10px}
