@@ -39,6 +39,7 @@ const SIDE_TAGS: Record<string, string> = {
   '메모리': 'CM', '사진첩': 'CM',
   'to.seio': 'GUEST', '열망에게': 'GUEST',
   '영': 'INFO', 'beom': 'INFO',
+  'story': 'LOG', 'another': 'OOC', 'memory': 'CM',
 };
 const sideTag = (label: string) => SIDE_TAGS[label.replace(/\s+/g, '').toLowerCase()];
 
