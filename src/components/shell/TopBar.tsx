@@ -23,6 +23,7 @@ import {
   readNotifs, markRead, markAllRead, clearReadNotifs, notifSettings, setNotifSetting, syncNotifs, selfTestNotif,
 } from '@/lib/notifStore';
 import { subscribeTable } from '@/lib/db';
+import { MemberBox } from '@/components/main/MemberBox';
 
 const BellIcon = () => (
   <svg viewBox="0 0 24 24">
@@ -357,6 +358,8 @@ export function TopBar() {
       {/* 상단바의 흐림(backdrop-filter)이 fixed 자식을 가둬서, 창은 body에 직접 그린다 */}
       {mOpen && createPortal(
         <div className="m-menu" role="dialog" aria-label="메뉴" onClick={e => { if (e.target === e.currentTarget) setMOpen(false); }}>
+          {/* 회원정보창 — 메인 위젯과 같은 모양·기능(낮/밤 손님 그림까지), 제목만 빼고 맨 위에 (사용자 요청) */}
+          <div className="mm-member"><MemberBox noTitle onNav={() => setMOpen(false)} /></div>
           <div className="mm-head"><span>MENU</span><i />{siteLoaded && <small>{site.title}</small>}</div>
           {(() => {
             let n = 0;   // 차례로 나타나는 순서
@@ -384,13 +387,6 @@ export function TopBar() {
                     </div>
                   )
                   : row(item.href!, item.label))}
-                <div className="mm-sep" style={{ '--i': n++ } as React.CSSProperties}><i /><b>◆</b><i /></div>
-                <div className="mm-foot" style={{ '--i': n++ } as React.CSSProperties}>
-                  <button type="button" onClick={() => mNav('/')}>HOME <small>홈</small></button>
-                  {user
-                    ? <button type="button" onClick={() => mNav('/mypage')}>MY PAGE <small>마이페이지</small></button>
-                    : <button type="button" onClick={() => mNav('/login')}>LOGIN <small>로그인</small></button>}
-                </div>
               </>
             );
           })()}
