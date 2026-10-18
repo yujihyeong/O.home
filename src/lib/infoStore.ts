@@ -14,6 +14,9 @@ export interface InfoPair { img: string | null; name: string }
 /** ETC. — 다른 계정 (사용자 요청). 누르면 그 트위터(X) 프로필로 */
 export interface InfoAcct { handle: string; desc: string }
 
+/** PLAYING — 지금 플레이 중인 캐릭터 (사용자 요청): 제작자 아이디 · 캐릭터 이름 */
+export interface InfoPlay { maker: string; char: string }
+
 /** 「@abc」·「abc」·「https://x.com/abc」·「twitter.com/abc」 어느 모양으로 적어도 아이디만 */
 export function handleOf(raw: string): string {
   const s = raw.trim();
@@ -30,6 +33,7 @@ export interface InfoDoc {
   notice: string;
   ng: string[];
   pairs: InfoPair[];
+  plays: InfoPlay[];
   etc: InfoAcct[];
 }
 
@@ -39,6 +43,7 @@ export const INFO_PLATFORMS = ['Caveduck', 'Rofan AI', 'teapot', 'elyn', 'Plaito
 export const EMPTY_INFO: InfoDoc = {
   nick: '', uid: '', platforms: [], notice: '', ng: [],
   pairs: [{ img: null, name: '' }, { img: null, name: '' }],
+  plays: [],
   etc: [],
 };
 
@@ -55,6 +60,10 @@ export function normInfo(raw: Partial<InfoDoc> | null | undefined): InfoDoc {
     pairs: [0, 1].map(i => ({
       img: typeof pairs[i]?.img === 'string' ? pairs[i].img : null,
       name: typeof pairs[i]?.name === 'string' ? pairs[i].name : '',
+    })),
+    plays: (Array.isArray(r.plays) ? r.plays : []).map(a => ({
+      maker: typeof a?.maker === 'string' ? a.maker : '',
+      char: typeof a?.char === 'string' ? a.char : '',
     })),
     etc: (Array.isArray(r.etc) ? r.etc : []).map(a => ({
       handle: typeof a?.handle === 'string' ? a.handle : '',

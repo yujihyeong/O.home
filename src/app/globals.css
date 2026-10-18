@@ -2766,6 +2766,17 @@ html[data-scene="night"] .if-card .if-day{display:none}
 .if-plat>button.on{background:var(--if-chip);color:var(--if-chipfg);border:1px solid var(--if-accent)}
 .if-plat>button i{font-style:normal;color:var(--if-accent);font-size:11px;font-weight:700}
 .if-hint{margin:8px 0 0;font-size:calc(11.5px*var(--fs,1));color:var(--if-faint)}
+/* PLAYING — 줄마다 제작자 @아이디 · 캐릭터 이름 */
+.if-play{display:flex;flex-direction:column;gap:8px}
+.if-prow{display:flex;align-items:center;gap:12px;padding:11px 16px;border-radius:14px;background:var(--if-chip)}
+.if-pmaker{font-size:calc(13px*var(--fs,1));font-weight:500;color:var(--if-chipfg);opacity:.85;white-space:nowrap;display:inline-flex;align-items:center}
+.if-pchar{flex:1;min-width:0;font-family:var(--serif);font-weight:700;font-size:calc(15px*var(--fs,1));color:var(--if-ink);word-break:keep-all}
+.if-prow.edit{padding:6px 8px 6px 14px;gap:8px}
+.if-prow.edit .if-pmaker .if-in{width:150px;border:0;background:transparent;padding:2px 4px;color:var(--if-chipfg)}
+.if-prow.edit .if-pchar{padding:4px 8px}
+.if-prow.edit button{border:0;background:var(--if-card);color:var(--if-chipfg);width:20px;height:20px;border-radius:50%;line-height:20px;padding:0;font-size:12px;flex-shrink:0;cursor:var(--cur-pointer,pointer)}
+.if-play .if-ng-add{align-self:flex-start}
+@media (max-width:620px){.if-prow.edit .if-pmaker .if-in{width:100px}}
 /* 관리자 버튼 — 큰 제목을 없앤 자리, 카드 위 오른쪽 */
 .page:has(> .if-card), .page:has(> .if-actions){padding-top:28px}
 .if-actions{max-width:640px;margin:0 auto 12px;display:flex;justify-content:flex-end;gap:8px}
