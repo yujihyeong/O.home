@@ -7,15 +7,18 @@ import { useAuth } from '@/lib/auth';
 import { useBlobUrl } from '@/lib/blobStore';
 import { useTheme } from '@/lib/ThemeProvider';
 
-export function MemberBox() {
-  const router = useRouter();
+/** noTitle: 「MEMBER」 제목 없이 (모바일 메뉴창 맨 위에 넣을 때 — 사용자 요청)
+ *  onNav: 버튼을 누르면 먼저 부른다 (메뉴창을 닫는 데 쓴다) */
+export function MemberBox({ noTitle, onNav }: { noTitle?: boolean; onNav?: () => void } = {}) {
+  const r = useRouter();
+  const router = { push: (href: string) => { onNav?.(); r.push(href); } };
   const { user, logout } = useAuth();
   const avatarSrc = useBlobUrl(user?.avatarUrl);
   const night = useTheme().scene === 'night';
 
   return (
-    <div className="panel login-box" style={{ display: 'flex', flexDirection: 'column' }}>
-      <h3>MEMBER</h3>
+    <div className={`panel login-box ${noTitle ? 'login-box-bare' : ''}`} style={{ display: 'flex', flexDirection: 'column' }}>
+      {!noTitle && <h3>MEMBER</h3>}
       {user ? (
         <>
           <div style={{ display: 'flex', alignItems: 'center', gap: 11, marginBottom: 14 }}>
@@ -38,7 +41,7 @@ export function MemberBox() {
             <button className="btn btn-ghost" style={{ flex: 1, justifyContent: 'center', padding: 7, fontSize: 11 }}
               onClick={() => router.push('/mypage')}>마이페이지</button>
             <button className="btn btn-ghost" style={{ flex: 1, justifyContent: 'center', padding: 7, fontSize: 11 }}
-              onClick={logout}>로그아웃</button>
+              onClick={() => { onNav?.(); logout(); }}>로그아웃</button>
           </div>
         </>
       ) : (

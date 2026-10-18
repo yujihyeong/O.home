@@ -2950,3 +2950,7 @@ html[data-scene="night"] .pd-tape{background:rgba(231,168,191,.6)}
 .pd-ed-item.cy .pd-ed-who{background:#efe6f8;color:#7651a8}
 .pd-ed-sub{grid-column:1/-1;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
 .pd-ed-sub .btn{padding:5px 10px}
+/* 모바일 메뉴창 맨 위 회원정보창 — 메인의 MEMBER 위젯과 같은 모양 (제목만 없음) */
+.mm-member{margin:0 0 18px;font-family:var(--sans);animation:mmIn .38s cubic-bezier(.2,.7,.3,1) both;animation-delay:30ms}
+.mm-member .login-box{color:var(--ink);text-align:left;letter-spacing:normal}
+@media (prefers-reduced-motion:reduce){.mm-member{animation:none}}
