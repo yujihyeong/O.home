@@ -47,6 +47,88 @@ function usePic(img?: string) {
   return fixed ?? blob;
 }
 
+/** 위젯 테마 (사용자 요청) — 같은 대사를 여러 모양으로 */
+export const QUOTE_THEMES: { id: string; label: string }[] = [
+  { id: 'bubble', label: '말풍선 (기본)' },
+  { id: 'messenger', label: '메신저' },
+  { id: 'vn', label: '게임 대화창' },
+  { id: 'cinema', label: '영화 자막' },
+  { id: 'card', label: '명대사 카드' },
+  { id: 'letter', label: '편지지' },
+  { id: 'memo', label: '메모지' },
+];
+const themeOf = (conf: WidgetConf) => {
+  const t = conf.settings.theme as string | undefined;
+  return QUOTE_THEMES.some(x => x.id === t) ? t! : 'bubble';
+};
+
+/** 테마별 대사 모양 */
+function QuoteBody({ theme, text, who, img }: { theme: string; text: string; who?: string; img?: string }) {
+  switch (theme) {
+    case 'messenger':
+      return (
+        <div className="qt-msg">
+          <Face img={img} />
+          <div className="qt-msg-col">
+            {who && <div className="qt-msg-name">{who}</div>}
+            <div className="qt-msg-bub">{text}</div>
+          </div>
+        </div>
+      );
+    case 'vn':
+      return (
+        <div className="qt-vn">
+          <Face img={img} cls="qt-vn-av" />
+          <div className="qt-vn-box">
+            {who && <span className="qt-vn-name">{who}</span>}
+            <p className="qt-vn-txt">{text}</p>
+            <i className="qt-vn-next">▼</i>
+          </div>
+        </div>
+      );
+    case 'cinema':
+      return (
+        <div className="qt-cine">
+          <p className="qt-cine-txt">{text}</p>
+          {who && <div className="qt-cine-who">{who}</div>}
+        </div>
+      );
+    case 'card':
+      return (
+        <div className="qt-card">
+          <i className="qt-card-mark">“</i>
+          <p className="qt-card-txt">{text}</p>
+          {(who || img) && <div className="qt-card-who"><Face img={img} cls="qt-card-av" />{who}</div>}
+        </div>
+      );
+    case 'letter':
+      return (
+        <div className="qt-letter">
+          <p className="qt-letter-txt">{text}</p>
+          {who && <div className="qt-letter-sign">from. {who}</div>}
+        </div>
+      );
+    case 'memo':
+      return (
+        <div className="qt-memo">
+          <i className="qt-memo-pin" />
+          <p className="qt-memo-txt">{text}</p>
+          {who && <div className="qt-memo-who">— {who}</div>}
+        </div>
+      );
+    default:
+      return (
+        <div className="qt-body">
+          <Face img={img} />
+          <div className="qt-txt">
+            <div className="qt-bub">{text}</div>
+            {who && <div className="qt-who">— {who}</div>}
+          </div>
+        </div>
+      );
+  }
+}
+
 function Face({ img, cls = 'qt-av' }: { img?: string; cls?: string }) {
   const src = usePic(img);
   if (!img) return null;
@@ -78,16 +160,10 @@ export function QuoteWidget({ conf }: { conf: WidgetConf }) {
   });
 
   return (
-    <div className="panel widget qt-widget">
+    <div className={`panel widget qt-widget qt-t-${themeOf(conf)}`}>
       <h4>TODAY&apos;S LINE {isAdmin && <span className="more" onClick={e => { e.stopPropagation(); if (!editOn) setOpen(true); }}>설정 ›</span>}</h4>
       {cur ? (
-        <div className="qt-body">
-          <Face img={img} />
-          <div className="qt-txt">
-            <div className="qt-bub">{cur.text}</div>
-            {who && <div className="qt-who">— {who}</div>}
-          </div>
-        </div>
+        <QuoteBody theme={themeOf(conf)} text={cur.text} who={who} img={img} />
       ) : (
         <p className="hint">{isAdmin ? '「설정 ›」에서 대사를 입력해 주세요' : '아직 대사가 없습니다'}</p>
       )}
@@ -145,7 +221,14 @@ export function QuoteEditor({ conf }: { conf: WidgetConf }) {
 
   return (
     <div>
-      <span className="cp-lb">캐릭터</span>
+      <span className="cp-lb">테마</span>
+      <div className="qt-themes">
+        {QUOTE_THEMES.map(t => (
+          <button key={t.id} type="button" className={`qt-theme-chip ${themeOf(conf) === t.id ? 'on' : ''}`}
+            onClick={() => set({ theme: t.id })}>{t.label}</button>
+        ))}
+      </div>
+      <span className="cp-lb" style={{ display: 'block', marginTop: 14 }}>캐릭터</span>
       <div className="qt-chars">
         {chars.map(c => (
           <CharRow key={c.id} c={c}
