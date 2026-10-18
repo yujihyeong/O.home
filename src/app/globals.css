@@ -2414,18 +2414,19 @@ body.edit-on .qt-re{pointer-events:none}
 .qt-pic img{width:100%;height:100%;object-fit:cover;display:block}
 
 /* 폴라로이드 스택 (사용자 요청) — 최대 3장 겹침, 맨 앞 장은 누르면 위로 날아가고 다음 장이 앞으로 */
-.pl-wrap{position:relative;min-width:260px;aspect-ratio:1/1;container-type:size;user-select:none;-webkit-user-select:none}
+.pl-wrap{position:relative;min-width:220px;aspect-ratio:4/5;container-type:size;user-select:none;-webkit-user-select:none}
 .wgt.sized .pl-wrap{aspect-ratio:auto}
 /* 모바일은 위젯 높이를 비우므로 비율로 높이를 잡는다 */
-@media (max-width:620px){.wgt.sized .pl-wrap,.pl-wrap{aspect-ratio:5/4 !important;height:auto !important}}
-.pl-card{position:absolute;left:50%;top:50%;width:min(58cqw,60cqh);background:#fff;padding:4.5% 4.5% 0;border-radius:3px;
+@media (max-width:620px){.wgt.sized .pl-wrap,.pl-wrap{aspect-ratio:4/5 !important;height:auto !important}}
+.pl-card{position:absolute;left:50%;top:50%;width:min(76cqw,60cqh);   /* 위젯을 꽉 채우는 세로로 긴 폴라로이드 (사용자 요청) */
+  background:#fff;padding:4.5% 4.5% 0;border-radius:3px;
   box-shadow:0 6px 18px rgba(0,0,0,.18);transition:transform .38s cubic-bezier(.3,.7,.3,1),opacity .38s;animation:plIn .4s}
 .pl-card.d0{z-index:3;transform:translate(-50%,-50%) rotate(-2deg)}
-.pl-card.d1{z-index:2;transform:translate(-36%,-54%) rotate(7deg)}
-.pl-card.d2{z-index:1;transform:translate(-64%,-47%) rotate(-9deg)}
+.pl-card.d1{z-index:2;transform:translate(-42%,-51%) rotate(5deg)}
+.pl-card.d2{z-index:1;transform:translate(-58%,-49%) rotate(-6deg)}
 .pl-card.out{transform:translate(-10%,-95%) rotate(16deg);opacity:0}
 @keyframes plIn{from{opacity:0}to{opacity:1}}
-.pl-img{aspect-ratio:1/1;overflow:hidden;border-radius:1px;background:#eee}
+.pl-img{aspect-ratio:3/4;overflow:hidden;border-radius:1px;background:#eee}
 .pl-img img{width:100%;height:100%;object-fit:cover;display:block;pointer-events:none}
 .pl-cap{display:block;height:min(11cqw,11cqh);line-height:min(11cqw,11cqh);text-align:center;color:#4a4a4a;font-size:min(6.4cqw,6.4cqh);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 4px}
 .pl-tape{position:absolute;left:50%;top:-5%;width:36%;height:10%;transform:translateX(-50%) rotate(-4deg);background:rgba(238,214,156,.78);box-shadow:0 1px 2px rgba(0,0,0,.08)}
