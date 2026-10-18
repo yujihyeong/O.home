@@ -60,25 +60,35 @@ function Waves({ sync, id }: { sync: number; id: string }) {
   useEffect(() => {
     // 흔들림 크기 — 일치율이 높을수록 작고, 더 왼쪽에서 가이드 파장에 붙는다
     const p = Math.min(1, 0.15 + (1 - s) * 3.5);          // 이 지점(0~1)까지 오면 거의 겹친다
-    const a0 = Math.min(1, 0.3 + (1 - s) * 1.2);          // 왼쪽 끝 흔들림
+    const a0 = Math.min(1, 0.6 + (1 - s) * 1.2);          // 왼쪽 끝 흔들림
     const rest = (1 - s) * 0.5;                           // 끝까지 남는 잔흔들림
-    // 센티넬 파장은 곧은 선을 꺾어 이은 지그재그 — 딱딱하고 날 선 느낌 (사용자 요청: 구불구불 조잡해 보임)
-    const STEP = 10;
+    // 센티넬 파장은 심전도(ECG) 모양 — 평평하다가 뾰족하게 튀는 박동 (사용자 요청)
+    // 박동 한 번의 모양: (박동 안 위치 0~1, 높이) 꼭짓점을 곧은 선으로 잇는다
+    const BEAT: [number, number][] = [[0, 0], [0.3, 0], [0.33, -0.15], [0.37, 0.3], [0.4, -0.05], [0.45, 1], [0.5, -0.85],
+      [0.55, -0.05], [0.58, 0], [0.63, 0.35], [0.68, 0], [1, 0]];
+    const beatAt = (u: number) => {
+      for (let i = 1; i < BEAT.length; i++) {
+        const [u1, v1] = BEAT[i];
+        if (u <= u1) { const [u0, v0] = BEAT[i - 1]; return v0 + (v1 - v0) * ((u - u0) / (u1 - u0)); }
+      }
+      return 0;
+    };
     const hash = (k: number) => { const v = Math.sin(k * 127.1 + 311.7) * 43758.5453; return v - Math.floor(v); };
+    const PERIOD = 85 + 45 * s;                            // 불안정할수록 박동이 빠르다
     const draw = (ph: number) => {
       let ds = '', dg = '';
-      for (let x = 0; x <= W; x += 3) dg += `${x ? 'L' : 'M'}${x},${(CY + Math.sin(x / 16 + ph) * AMP * 0.8).toFixed(1)}`;
-      // 꺾이는 점들이 왼쪽으로 천천히 흘러가게 — 점 번호(k)는 그대로 두고 위치만 민다
-      const shift = ph * 14;
-      const k0 = Math.floor(shift / STEP);
-      for (let i = 0; ; i++) {
-        const k = k0 + i;
-        const x = Math.min(W, Math.max(0, k * STEP - shift));
+      const shift = ph * 30;                               // 박동이 왼쪽으로 흘러간다
+      for (let x = 0; x <= W; x += 1.5) {
         const t = x / W;
-        const n = a0 * Math.max(0, 1 - t / p) + rest;
-        const jit = (k % 2 ? 1 : -1) * (0.35 + 0.65 * hash(k));
-        ds += `${i ? 'L' : 'M'}${x.toFixed(1)},${(CY + Math.sin(x / 16 + ph) * AMP * 0.8 + n * AMP * 1.15 * jit).toFixed(1)}`;
-        if (x >= W) break;
+        const sine = Math.sin(x / 16 + ph) * AMP * 0.8;
+        if (x % 3 === 0) dg += `${x ? 'L' : 'M'}${x},${(CY + sine).toFixed(1)}`;
+        // m: 이 자리에서 센티넬이 얼마나 「자기 박동」인지 (1이면 심전도, 0이면 가이드 파장과 같음)
+        const m0 = Math.min(1, a0 * Math.max(0, 1 - t / p) + rest);
+        const m = m0 * m0 * (3 - 2 * m0);                  // 경계가 흐리멍덩하지 않게 — 박동↔파장 전환을 짧게
+        const pos = (x + shift) / PERIOD;
+        const k = Math.floor(pos);
+        const ecg = -beatAt(pos - k) * AMP * 1.9 * (0.75 + 0.25 * hash(k));
+        ds += `${x ? 'L' : 'M'}${x},${(CY + sine * (1 - m) + ecg * m).toFixed(1)}`;
       }
       sRef.current?.setAttribute('d', ds);
       gRef.current?.setAttribute('d', dg);
