@@ -2751,6 +2751,7 @@ html[data-scene="night"] .if-card .if-day{display:none}
 .if-ng>span i{font-style:normal;color:var(--if-accent);font-size:12px;font-weight:700}
 .if-pairs{display:grid;grid-template-columns:1fr 1fr;gap:18px}
 .if-pair{min-width:0;text-align:center}
+.if-pairs:has(> .if-pair:only-child){grid-template-columns:minmax(0,300px);justify-content:center}
 .if-pic{position:relative;aspect-ratio:4/3;border-radius:16px;overflow:hidden;background:var(--if-frame);padding:8px;display:flex;align-items:center;justify-content:center}
 .if-pic img{width:100%;height:100%;object-fit:cover;border-radius:10px;display:block}
 .if-pn{font-family:var(--serif);font-weight:700;font-size:calc(16px*var(--fs,1));margin-top:12px;display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;word-break:keep-all}
