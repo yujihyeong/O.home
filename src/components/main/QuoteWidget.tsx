@@ -57,6 +57,18 @@ export const QUOTE_THEMES: { id: string; label: string }[] = [
   { id: 'letter', label: '편지지' },
   { id: 'memo', label: '메모지' },
 ];
+/** 꾸밈 장식(위 큰따옴표 · 아래 날짜 줄) 언제 보일지 — 기본: 화면에서 세 줄 이상일 때 (사용자 요청) */
+export const QUOTE_DECO: { id: string; label: string }[] = [
+  { id: 'long', label: '세 줄 이상일 때' },
+  { id: 'short', label: '두 줄 이하일 때' },
+  { id: 'always', label: '항상' },
+  { id: 'off', label: '안 보이기' },
+];
+const decoOf = (conf: WidgetConf) => {
+  const d = conf.settings.deco as string | undefined;
+  return QUOTE_DECO.some(x => x.id === d) ? d! : 'long';
+};
+
 const themeOf = (conf: WidgetConf) => {
   const t = conf.settings.theme as string | undefined;
   return QUOTE_THEMES.some(x => x.id === t) ? t! : 'bubble';
@@ -71,7 +83,7 @@ function QuoteBody({ theme, text, who, img }: { theme: string; text: string; who
           <Face img={img} />
           <div className="qt-msg-col">
             {who && <div className="qt-msg-name">{who}</div>}
-            <div className="qt-msg-bub">{text}</div>
+            <div className="qt-msg-bub"><span className="qt-t">{text}</span></div>
           </div>
         </div>
       );
@@ -81,7 +93,7 @@ function QuoteBody({ theme, text, who, img }: { theme: string; text: string; who
           <Face img={img} cls="qt-vn-av" />
           <div className="qt-vn-box">
             {who && <span className="qt-vn-name">{who}</span>}
-            <p className="qt-vn-txt">{text}</p>
+            <p className="qt-vn-txt"><span className="qt-t">{text}</span></p>
             <i className="qt-vn-next">▼</i>
           </div>
         </div>
@@ -89,7 +101,7 @@ function QuoteBody({ theme, text, who, img }: { theme: string; text: string; who
     case 'cinema':
       return (
         <div className="qt-cine">
-          <p className="qt-cine-txt">{text}</p>
+          <p className="qt-cine-txt"><span className="qt-t">{text}</span></p>
           {who && <div className="qt-cine-who">{who}</div>}
         </div>
       );
@@ -97,14 +109,14 @@ function QuoteBody({ theme, text, who, img }: { theme: string; text: string; who
       return (
         <div className="qt-card">
           <i className="qt-card-mark">“</i>
-          <p className="qt-card-txt">{text}</p>
+          <p className="qt-card-txt"><span className="qt-t">{text}</span></p>
           {(who || img) && <div className="qt-card-who"><Face img={img} cls="qt-card-av" />{who}</div>}
         </div>
       );
     case 'letter':
       return (
         <div className="qt-letter">
-          <p className="qt-letter-txt">{text}</p>
+          <p className="qt-letter-txt"><span className="qt-t">{text}</span></p>
           {who && <div className="qt-letter-sign">from. {who}</div>}
         </div>
       );
@@ -112,7 +124,7 @@ function QuoteBody({ theme, text, who, img }: { theme: string; text: string; who
       return (
         <div className="qt-memo">
           <i className="qt-memo-pin" />
-          <p className="qt-memo-txt">{text}</p>
+          <p className="qt-memo-txt"><span className="qt-t">{text}</span></p>
           {who && <div className="qt-memo-who">— {who}</div>}
         </div>
       );
@@ -121,7 +133,7 @@ function QuoteBody({ theme, text, who, img }: { theme: string; text: string; who
         <div className="qt-body">
           <Face img={img} />
           <div className="qt-txt">
-            <div className="qt-bub">{text}</div>
+            <div className="qt-bub"><span className="qt-t">{text}</span></div>
             {who && <div className="qt-who">— {who}</div>}
           </div>
         </div>
@@ -159,11 +171,43 @@ export function QuoteWidget({ conf }: { conf: WidgetConf }) {
     if (!cur && lines.length) setPick(draw());
   });
 
+  // 화면에 보이는 대사가 몇 줄인지 — 글자 칸(span)이 줄마다 상자 하나씩 생기는 걸 센다
+  const stageRef = useRef<HTMLDivElement>(null);
+  const [lineCount, setLineCount] = useState(0);
+  useEffect(() => {
+    const el = stageRef.current?.querySelector<HTMLElement>('.qt-t');
+    if (!el) { setLineCount(0); return; }
+    // 줄마다 상자가 생기지 않는 테마(글자 칸이 한 덩어리로 놓이는 경우)도 있어 높이 ÷ 줄 높이로 센다
+    const count = () => {
+      const cs = getComputedStyle(el);
+      const lh = parseFloat(cs.lineHeight) || 20;
+      const rects = Array.from(el.getClientRects()).filter(r => r.width > 0);
+      // 글줄 안 조각(한글·문장부호 글꼴이 바뀌는 곳)마다 상자가 따로 생길 수 있어 줄 위치로 묶어 센다
+      const n = cs.display === 'inline'
+        ? rects.map(r => r.top).sort((x, y) => x - y).filter((t, i, a) => i === 0 || t - a[i - 1] > lh / 2).length
+        : rects.reduce((sum, r) => sum + Math.max(1, Math.round(r.height / lh)), 0);
+      setLineCount(n);
+    };
+    count();
+    const ro = new ResizeObserver(count);
+    ro.observe(stageRef.current!);
+    return () => ro.disconnect();
+  }, [cur?.id, cur?.text, conf.settings.theme]);
+  const deco = decoOf(conf);
+  const showDeco = !!cur && lineCount > 0 && (deco === 'always' || (deco === 'long' && lineCount >= 3) || (deco === 'short' && lineCount <= 2));
+  const [today, setToday] = useState('');
+  useEffect(() => { const d = new Date(); setToday(`${d.getMonth() + 1}.${String(d.getDate()).padStart(2, '0')}`); }, []);
+
   return (
     <div className={`panel widget qt-widget qt-t-${themeOf(conf)}`}>
       <h4>TODAY&apos;S LINE {isAdmin && <span className="more" onClick={e => { e.stopPropagation(); if (!editOn) setOpen(true); }}>설정 ›</span>}</h4>
       {cur ? (
-        <QuoteBody theme={themeOf(conf)} text={cur.text} who={who} img={img} />
+        // 대사는 위젯 위아래 한가운데에 — 짧은 대사도 아래가 텅 비어 보이지 않게 (사용자 요청)
+        <div className={`qt-stage ${showDeco ? 'deco' : ''}`} ref={stageRef}>
+          {showDeco && themeOf(conf) !== 'card' && <i className="qt-deco-top" aria-hidden>“</i>}
+          <QuoteBody theme={themeOf(conf)} text={cur.text} who={who} img={img} />
+          {showDeco && <div className="qt-deco-bottom" aria-hidden>— TODAY&apos;S LINE{today && ` · ${today}`} —</div>}
+        </div>
       ) : (
         <p className="hint">{isAdmin ? '「설정 ›」에서 대사를 입력해 주세요' : '아직 대사가 없습니다'}</p>
       )}
@@ -226,6 +270,13 @@ export function QuoteEditor({ conf }: { conf: WidgetConf }) {
         {QUOTE_THEMES.map(t => (
           <button key={t.id} type="button" className={`qt-theme-chip ${themeOf(conf) === t.id ? 'on' : ''}`}
             onClick={() => set({ theme: t.id })}>{t.label}</button>
+        ))}
+      </div>
+      <span className="cp-lb" style={{ display: 'block', marginTop: 14 }}>꾸밈 장식 (위 큰따옴표 · 아래 날짜 줄)</span>
+      <div className="qt-themes">
+        {QUOTE_DECO.map(t => (
+          <button key={t.id} type="button" className={`qt-theme-chip ${decoOf(conf) === t.id ? 'on' : ''}`}
+            onClick={() => set({ deco: t.id })}>{t.label}</button>
         ))}
       </div>
       <span className="cp-lb" style={{ display: 'block', marginTop: 14 }}>캐릭터</span>
