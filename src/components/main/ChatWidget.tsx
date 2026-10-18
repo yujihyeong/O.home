@@ -199,7 +199,7 @@ export function ChatEditor({ conf }: { conf: WidgetConf }) {
         {s.avatar && (
           <button type="button" className="btn btn-ghost" style={{ padding: '4px 12px', fontSize: 11 }} onClick={() => set({ avatar: undefined })}>빼기</button>
         )}
-        <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }}
+        <input data-crop="1:1" ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }}
           onChange={async e => {
             const f = e.target.files?.[0]; e.target.value = '';
             if (!f) return;

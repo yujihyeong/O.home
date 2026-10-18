@@ -183,7 +183,7 @@ function PersonRow({ p, patch }: { p: WavePerson; patch: (x: Partial<WavePerson>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         {src ? <img src={src} alt="" /> : <span>{busy ? '…' : '＋'}</span>}
       </button>
-      <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }}
+      <input data-crop="1:1" ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }}
         onChange={async e => {
           const f = e.target.files?.[0]; e.target.value = '';
           if (!f) return;
