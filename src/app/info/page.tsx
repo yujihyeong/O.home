@@ -2,7 +2,7 @@
 /**
  * 인포 페이지 (사용자 요청) — 목록 없이 **자기소개 글 하나**만 보이는 페이지.
  *
- * 글은 정해진 템플릿이다: 닉네임 · 아이디 · 공지 · NG · 페어 소개(이미지 + 페어명) 2칸 · ETC.(다른 계정).
+ * 글은 정해진 템플릿이다: 닉네임 · 아이디 · 공지 · PLAYING(제작자 · 캐릭터) · NG · 페어 소개(이미지 + 페어명) 2칸 · ETC.(다른 계정).
  * 관리자는 EDIT을 누르면 **같은 카드 모양 그대로** 칸이 입력창으로 바뀌어, 칸만 채우고 저장한다.
  * 카드 색·장식은 홈의 낮/밤 장면을 따라 저절로 바뀐다 (낮 = 풀잎·들꽃, 밤 = 별·달·벚꽃잎).
  */
@@ -110,6 +110,7 @@ function InfoCard({ doc, editing, set }: { doc: InfoDoc; editing: boolean; set: 
   const ng = editing ? doc.ng : doc.ng.map(s => s.trim()).filter(Boolean);
   const showPairs = editing || doc.pairs.some(p => p.img || p.name.trim());
   const etc = editing ? doc.etc : doc.etc.filter(a => handleOf(a.handle));
+  const plays = editing ? doc.plays : doc.plays.filter(a => a.maker.trim() || a.char.trim());
   return (
     <article className={`if-card ${editing ? 'editing' : ''}`}>
       <Deco />
@@ -124,7 +125,7 @@ function InfoCard({ doc, editing, set }: { doc: InfoDoc; editing: boolean; set: 
 
       {(editing || doc.platforms.length > 0) && (
         <section className="if-sec">
-          <div className="if-sh"><b>PLATFORM</b><small>주플랫폼</small></div>
+          <div className="if-sh"><b>PLATFORM</b></div>
           <div className="if-plat">
             {editing
               ? INFO_PLATFORMS.map(p => {
@@ -144,11 +145,34 @@ function InfoCard({ doc, editing, set }: { doc: InfoDoc; editing: boolean; set: 
 
       {(editing || doc.notice.trim()) && (
         <section className="if-sec">
-          <div className="if-sh"><b>NOTICE</b><small>공지</small></div>
+          <div className="if-sh"><b>NOTICE</b></div>
           {editing
             ? <textarea className="if-in if-notice" value={doc.notice} rows={4} placeholder={'공지를 적어 주세요 — 줄을 바꾸면 그대로 줄바꿈돼요'}
               onChange={e => set({ notice: e.target.value })} />
             : <div className="if-notice">{doc.notice}</div>}
+        </section>
+      )}
+
+      {(editing || plays.length > 0) && (
+        <section className="if-sec">
+          <div className="if-sh"><b>PLAYING</b></div>
+          <div className="if-play">
+            {editing ? doc.plays.map((a, i) => (
+              <div key={i} className="if-prow edit">
+                <span className="if-pmaker">@<input className="if-in" value={a.maker} placeholder="제작자 아이디"
+                  onChange={e => { const n = [...doc.plays]; n[i] = { ...a, maker: e.target.value }; set({ plays: n }); }} /></span>
+                <input className="if-in if-pchar" value={a.char} placeholder="캐릭터 이름"
+                  onChange={e => { const n = [...doc.plays]; n[i] = { ...a, char: e.target.value }; set({ plays: n }); }} />
+                <button type="button" aria-label="빼기" onClick={() => set({ plays: doc.plays.filter((_, j) => j !== i) })}>−</button>
+              </div>
+            )) : plays.map((a, i) => (
+              <div key={i} className="if-prow">
+                {a.maker && <span className="if-pmaker">@{a.maker}</span>}
+                <span className="if-pchar">{a.char}</span>
+              </div>
+            ))}
+            {editing && <button type="button" className="if-ng-add" onClick={() => set({ plays: [...doc.plays, { maker: '', char: '' }] })}>＋ 추가</button>}
+          </div>
         </section>
       )}
 
@@ -171,7 +195,7 @@ function InfoCard({ doc, editing, set }: { doc: InfoDoc; editing: boolean; set: 
 
       {showPairs && (
         <section className="if-sec">
-          <div className="if-sh"><b>PAIR</b><small>페어 소개</small></div>
+          <div className="if-sh"><b>PAIR</b></div>
           <div className="if-pairs">
             {doc.pairs.map((p, i) => (editing || p.img || p.name.trim()) && (
               <div key={i} className="if-pair">
@@ -189,7 +213,7 @@ function InfoCard({ doc, editing, set }: { doc: InfoDoc; editing: boolean; set: 
 
       {(editing || etc.length > 0) && (
         <section className="if-sec">
-          <div className="if-sh"><b>ETC.</b><small>다른 계정</small></div>
+          <div className="if-sh"><b>ETC.</b></div>
           <div className="if-etc">
             {editing ? doc.etc.map((a, i) => (
               <div key={i} className="if-acct edit">
@@ -229,6 +253,7 @@ export default function InfoPage() {
     save(normInfo({
       ...draft,
       ng: draft.ng.map(s => s.trim()).filter(Boolean),
+      plays: draft.plays.map(a => ({ maker: a.maker.trim().replace(/^@+/, ''), char: a.char.trim() })).filter(a => a.maker || a.char),
       etc: draft.etc.map(a => ({ handle: handleOf(a.handle), desc: a.desc.trim() })).filter(a => a.handle),
     }));
     setEditing(false);
@@ -237,7 +262,7 @@ export default function InfoPage() {
 
   const empty = !doc.nick.trim() && !doc.uid.trim() && !doc.notice.trim() && !doc.platforms.length
     && !doc.ng.some(s => s.trim()) && !doc.pairs.some(p => p.img || p.name.trim())
-    && !doc.etc.some(a => handleOf(a.handle));
+    && !doc.etc.some(a => handleOf(a.handle)) && !doc.plays.some(a => a.maker.trim() || a.char.trim());
 
   return (
     <section className="page">
