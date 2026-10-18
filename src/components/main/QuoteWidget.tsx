@@ -9,6 +9,7 @@ import { Modal } from '@/components/ui/Modal';
 import { KInput, KTextarea, KSelect } from '@/components/ui/Kit';
 import { DragList } from '@/components/ui/DragList';
 import { putBlob, useBlobUrl } from '@/lib/blobStore';
+import { QuoteScene, QUOTE_SCENES } from '@/components/main/QuoteScene';
 import { useToast } from '@/components/ui/Toast';
 
 /** 대사 — charId로 캐릭터를 가리킨다. who/img는 캐릭터 고르기 이전에 쓴 대사의 이름·사진 (그대로 보여 준다) */
@@ -57,32 +58,11 @@ export const QUOTE_THEMES: { id: string; label: string }[] = [
   { id: 'letter', label: '편지지' },
   { id: 'memo', label: '메모지' },
 ];
-/** 꾸밈 장식 (사용자 요청) — 켜 두면 화면에서 대사가 **두 줄 이하일 때만** 아래에 붙어 빈 곳을 채운다.
- *  기본은 꺼짐. 무늬는 한 줄로 쭉 이어지는 이모지 줄 중에서 고르거나 직접 입력 */
-export const QUOTE_DECO: { id: string; label: string; pattern?: string }[] = [
-  { id: 'off', label: '없음' },
-  { id: 'sparkle', label: '˖᯽ ݁˖', pattern: '˖᯽ ݁˖' },
-  { id: 'star', label: '⋆｡°✩', pattern: '⋆｡°✩' },
-  { id: 'twinkle', label: '✧˖°', pattern: '✧˖°' },
-  { id: 'heart', label: '·˚ ༘ ♡', pattern: '·˚ ༘ ♡' },
-  { id: 'dot', label: '⊹ ࣪ ˖', pattern: '⊹ ࣪ ˖' },
-  { id: 'flower', label: '❀ ⋆', pattern: '❀ ⋆' },
-  { id: 'moon', label: '☾ ⋆ ✦', pattern: '☾ ⋆ ✦' },
-  { id: 'quote', label: '“ 따옴표 · 날짜' },
-  { id: 'custom', label: '직접 입력' },
-];
+/** 꾸밈 풍경 (사용자 요청) — 켜 두면 화면에서 대사가 **두 줄 이하일 때만**, 위젯 아래 빈 곳을 풍경 그림으로 채운다. 기본 꺼짐 */
 const decoOf = (conf: WidgetConf) => {
   const d = conf.settings.decoStyle as string | undefined;
-  return QUOTE_DECO.some(x => x.id === d) ? d! : 'off';
+  return QUOTE_SCENES.some(x => x.id === d) ? d! : 'off';
 };
-/** 고른 무늬 글자 — 직접 입력이면 입력한 글자 */
-const decoPattern = (conf: WidgetConf, id: string) =>
-  id === 'custom' ? String(conf.settings.decoText ?? '').trim() : QUOTE_DECO.find(x => x.id === id)?.pattern ?? '';
-
-/** 무늬를 한 줄 가득 이어 붙인 줄 — 넘치는 건 잘린다 */
-function DecoLine({ pattern, cls }: { pattern: string; cls: string }) {
-  return <div className={`qt-deco-line ${cls}`} aria-hidden>{Array.from({ length: 40 }, () => pattern).join('  ')}</div>;
-}
 
 const themeOf = (conf: WidgetConf) => {
   const t = conf.settings.theme as string | undefined;
@@ -209,11 +189,8 @@ export function QuoteWidget({ conf }: { conf: WidgetConf }) {
     return () => ro.disconnect();
   }, [cur?.id, cur?.text, conf.settings.theme]);
   const deco = decoOf(conf);
-  const pattern = decoPattern(conf, deco);
   // 켜 뒀을 때, 화면에서 두 줄 이하인 짧은 대사에만 (세 줄 이상이면 꾸밈 없이)
-  const showDeco = !!cur && deco !== 'off' && lineCount > 0 && lineCount <= 2 && (deco === 'quote' || !!pattern);
-  const [today, setToday] = useState('');
-  useEffect(() => { const d = new Date(); setToday(`${d.getMonth() + 1}.${String(d.getDate()).padStart(2, '0')}`); }, []);
+  const showDeco = !!cur && deco !== 'off' && lineCount > 0 && lineCount <= 2;
 
   return (
     <div className={`panel widget qt-widget qt-t-${themeOf(conf)}`}>
@@ -222,8 +199,7 @@ export function QuoteWidget({ conf }: { conf: WidgetConf }) {
         // 대사는 위젯 위아래 한가운데에 — 짧은 대사도 아래가 텅 비어 보이지 않게 (사용자 요청)
         <div className={`qt-stage ${showDeco ? 'deco' : ''}`} ref={stageRef}>
           <QuoteBody theme={themeOf(conf)} text={cur.text} who={who} img={img} />
-          {showDeco && deco === 'quote' && <div className="qt-deco-bottom" aria-hidden>— TODAY&apos;S LINE{today && ` · ${today}`} —</div>}
-          {showDeco && deco !== 'quote' && <DecoLine pattern={pattern} cls="bottom" />}
+          {showDeco && <QuoteScene kind={deco} />}
         </div>
       ) : (
         <p className="hint">{isAdmin ? '「설정 ›」에서 대사를 입력해 주세요' : '아직 대사가 없습니다'}</p>
@@ -289,17 +265,13 @@ export function QuoteEditor({ conf }: { conf: WidgetConf }) {
             onClick={() => set({ theme: t.id })}>{t.label}</button>
         ))}
       </div>
-      <span className="cp-lb" style={{ display: 'block', marginTop: 14 }}>꾸밈 장식 — 대사가 두 줄 이하일 때 아래에 한 줄</span>
+      <span className="cp-lb" style={{ display: 'block', marginTop: 14 }}>꾸밈 풍경 — 대사가 두 줄 이하라 아래가 빌 때 그 자리를 채워요</span>
       <div className="qt-themes">
-        {QUOTE_DECO.map(t => (
+        {QUOTE_SCENES.map(t => (
           <button key={t.id} type="button" className={`qt-theme-chip ${decoOf(conf) === t.id ? 'on' : ''}`}
             onClick={() => set({ decoStyle: t.id })}>{t.label}</button>
         ))}
       </div>
-      {decoOf(conf) === 'custom' && (
-        <KInput value={String(conf.settings.decoText ?? '')} placeholder="반복할 무늬 — 예: ✿ ⋆ ˚" style={{ width: '100%', marginTop: 6 }}
-          onChange={e => set({ decoText: e.target.value })} />
-      )}
       <span className="cp-lb" style={{ display: 'block', marginTop: 14 }}>캐릭터</span>
       <div className="qt-chars">
         {chars.map(c => (
