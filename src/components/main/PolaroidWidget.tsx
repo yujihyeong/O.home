@@ -129,7 +129,7 @@ export function PolaroidEditor({ conf }: { conf: WidgetConf }) {
         )} />
       <button type="button" className="btn btn-ghost" style={{ marginTop: 10 }}
         onClick={() => { if (!busy) fileRef.current?.click(); }}>{busy ? '올리는 중…' : '＋ 사진 추가'}</button>
-      <input ref={fileRef} type="file" accept="image/*" multiple style={{ display: 'none' }}
+      <input data-crop="1:1" ref={fileRef} type="file" accept="image/*" multiple style={{ display: 'none' }}
         onChange={async e => {
           const files = [...(e.target.files ?? [])]; e.target.value = '';
           if (!files.length) return;

@@ -140,11 +140,11 @@ export default function MyPage() {
                 background: avatarSrc ? undefined : (user.avatarColor ?? 'linear-gradient(135deg,#6b7280,#3c434d)'),
                 border: '1px solid var(--line)',
               }} onClick={() => { setAvColor(user.avatarColor ?? '#6b7280'); setAvOpen(true); }} data-tip="프로필 이미지 변경"
-                {...fileDrop(fl => changeAvatar(fl[0]))}>
+                data-crop="1:1" {...fileDrop(fl => changeAvatar(fl[0]))}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 {avatarSrc && <img src={avatarSrc} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
               </div>
-              <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }}
+              <input data-crop="1:1" ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }}
                 onChange={e => { changeAvatar(e.target.files?.[0]); e.target.value = ''; }} />
               {/* 이 사진이 다른 곳에서 안 보이는 이유 — 있을 때만 (v2.0 사용자 지적) */}
               {avNote && (
@@ -252,7 +252,7 @@ export default function MyPage() {
           </div>
           <div className="upzone" style={{ padding: '18px 14px', textAlign: 'center' }}
             onClick={() => fileRef.current?.click()}
-            {...fileDrop(fl => changeAvatar(fl[0]))}>
+            data-crop="1:1" {...fileDrop(fl => changeAvatar(fl[0]))}>
             <b style={{ display: 'block', marginBottom: 3 }}>이미지를 끌어다 놓거나 클릭</b>
           </div>
           {(user.avatarUrl || user.avatarColor) && (

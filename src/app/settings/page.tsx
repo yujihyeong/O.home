@@ -1402,7 +1402,7 @@ function FaviconControl() {
         {url ? <img src={url} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
           : <span style={{ fontSize: 10, color: 'var(--faint)' }}>기본</span>}
       </span>
-      <input id="siteFavicon" type="file" accept="image/png,image/x-icon,image/svg+xml,image/webp,.ico"
+      <input id="siteFavicon" data-crop="1:1" type="file" accept="image/png,image/x-icon,image/svg+xml,image/webp,.ico"
         style={{ display: 'none' }}
         onChange={async e => {
           const f = e.target.files?.[0];
@@ -1509,7 +1509,7 @@ function CursorRow({ state }: { state: CursorState }) {
         <div><b>{CURSOR_STATE_LABEL[state].label}</b><small>{CURSOR_STATE_LABEL[state].desc}</small></div>
       </div>
       <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-        <input id={inputId} type="file" accept="image/png,image/gif,image/webp,image/x-icon,.cur,.ani" style={{ display: 'none' }}
+        <input id={inputId} data-nocrop type="file" accept="image/png,image/gif,image/webp,image/x-icon,.cur,.ani" style={{ display: 'none' }}
           onChange={async e => {
             const f = e.target.files?.[0];
             e.target.value = '';
