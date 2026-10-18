@@ -34,7 +34,7 @@ const BellIcon = () => (
 /* 모바일 상단바 아이콘 (사용자 요청) — 집(메인으로) · 메뉴(햄버거 ↔ X) */
 const HomeIcon = () => (
   <svg viewBox="0 0 24 24" aria-hidden>
-    <path d="M4 11.2 12 5l8 6.2" /><path d="M6.2 10v8.3h11.6V10" /><path d="M3.4 20.4h17.2" />
+    <path d="M4 11.2 12 5l8 6.2" /><path d="M6.2 10v8.3h11.6V10" />
   </svg>
 );
 const BurgerIcon = ({ open }: { open: boolean }) => (
