@@ -233,7 +233,7 @@ function PasswordModal({ open, locked, onClose, onSet }: {
         <input className="pr-in" type="password" autoComplete="new-password" placeholder="한 번 더" value={b} onChange={e => setB(e.target.value)} />
         {b && a !== b && <p className="hint" style={{ margin: 0, color: 'var(--accent)' }}>두 칸이 서로 달라요</p>}
         <p className="hint" style={{ margin: 0, lineHeight: 1.7 }}>
-          비밀번호를 걸면 글 내용이 이 비밀번호로 <b>암호화</b>돼 저장돼요. 관리자도 비밀번호를 넣어야 열 수 있고,
+          비밀번호를 걸면 글 내용이 이 비밀번호로 <b>암호화</b>돼 저장돼요. 관리자는 이 기기에서 바로 들어가지고, 다른 기기에서는 한 번만 넣으면 돼요.
           <b> 잊어버리면 되찾을 방법이 없어요.</b> 공지는 잠금 화면에도 보여요.
         </p>
       </div>
@@ -247,7 +247,7 @@ function PromptInner() {
   const router = useRouter();
   const params = useRouteSearch();
   const pid = params.get('p');
-  const board = usePromptBoard();
+  const board = usePromptBoard(isAdmin);
   const { posts, loaded } = board;
   const save = board.savePosts;
   const [pwOpen, setPwOpen] = useState(false);
@@ -264,7 +264,7 @@ function PromptInner() {
 
   const startNew = () => {
     const p = newPromptPost();
-    save([p, ...posts]);
+    save([...posts, p]);   // 새 글은 맨 뒤 — 순서는 목록에서 ◀ ▶로
     router.push(`/prompt?p=${p.id}&edit=1`);
   };
   const isBlank = (p: PromptPost) => !p.title.trim() && p.tabs.every(t => !t.img && !t.prompt.trim() && (!t.name.trim() || t.name === '기본'));
@@ -351,7 +351,21 @@ function PromptInner() {
             </p>
           </div>
         )
-        : <div className="pr-grid">{posts.map(p => <PostCard key={p.id} post={p} onOpen={() => open(p.id)} />)}</div>}
+        : (
+          <div className="pr-grid">
+            {posts.map((p, i) => (
+              <div key={p.id} className="pr-cell">
+                <PostCard post={p} onOpen={() => open(p.id)} />
+                {isAdmin && (
+                  <div className="pr-move">
+                    <button type="button" disabled={i === 0} aria-label="앞으로" onClick={() => { const n = [...posts]; [n[i - 1], n[i]] = [n[i], n[i - 1]]; save(n); }}>◀</button>
+                    <button type="button" disabled={i === posts.length - 1} aria-label="뒤로" onClick={() => { const n = [...posts]; [n[i + 1], n[i]] = [n[i], n[i + 1]]; save(n); }}>▶</button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
     </section>
   );
 }

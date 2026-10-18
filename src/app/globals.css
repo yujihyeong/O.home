@@ -2899,3 +2899,11 @@ textarea.pr-ptext{resize:vertical;min-height:320px;padding-right:18px}
 .pr-lock-bad{margin:10px 0 0;font-size:calc(12.5px*var(--fs,1));color:var(--accent)}
 @keyframes prShake{0%,100%{transform:none}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
 @media (max-width:620px){.pr-notice{flex-direction:column;gap:6px;padding:12px 14px}.pr-notice-ed{position:absolute;top:8px;right:8px}}
+/* 프롬프트 목록 — 관리자 순서 바꾸기 ◀ ▶ */
+.pr-cell{position:relative;display:flex;flex-direction:column}
+.pr-cell>.pr-card{flex:1}
+.pr-move{position:absolute;top:14px;right:14px;display:flex;gap:4px;opacity:0;transition:opacity .15s}
+.pr-cell:hover .pr-move,.pr-move:focus-within{opacity:1}
+.pr-move button{width:26px;height:26px;border-radius:50%;border:0;background:rgba(0,0,0,.5);color:#fff;font-size:10px;cursor:var(--cur-pointer,pointer)}
+.pr-move button:disabled{opacity:.3;cursor:default}
+@media (hover:none){.pr-move{opacity:1}}
