@@ -7,6 +7,7 @@ import { CommFormField } from '@/lib/commStore';
 import { KTextarea, KCheck } from '@/components/ui/Kit';
 import { fileDrop } from '@/lib/dnd';
 import { useToast } from '@/components/ui/Toast';
+import { stripImageMeta } from '@/lib/imageMeta';
 
 const IMG_LIMIT = 10 * 1024 * 1024;   // 10MB
 
@@ -34,11 +35,12 @@ export function CommFormFill({ fields, commName }: { fields: CommFormField[]; co
     for (const file of picked) {
       if (file.size > IMG_LIMIT) { toast(`이미지는 개당 10MB까지 첨부할 수 있습니다 — ${file.name}`); return; }
     }
-    Promise.all(picked.map(file => new Promise<ImgAns>(resolve => {
+    // 첨부 이미지도 메타데이터(위치·기기 정보 등)를 지운 뒤 담는다 (사용자 요청)
+    Promise.all(picked.map(file => stripImageMeta(file).then(clean => new Promise<ImgAns>(resolve => {
       const r = new FileReader();
       r.onload = () => resolve({ name: file.name, dataUrl: String(r.result) });
-      r.readAsDataURL(file);
-    }))).then(imgs => {
+      r.readAsDataURL(clean);
+    })))).then(imgs => {
       const cur = (answers[f.id] as ImgAns[] | undefined) ?? [];
       setAns(f.id, f.multiple ? [...cur, ...imgs] : imgs.slice(0, 1));
     });

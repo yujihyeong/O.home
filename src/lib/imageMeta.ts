@@ -5,6 +5,7 @@
 //   · JPEG: EXIF·XMP(APP1), IPTC(APP13), 주석(COM) 제거 — 회전 정보만 최소 EXIF로 다시 넣는다(안 그러면 사진이 눕는다)
 //   · PNG : tEXt·zTXt·iTXt(생성 정보·프롬프트), eXIf, tIME 제거
 //   · WebP: EXIF·XMP 청크 제거 + VP8X 표시 정리
+//   · GIF : 주석(Comment) 확장·XMP 등 응용 확장 제거 — 반복 재생 정보(NETSCAPE2.0)는 남긴다(안 그러면 움짤이 멈춘다)
 // 색 정보(ICC)는 남긴다 — 개인정보가 아니고, 지우면 색이 달라 보인다.
 // 다른 형식이거나 읽다가 이상하면 원본을 그대로 돌려준다(올리기를 막지 않는다).
 
@@ -118,13 +119,49 @@ function stripWebp(b: Uint8Array): Uint8Array | null {
   return concat([head, body]);
 }
 
+function stripGif(b: Uint8Array): Uint8Array | null {
+  const sig = String.fromCharCode(...b.slice(0, 6));
+  if (sig !== 'GIF87a' && sig !== 'GIF89a') return null;
+  /** 0으로 끝나는 하위 블록들의 끝 위치 */
+  const skipSub = (i: number) => {
+    while (i < b.length) { const n = b[i]; i += 1 + n; if (n === 0) return i; }
+    return -1;
+  };
+  let i = 13;
+  if (b[10] & 0x80) i += 3 * (1 << ((b[10] & 0x07) + 1));      // 전체 색표
+  const keep: Uint8Array[] = [b.slice(0, i)];
+  while (i < b.length) {
+    const t = b[i];
+    if (t === 0x3b) { keep.push(b.slice(i, i + 1)); return concat(keep); }   // 끝
+    if (t === 0x2c) {                                                      // 그림 한 장
+      let j = i + 10;
+      if (b[i + 9] & 0x80) j += 3 * (1 << ((b[i + 9] & 0x07) + 1));       // 그 장의 색표
+      j = skipSub(j + 1);                                                  // LZW 크기 1바이트 + 데이터
+      if (j < 0) return null;
+      keep.push(b.slice(i, j)); i = j; continue;
+    }
+    if (t === 0x21) {                                                      // 확장
+      const label = b[i + 1];
+      const j = skipSub(i + 2);
+      if (j < 0) return null;
+      const app = label === 0xff ? String.fromCharCode(...b.slice(i + 3, i + 14)) : '';
+      // 버린다: 주석(0xFE) · 반복 정보가 아닌 응용 확장(XMP 등). 그림 제어(0xF9)·글자(0x01)·반복 정보는 남긴다
+      const drop = label === 0xfe || (label === 0xff && app !== 'NETSCAPE2.0' && app !== 'ANIMEXTS1.0');
+      if (!drop) keep.push(b.slice(i, j));
+      i = j; continue;
+    }
+    return null;   // 모르는 블록 — 건드리지 않는다
+  }
+  return null;
+}
+
 /** 메타데이터를 지운 이미지 — 이미지가 아니거나 모르는 형식이면 그대로 */
 export async function stripImageMeta<T extends Blob>(blob: T): Promise<T | Blob> {
-  if (!/^image\/(jpeg|jpg|png|webp)$/i.test(blob.type)) return blob;
+  if (!/^image\/(jpeg|jpg|png|webp|gif)$/i.test(blob.type)) return blob;
   try {
     const b = new Uint8Array(await blob.arrayBuffer());
     const t = blob.type.toLowerCase();
-    const out = t.includes('png') ? stripPng(b) : t.includes('webp') ? stripWebp(b) : stripJpeg(b);
+    const out = t.includes('png') ? stripPng(b) : t.includes('webp') ? stripWebp(b) : t.includes('gif') ? stripGif(b) : stripJpeg(b);
     if (!out || out.length === b.length) return blob;
     const clean = new Blob([out as BlobPart], { type: blob.type });
     // 파일이면 이름을 지킨다 (원본 파일명 표시 등)
