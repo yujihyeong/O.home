@@ -2376,7 +2376,7 @@ body.edit-on .page-main-wrap .wgt .rx{display:block}
 /* 새 글 위젯 — 제목만, 줄마다 가는 선으로 구분 (배경을 꺼도 구분되게) */
 .rp-widget{min-width:230px}
 .rp-list{list-style:none;margin:0;padding:0}
-.rp-list li{padding:8px 2px;font-size:calc(12.5px*var(--fs,1));white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:var(--cur-pointer,pointer);
+.rp-list li{padding:8px 2px;font-size:calc(12.5px*var(--fs,1));cursor:var(--cur-pointer,pointer);
   border-bottom:1px solid color-mix(in srgb,currentColor 16%,transparent);transition:color .15s}
 .rp-list li:last-child{border-bottom:none}
 .rp-list li:hover{color:var(--accent)}
@@ -2485,3 +2485,8 @@ html[data-bgtone="light"] .wgt-nobg{
 .mb-guest-av{width:42px;height:42px;border-radius:50%;flex-shrink:0;object-fit:cover;display:block;
   background:color-mix(in srgb,var(--accent) 14%,#fff);box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--accent) 30%,transparent)}
 html[data-scene="night"] .mb-guest-av{background:#e6def2;box-shadow:inset 0 0 0 1.5px rgba(150,120,190,.35)}
+/* 새 글 위젯 — 제목 위 작은 게시판 이름 (사용자 요청 · 제목보다 한 톤 차분하게) */
+.rp-list .rp-board{display:block;font-size:calc(10px*var(--fs,1));letter-spacing:.04em;margin-bottom:2px;
+  color:color-mix(in srgb,currentColor 58%,transparent);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rp-list .rp-title{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rp-list li:hover .rp-board{color:color-mix(in srgb,var(--accent) 70%,transparent)}
