@@ -2550,3 +2550,7 @@ html[data-scene="night"] .mb-guest-av{background:#e6def2;box-shadow:inset 0 0 0 
 /* 새 글 위젯 — 제목을 숨기면 위쪽 여백도 없앤다 (사용자 요청) */
 .wgt-notitle .rp-widget{padding-top:8px}
 .wgt-notitle .rp-list li:first-child{padding-top:0}
+/* 오늘의 대사 — 한 줄이든 두 줄이든 말풍선 크기·사진·이름 위치가 같게 (사용자 요청)
+   말풍선은 최소 두 줄 높이로 두고 글은 가운데에, 사진은 그 말풍선의 가운데 높이에 맞춘다 */
+.qt-bub{min-height:calc(3.2em + 20px);display:flex;align-items:center}
+.qt-av{margin-top:calc((3.2em + 20px - 48px) / 2);font-size:calc(13px*var(--fs,1))}
