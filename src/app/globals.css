@@ -2690,3 +2690,7 @@ html[data-scene="night"] .mb-guest-av{background:#e6def2;box-shadow:inset 0 0 0 
 .qt-stage{flex:1;min-height:0;display:flex;flex-direction:column;justify-content:center}
 .qt-deco-top{display:block;font-style:normal;font-family:Georgia,var(--serif),serif;font-size:44px;line-height:.6;height:22px;color:var(--accent);opacity:.55;margin-bottom:8px}
 .qt-deco-bottom{text-align:center;font-size:calc(10px*var(--fs,1));letter-spacing:.24em;opacity:.5;margin-top:12px;white-space:nowrap}
+/* 꾸밈 무늬 줄 — 한 줄 가득 반복, 넘치면 잘림 (사용자 요청) */
+.qt-deco-line{overflow:hidden;white-space:nowrap;display:flex;justify-content:center;font-size:calc(12px*var(--fs,1));letter-spacing:.08em;line-height:1.4;color:var(--sub);opacity:.75;text-overflow:clip}
+.qt-deco-line.top{margin-bottom:12px}
+.qt-deco-line.bottom{margin-top:12px}
