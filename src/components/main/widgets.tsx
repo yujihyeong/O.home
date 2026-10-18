@@ -318,9 +318,11 @@ export function RecentPostsWidget({ conf }: { conf: WidgetConf }) {
   const { editOn, updateWidget } = useMainStore();
   const [posts] = useLocalList<Post>('ohome.board.v1', BOARD_SEED);
   const [menuSet] = useMenuSettings();
+  const { boards } = useBoards();
   const [open, setOpen] = useState(false);
   useEditEvent(conf.id, () => setOpen(true));
   const count = conf.settings.count === 5 ? 5 : 3;
+  const boardName = (p: Post) => boards.find(b => b.id === (p.boardId ?? MAIN_BOARD_ID))?.name ?? '';
   const viewer = { loggedIn: !!user, isAdmin, id: user?.id };
   const list = posts
     .filter(p => !p.secret)
@@ -335,7 +337,11 @@ export function RecentPostsWidget({ conf }: { conf: WidgetConf }) {
       <h4>NEW POSTS {isAdmin && <span className="more" onClick={e => { e.stopPropagation(); if (!editOn) setOpen(true); }}>설정 ›</span>}</h4>
       <ul className="rp-list">
         {list.map(p => (
-          <li key={p.id} onClick={() => { if (!editOn) router.push(`/board/${p.id}`); }}>{p.title}</li>
+          <li key={p.id} onClick={() => { if (!editOn) router.push(`/board/${p.id}`); }}>
+            {/* 제목 위에 작게 게시판 이름 (사용자 요청) */}
+            {boardName(p) && <small className="rp-board">{boardName(p)}</small>}
+            <span className="rp-title">{p.title}</span>
+          </li>
         ))}
       </ul>
       {list.length === 0 && <p className="hint">아직 게시글이 없습니다</p>}
