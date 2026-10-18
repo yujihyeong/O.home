@@ -32,6 +32,15 @@ const BellIcon = () => (
 );
 
 /* 모바일 상단바 아이콘 (사용자 요청) — 집(메인으로) · 메뉴(햄버거 ↔ X) */
+/** 모바일 메뉴 오른쪽 끝 영어 꼬리표 (사용자 요청) — 메뉴 이름으로 찾는다 (띄어쓰기·대소문자 무시) */
+const SIDE_TAGS: Record<string, string> = {
+  '스토리': 'LOG', '이야기': 'LOG',
+  '어나더': 'OOC', '외전': 'OOC',
+  '메모리': 'CM', '사진첩': 'CM',
+  'to.seio': 'GUEST', '열망에게': 'GUEST',
+};
+const sideTag = (label: string) => SIDE_TAGS[label.replace(/\s+/g, '').toLowerCase()];
+
 const HomeIcon = () => (
   <svg viewBox="0 0 24 24" aria-hidden>
     <path d="M4 11.2 12 5l8 6.2" /><path d="M6.2 10v8.3h11.6V10" />
@@ -348,7 +357,7 @@ export function TopBar() {
           <div className="mm-head"><span>MENU</span><i />{siteLoaded && <small>{site.title}</small>}</div>
           {(() => {
             let n = 0;   // 차례로 나타나는 순서
-            const row = (href: string, label: string, side?: string) => {
+            const row = (href: string, label: string, side = sideTag(label)) => {
               const on = href === curHref || (href === '/' && pathname === '/');
               return (
                 <button key={href} type="button" className={`mm-row ${on ? 'on' : ''}`} style={{ '--i': n++ } as React.CSSProperties}
@@ -365,7 +374,9 @@ export function TopBar() {
                 {menu.map(item => item.children
                   ? (
                     <div className="mm-grp" key={item.label}>
-                      <div className="mm-cap" style={{ '--i': n++ } as React.CSSProperties}>{item.label}</div>
+                      <div className="mm-cap" style={{ '--i': n++ } as React.CSSProperties}>
+                        <span>{item.label}</span>{sideTag(item.label) && <span className="mm-r">{sideTag(item.label)}</span>}
+                      </div>
                       {item.children.map(c => row(c.href, c.label))}
                     </div>
                   )
