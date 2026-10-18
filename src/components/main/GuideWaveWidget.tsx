@@ -15,6 +15,8 @@ interface WavePerson { name: string; role: Role; img?: string }
 
 const DEFAULT_A: WavePerson = { name: '도브', role: 'sentinel', img: '/quote-chars/2.webp' };
 const DEFAULT_B: WavePerson = { name: '시오', role: 'guide', img: '/quote-chars/3.webp' };
+/** 센티넬(도브) 파장은 상태와 상관없이 늘 빨간색 (사용자 요청) */
+const SENTINEL_RED = '#ff6f6f';
 const ROLE_LABEL: Record<Role, string> = { sentinel: '센티넬', guide: '가이드' };
 
 const personOf = (conf: WidgetConf, k: 'a' | 'b') =>
@@ -95,21 +97,16 @@ function Waves({ sync, id }: { sync: number; id: string }) {
     return () => cancelAnimationFrame(raf);
   }, [s]);
 
-  const gid = `gw-g-${id}`, fid = `gw-f-${id}`;
+  const fid = `gw-f-${id}`;
   return (
     <svg className="gw-svg" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" aria-hidden>
       <defs>
-        <linearGradient id={gid} x1="0" x2="1">
-          <stop offset="0" stopColor={st.start} />
-          {sync >= 80 && sync < 95 && <stop offset=".55" stopColor="#e8b6c8" />}
-          <stop offset="1" stopColor={st.end} />
-        </linearGradient>
         <filter id={fid} x="-5%" y="-30%" width="110%" height="160%"><feGaussianBlur stdDeviation="3" /></filter>
       </defs>
       {[22, 44, 66, 88].map(y => <path key={y} d={`M0,${y}H${W}`} stroke="rgba(127,214,224,.07)" vectorEffect="non-scaling-stroke" />)}
       <path ref={glowRef} fill="none" stroke="#7fd6e0" strokeWidth={sync >= 95 ? 8 : 6} opacity={sync >= 95 ? 0.45 : 0.22} filter={`url(#${fid})`} />
       <path ref={gRef} fill="none" stroke="#7fd6e0" strokeWidth="2" opacity={sync < 40 ? 0.45 : 1} strokeLinecap="round" vectorEffect="non-scaling-stroke" />
-      <path ref={sRef} fill="none" stroke={`url(#${gid})`} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+      <path ref={sRef} fill="none" stroke={SENTINEL_RED} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
     </svg>
   );
 }
@@ -156,7 +153,7 @@ export function GuideWaveWidget({ conf }: { conf: WidgetConf }) {
       <div className="gw-foot">
         <span className="gw-avs"><Face img={sen.img} /><Face img={gui.img} /></span>
         <span className="gw-lg">
-          <span><i style={{ background: st.start }} />{sen.name} ({ROLE_LABEL[sen.role]})</span>
+          <span><i style={{ background: SENTINEL_RED }} />{sen.name} ({ROLE_LABEL[sen.role]})</span>
           <span><i style={{ background: '#7fd6e0' }} />{gui.name} ({ROLE_LABEL[gui.role]})</span>
         </span>
         <span className="gw-num">
