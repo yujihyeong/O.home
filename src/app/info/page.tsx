@@ -8,7 +8,7 @@
  */
 import React, { useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/lib/auth';
-import { useInfo, InfoDoc, normInfo, handleOf, profileUrl } from '@/lib/infoStore';
+import { useInfo, InfoDoc, normInfo, handleOf, profileUrl, INFO_PLATFORMS } from '@/lib/infoStore';
 import { putBlob, useBlobUrl } from '@/lib/blobStore';
 import { useToast } from '@/components/ui/Toast';
 
@@ -122,6 +122,26 @@ function InfoCard({ doc, editing, set }: { doc: InfoDoc; editing: boolean; set: 
         : doc.uid.trim() && <div className="if-id"><span>@ {doc.uid}</span></div>}
       <div className="if-orn" aria-hidden><span className="if-day">❀</span><span className="if-night">✦</span></div>
 
+      {(editing || doc.platforms.length > 0) && (
+        <section className="if-sec">
+          <div className="if-sh"><b>PLATFORM</b><small>주플랫폼</small></div>
+          <div className="if-plat">
+            {editing
+              ? INFO_PLATFORMS.map(p => {
+                const on = doc.platforms.includes(p);
+                return (
+                  <button key={p} type="button" className={on ? 'on' : ''} aria-pressed={on}
+                    onClick={() => set({ platforms: on ? doc.platforms.filter(x => x !== p) : INFO_PLATFORMS.filter(x => x === p || doc.platforms.includes(x)) })}>
+                    {on && <i aria-hidden>✓</i>}{p}
+                  </button>
+                );
+              })
+              : doc.platforms.map(p => <span key={p}>{p}</span>)}
+          </div>
+          {editing && <p className="if-hint">쓰는 플랫폼을 눌러 골라 주세요 — 고르지 않은 것은 보이지 않아요</p>}
+        </section>
+      )}
+
       {(editing || doc.notice.trim()) && (
         <section className="if-sec">
           <div className="if-sh"><b>NOTICE</b><small>공지</small></div>
@@ -215,7 +235,7 @@ export default function InfoPage() {
     toast('저장되었습니다');
   };
 
-  const empty = !doc.nick.trim() && !doc.uid.trim() && !doc.notice.trim()
+  const empty = !doc.nick.trim() && !doc.uid.trim() && !doc.notice.trim() && !doc.platforms.length
     && !doc.ng.some(s => s.trim()) && !doc.pairs.some(p => p.img || p.name.trim())
     && !doc.etc.some(a => handleOf(a.handle));
 
