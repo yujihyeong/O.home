@@ -6,15 +6,17 @@
  *  · 글:   위쪽 인덱스(복장 탭)를 누르면 아래 「이미지 | 프롬프트」가 그 복장으로 바뀐다
  *          프롬프트는 📋 버튼 하나로 복사
  *  · 관리자는 ✎ EDIT으로 같은 화면에서 탭을 늘리고(＋) 이름·이미지·프롬프트를 채운다
+ *  · 목록 위 공지 (사용자 요청) — 관리자는 그 자리에서 고친다
+ *  · 게시판 비밀번호 (사용자 요청) — 걸면 글이 암호화돼 저장되고, 비밀번호를 넣어야 열린다 (promptStore 참고)
  */
 import React, { Suspense, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
 import { useRouteSearch } from '@/lib/routeParams';
-import { usePrompts, PromptPost, PromptTab, newTab, newPromptPost } from '@/lib/promptStore';
+import { usePromptBoard, PromptPost, PromptTab, newTab, newPromptPost } from '@/lib/promptStore';
 import { putBlob, useBlobUrl } from '@/lib/blobStore';
 import { PageTitle, EditableDesc } from '@/components/ui/PageText';
-import { ConfirmModal } from '@/components/ui/Modal';
+import { ConfirmModal, Modal } from '@/components/ui/Modal';
 import { useToast } from '@/components/ui/Toast';
 
 /** 사진 주소 — 사이트에 든 그림(/…)은 그대로, 올린 사진은 저장소에서 */
@@ -151,13 +153,104 @@ function PostView({ post, editing, onChange }: { post: PromptPost; editing: bool
   );
 }
 
+/** 목록 위 공지 — 관리자는 ✎로 그 자리에서 고친다 */
+function NoticeBox({ text, editable, onSave }: { text: string; editable: boolean; onSave: (s: string) => void }) {
+  const [edit, setEdit] = useState(false);
+  const [v, setV] = useState(text);
+  if (!text.trim() && !editable) return null;
+  return (
+    <div className="pr-notice">
+      <span className="pr-notice-tag">NOTICE</span>
+      {edit
+        ? (
+          <div className="pr-notice-edit">
+            <textarea className="pr-in" rows={3} value={v} onChange={e => setV(e.target.value)} placeholder="공지 — 줄을 바꾸면 그대로 줄바꿈돼요" />
+            <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+              <button type="button" className="btn btn-ghost" onClick={() => setEdit(false)}>CANCEL</button>
+              <button type="button" className="btn btn-dark" onClick={() => { onSave(v); setEdit(false); }}>SAVE</button>
+            </div>
+          </div>
+        )
+        : <div className="pr-notice-t">{text.trim() ? text : <span className="hint">공지가 비어 있어요</span>}</div>}
+      {editable && !edit && <button type="button" className="pr-notice-ed" aria-label="공지 고치기" data-tip="공지 고치기" onClick={() => { setV(text); setEdit(true); }}>✎</button>}
+    </div>
+  );
+}
+
+/** 잠금 화면 — 비밀번호를 넣어야 목록·글이 보인다 */
+function LockScreen({ onUnlock }: { onUnlock: (pw: string) => Promise<boolean> }) {
+  const [pw, setPw] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [bad, setBad] = useState(false);
+  const go = async () => {
+    if (!pw || busy) return;
+    setBusy(true); setBad(false);
+    const ok = await onUnlock(pw);
+    setBusy(false);
+    if (!ok) { setBad(true); setPw(''); }
+  };
+  return (
+    <div className="panel pr-lock">
+      <div className="pr-lock-ic" aria-hidden>🔒</div>
+      <p className="pr-lock-t">비밀번호를 입력해 주세요</p>
+      <form className={`pr-lock-f ${bad ? 'bad' : ''}`} onSubmit={e => { e.preventDefault(); void go(); }}>
+        <input className="pr-in" type="password" value={pw} autoFocus autoComplete="current-password"
+          placeholder="비밀번호" onChange={e => { setPw(e.target.value); setBad(false); }} />
+        <button type="submit" className="btn btn-dark" disabled={!pw || busy}>{busy ? '…' : '열기'}</button>
+      </form>
+      {bad && <p className="pr-lock-bad">비밀번호가 맞지 않아요</p>}
+    </div>
+  );
+}
+
+/** 비밀번호 걸기·바꾸기·풀기 */
+function PasswordModal({ open, locked, onClose, onSet }: {
+  open: boolean; locked: boolean; onClose: () => void; onSet: (pw: string | null) => Promise<void>;
+}) {
+  const toast = useToast();
+  const [a, setA] = useState('');
+  const [b, setB] = useState('');
+  const [busy, setBusy] = useState(false);
+  useEffect(() => { if (open) { setA(''); setB(''); } }, [open]);
+  const run = async (pw: string | null, msg: string) => {
+    setBusy(true);
+    try { await onSet(pw); toast(msg); onClose(); } catch (e) { toast(e instanceof Error ? e.message : String(e)); }
+    setBusy(false);
+  };
+  const ok = a.length >= 4 && a === b;
+  return (
+    <Modal open={open} onClose={onClose} small title={locked ? '게시판 비밀번호 바꾸기' : '게시판 비밀번호 걸기'}
+      actions={(
+        <>
+          {locked && <button className="btn btn-ghost" disabled={busy} onClick={() => run(null, '비밀번호를 풀었어요')}>비밀번호 풀기</button>}
+          <button className="btn btn-dark" disabled={!ok || busy} onClick={() => run(a, locked ? '비밀번호를 바꿨어요' : '비밀번호를 걸었어요')}>
+            {busy ? '…' : locked ? '바꾸기' : '걸기'}
+          </button>
+        </>
+      )}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <input className="pr-in" type="password" autoComplete="new-password" placeholder={locked ? '새 비밀번호 (4자 이상)' : '비밀번호 (4자 이상)'} value={a} onChange={e => setA(e.target.value)} />
+        <input className="pr-in" type="password" autoComplete="new-password" placeholder="한 번 더" value={b} onChange={e => setB(e.target.value)} />
+        {b && a !== b && <p className="hint" style={{ margin: 0, color: 'var(--accent)' }}>두 칸이 서로 달라요</p>}
+        <p className="hint" style={{ margin: 0, lineHeight: 1.7 }}>
+          비밀번호를 걸면 글 내용이 이 비밀번호로 <b>암호화</b>돼 저장돼요. 관리자도 비밀번호를 넣어야 열 수 있고,
+          <b> 잊어버리면 되찾을 방법이 없어요.</b> 공지는 잠금 화면에도 보여요.
+        </p>
+      </div>
+    </Modal>
+  );
+}
+
 function PromptInner() {
   const { isAdmin } = useAuth();
   const toast = useToast();
   const router = useRouter();
   const params = useRouteSearch();
   const pid = params.get('p');
-  const [posts, save, loaded] = usePrompts();
+  const board = usePromptBoard();
+  const { posts, loaded } = board;
+  const save = board.savePosts;
+  const [pwOpen, setPwOpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<PromptPost | null>(null);
   const [askDel, setAskDel] = useState(false);
@@ -187,6 +280,20 @@ function PromptInner() {
     if (post && isBlank(post)) { save(posts.filter(p => p.id !== post.id)); open(null); return; }
     if (wantEdit) router.replace(`/prompt?p=${pid}`);
   };
+
+  /* ---------- 잠금 ---------- */
+  if (loaded && board.sealed) {
+    return (
+      <section className="page pr-page">
+        <div className="page-head">
+          <PageTitle>PROMPT</PageTitle>
+          <EditableDesc k="prompt-desc" def="캐릭터별 복장 프롬프트" />
+        </div>
+        <NoticeBox text={board.notice} editable={isAdmin} onSave={board.setNotice} />
+        <LockScreen onUnlock={board.unlock} />
+      </section>
+    );
+  }
 
   /* ---------- 글 하나 ---------- */
   if (pid) {
@@ -227,8 +334,15 @@ function PromptInner() {
       <div className="page-head">
         <PageTitle>PROMPT</PageTitle>
         <EditableDesc k="prompt-desc" def="캐릭터별 복장 프롬프트" />
-        {isAdmin && <div className="head-actions"><button className="btn btn-dark" onClick={startNew}>＋ 새 글</button></div>}
+        {isAdmin && (
+          <div className="head-actions">
+            <button className="btn btn-ghost" onClick={() => setPwOpen(true)} aria-label="게시판 비밀번호">{board.locked ? '🔒 비밀번호' : '🔓 비밀번호'}</button>
+            <button className="btn btn-dark" onClick={startNew}>＋ 새 글</button>
+          </div>
+        )}
       </div>
+      {loaded && <NoticeBox text={board.notice} editable={isAdmin} onSave={board.setNotice} />}
+      <PasswordModal open={pwOpen} locked={board.locked} onClose={() => setPwOpen(false)} onSet={board.setPassword} />
       {loaded && !posts.length
         ? (
           <div className="panel" style={{ padding: 26 }}>
