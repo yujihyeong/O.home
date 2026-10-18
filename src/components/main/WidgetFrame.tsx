@@ -24,6 +24,86 @@ class WidgetGuard extends React.Component<{ name: string; children: React.ReactN
   }
 }
 
+/**
+ * 편집모드 끌기 공통 (사용자 제보: 끌 때 버벅이고, 배경이 위아래로 움직임)
+ *  · 움직임은 화면 한 프레임에 한 번만 반영
+ *  · 끄는 동안 캔버스 높이는 줄어들지 않게 붙잡아 둔다 — 맨 아래 위젯을 올리면 캔버스가 줄면서
+ *    스크롤이 같이 딸려 올라가 위젯은 제자리, 페이지만 움직이던 문제
+ *  · 화면 위·아래 가장자리로 끌면 자동으로 스크롤, 스크롤된 만큼 위젯도 같이 따라온다
+ *  · 손을 떼거나(터치 취소 포함) 하면 정리
+ */
+function dragSession(
+  e: React.PointerEvent, el: HTMLElement, bodyCls: string,
+  move: (dx: number, dy: number, ev: PointerEvent) => void,
+  end: () => void,
+  opts?: { noScroll?: boolean },
+) {
+  const scroller = document.getElementById('appMain');
+  const grid = el.closest('.main-grid') as HTMLElement | null;
+  const sx = e.clientX, sy = e.clientY;
+  const sl = scroller?.scrollLeft ?? 0, st = scroller?.scrollTop ?? 0;
+  const pid = e.pointerId;
+  try { el.setPointerCapture(pid); } catch { /* 무시 */ }
+  document.body.classList.add(bodyCls);   // 드래그 중 전역 커서 고정 — 커서 튐 방지 (v1.9)
+  const holdH = grid ? grid.offsetHeight : 0;
+  if (grid) grid.style.minHeight = `${holdH}px`;
+  let last: PointerEvent | null = null, raf = 0, done = false;
+  const apply = () => {
+    if (!last) return;
+    const dx = last.clientX - sx + ((scroller?.scrollLeft ?? 0) - sl);
+    const dy = last.clientY - sy + ((scroller?.scrollTop ?? 0) - st);
+    move(dx, dy, last);
+    // 아래로 끌어 캔버스 밖으로 나가면 캔버스를 늘려 계속 내려갈 수 있게
+    if (grid) {
+      const need = el.offsetTop + el.offsetHeight + 40;
+      if (need > grid.offsetHeight) grid.style.minHeight = `${need}px`;
+    }
+  };
+  const frame = () => {
+    raf = 0;
+    if (done) return;
+    apply();
+    // 가장자리 자동 스크롤
+    if (!opts?.noScroll && scroller && last) {
+      const r = scroller.getBoundingClientRect();
+      const edge = 56;
+      let v = 0;
+      if (last.clientY < r.top + edge) v = -Math.ceil((r.top + edge - last.clientY) / 4);
+      else if (last.clientY > r.bottom - edge) v = Math.ceil((last.clientY - (r.bottom - edge)) / 4);
+      if (v) {
+        const before = scroller.scrollTop;
+        scroller.scrollTop += Math.max(-24, Math.min(24, v));
+        if (scroller.scrollTop !== before) raf = requestAnimationFrame(frame);
+      }
+    }
+  };
+  const mv = (ev: PointerEvent) => {
+    if (ev.pointerId !== pid) return;
+    last = ev;
+    if (!raf) raf = requestAnimationFrame(frame);
+  };
+  const onScroll = () => { if (last && !raf) raf = requestAnimationFrame(frame); };
+  const up = (ev: PointerEvent) => {
+    if (ev.pointerId !== pid || done) return;
+    done = true;
+    if (raf) cancelAnimationFrame(raf);
+    if (ev.type === 'pointerup' && last) { last = ev; apply(); }
+    window.removeEventListener('pointermove', mv);
+    window.removeEventListener('pointerup', up);
+    window.removeEventListener('pointercancel', up);
+    scroller?.removeEventListener('scroll', onScroll);
+    try { el.releasePointerCapture(pid); } catch { /* 무시 */ }
+    document.body.classList.remove(bodyCls);
+    end();
+    // 저장 상태가 반영된 다음 프레임에 캔버스 높이 붙잡기를 푼다
+    requestAnimationFrame(() => { if (grid) grid.style.minHeight = ''; });
+  };
+  window.addEventListener('pointermove', mv);
+  window.addEventListener('pointerup', up);
+  window.addEventListener('pointercancel', up);
+  scroller?.addEventListener('scroll', onScroll, { passive: true });
+}
+
 export function WidgetFrame({ conf, mobileOrder, children, className, style, onCtx }: {
   conf: WidgetConf;
   mobileOrder: number;
@@ -70,54 +150,41 @@ export function WidgetFrame({ conf, mobileOrder, children, className, style, onC
     if (!ref.current?.contains(t)) return;
     if (t.closest('.rs') || t.closest('.rr')) return;
     e.preventDefault();
-    document.body.classList.add('drag-move');   // 드래그 중 전역 커서 고정 — 커서 튐 방지 (v1.9)
-    const sx = e.clientX, sy = e.clientY;
+    const el = ref.current;
     if (abs) {
-      // 절대 좌표 이동 — 그리드 원점 = 캔버스 좌상단이라 스냅 계산도 단순
+      // 절대 좌표 이동 — 그리드 원점 = 캔버스 좌상단이라 스냅 계산도 단순.
+      // 끄는 동안은 화면의 위젯만 직접 옮기고, 손을 뗄 때 한 번만 저장 상태에 반영 (버벅임 방지)
       const bx = conf.ax!, by = conf.ay!;
       // Shift+드래그 = 캔버스 가로 한가운데 정렬 (v1.9 사용자 요청)
-      const canvasW = (ref.current?.closest('.main-grid') as HTMLElement | null)?.clientWidth ?? 0;
-      const myW = () => conf.w ?? Math.round(ref.current?.getBoundingClientRect().width ?? 0);
-      let centered = false;
-      const mv = (ev: PointerEvent) => {
-        const nx = bx + (ev.clientX - sx), ny = by + (ev.clientY - sy);
-        const snap = gridOn && !conf.freeMove;   // freeMove(그리드 무시)는 그리드가 켜져 있어도 자유 배치
-        if (ev.shiftKey && canvasW > 0) {
-          centered = true;
-          const cx = (canvasW - myW()) / 2;
-          updateWidget(conf.id, {
-            ax: snap ? Math.round(cx / 10) * 10 : Math.round(cx),
-            ay: snap ? Math.round(ny / 10) * 10 : ny,
-          });
-          return;
-        }
-        centered = false;
-        if (snap) updateWidget(conf.id, { ax: Math.round(nx / 10) * 10, ay: Math.round(ny / 10) * 10 });
-        else updateWidget(conf.id, { ax: nx, ay: ny });
-      };
-      const up = () => {
-        document.body.classList.remove('drag-move');
-        window.removeEventListener('pointermove', mv);
-        window.removeEventListener('pointerup', up);
+      const canvasW = (el.closest('.main-grid') as HTMLElement | null)?.clientWidth ?? 0;
+      const myW = () => conf.w ?? Math.round(el.getBoundingClientRect().width);
+      const snap = gridOn && !conf.freeMove;   // freeMove(그리드 무시)는 그리드가 켜져 있어도 자유 배치
+      let centered = false, ax = bx, ay = by;
+      dragSession(e, el, 'drag-move', (dx, dy, ev) => {
+        const nx = bx + dx, ny = Math.max(0, by + dy);
+        centered = ev.shiftKey && canvasW > 0;
+        const cx = centered ? (canvasW - myW()) / 2 : nx;
+        ax = snap ? Math.round(cx / 10) * 10 : Math.round(cx);
+        ay = snap ? Math.round(ny / 10) * 10 : Math.round(ny);
+        el.style.left = `${ax}px`; el.style.top = `${ay}px`;
+      }, () => {
+        if (ax !== bx || ay !== by) updateWidget(conf.id, { ax, ay });
         // 그리드(10px)에서 딱 가운데에 놓으려면 (캔버스폭 - 가로)가 20의 배수여야 함 — 아니면 5px 치우침
-        if (centered && gridOn && !conf.freeMove && canvasW > 0) {
+        if (centered && snap) {
           const w = myW();
           const r = (((canvasW - w) % 20) + 20) % 20;
           if (r !== 0) setCenterAsk({ w, canvasW, grow: r, shrink: 20 - r });
         }
-      };
-      window.addEventListener('pointermove', mv);
-      window.addEventListener('pointerup', up);
+      });
       return;
     }
     // (마이그레이션 전 폴백) 흐름 + transform 오프셋
     const bx = conf.tx, by = conf.ty;
-    const gr = ref.current?.closest('.main-grid')?.getBoundingClientRect();
-    const r0 = ref.current?.getBoundingClientRect();
-    const natX = gr && r0 ? r0.left - bx - gr.left : 0;
-    const natY = gr && r0 ? r0.top - by - gr.top : 0;
-    const mv = (ev: PointerEvent) => {
-      const dx = ev.clientX - sx, dy = ev.clientY - sy;
+    const gr = el.closest('.main-grid')?.getBoundingClientRect();
+    const r0 = el.getBoundingClientRect();
+    const natX = gr ? r0.left - bx - gr.left : 0;
+    const natY = gr ? r0.top - by - gr.top : 0;
+    dragSession(e, el, 'drag-move', (dx, dy) => {
       if (gridOn && !conf.freeMove) {
         updateWidget(conf.id, {
           tx: Math.round((natX + bx + dx) / 10) * 10 - natX,
@@ -126,10 +193,7 @@ export function WidgetFrame({ conf, mobileOrder, children, className, style, onC
       } else {
         updateWidget(conf.id, { tx: bx + dx, ty: by + dy });
       }
-    };
-    const up = () => { document.body.classList.remove('drag-move'); window.removeEventListener('pointermove', mv); window.removeEventListener('pointerup', up); };
-    window.addEventListener('pointermove', mv);
-    window.addEventListener('pointerup', up);
+    }, () => {});
   };
 
   // 기울기 (v1.9 사용자 요청 — 이미지·자유 텍스트) — 왼쪽 위 핸들 드래그로 위젯 중심 기준 회전
@@ -137,46 +201,45 @@ export function WidgetFrame({ conf, mobileOrder, children, className, style, onC
   const onRotDown = (e: React.PointerEvent) => {
     if (!editOn) return;
     e.stopPropagation(); e.preventDefault();
-    const r = ref.current!.getBoundingClientRect();
+    const el = ref.current!;
+    const r = el.getBoundingClientRect();
     const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
     const base = conf.rot ?? 0;
     const a0 = Math.atan2(e.clientY - cy, e.clientX - cx);
-    document.body.classList.add('drag-move');
-    const mv = (ev: PointerEvent) => {
+    dragSession(e, el, 'drag-move', (dx, dy, ev) => {
       let deg = base + (Math.atan2(ev.clientY - cy, ev.clientX - cx) - a0) * 180 / Math.PI;
       deg = gridOn && !conf.freeMove ? Math.round(deg / 5) * 5 : Math.round(deg);
       if (deg > 180) deg -= 360;
       if (deg < -180) deg += 360;
       updateWidget(conf.id, { rot: deg === 0 ? undefined : deg });
-    };
-    const up = () => { document.body.classList.remove('drag-move'); window.removeEventListener('pointermove', mv); window.removeEventListener('pointerup', up); };
-    window.addEventListener('pointermove', mv);
-    window.addEventListener('pointerup', up);
+    }, () => {}, { noScroll: true });
   };
 
   // 리사이즈 — 절대배치라 흐름 재배치가 없어 실시간 적용해도 다른 위젯이 밀리지 않음 (v1.9)
+  // 이동과 같이 끄는 동안은 화면 크기만 바꾸고, 손을 뗄 때 저장 상태에 반영
   const onResizeDown = (e: React.PointerEvent) => {
     if (!editOn) return;
     e.stopPropagation(); e.preventDefault();
-    document.body.classList.add('drag-rs');   // 리사이즈 중 전역 커서 고정 (v1.9)
-    const r = ref.current!.getBoundingClientRect();
-    const sx = e.clientX, sy = e.clientY;
+    const el = ref.current!;
+    const r = el.getBoundingClientRect();
     // 절대 격자 스냅: 좌상단이 격자에서 벗어나 있어도 "우/하단 모서리"가 캔버스 격자 위에 놓이게
-    const gr = ref.current!.closest('.main-grid')?.getBoundingClientRect();
+    const gr = el.closest('.main-grid')?.getBoundingClientRect();
     const absL = abs ? conf.ax! : (gr ? r.left - gr.left : 0);
     const absT = abs ? conf.ay! : (gr ? r.top - gr.top : 0);
-    const mv = (ev: PointerEvent) => {
-      const dw = ev.clientX - sx, dh = ev.clientY - sy;
-      let w = r.width + dw, h = r.height + dh;
+    let w0 = Math.round(r.width), h0 = Math.round(r.height), w = w0, h = h0;
+    dragSession(e, el, 'drag-rs', (dw, dh) => {
+      let nw = r.width + dw, nh = r.height + dh;
       if (gridOn && !conf.freeMove) {
-        w = Math.round((absL + w) / 10) * 10 - absL;
-        h = Math.round((absT + h) / 10) * 10 - absT;
+        nw = Math.round((absL + nw) / 10) * 10 - absL;
+        nh = Math.round((absT + nh) / 10) * 10 - absT;
       }
-      updateWidget(conf.id, { w: Math.max(160, w), h: Math.max(40, h) });   // 높이 최소 40 — 배경 없는 검색창처럼 얇은 위젯도 바짝 줄일 수 있게 (사용자 요청)
-    };
-    const up = () => { document.body.classList.remove('drag-rs'); window.removeEventListener('pointermove', mv); window.removeEventListener('pointerup', up); };
-    window.addEventListener('pointermove', mv);
-    window.addEventListener('pointerup', up);
+      w = Math.round(Math.max(160, nw));
+      h = Math.round(Math.max(40, nh));   // 높이 최소 40 — 배경 없는 검색창처럼 얇은 위젯도 바짝 줄일 수 있게 (사용자 요청)
+      el.style.width = `${w}px`; el.style.height = `${h}px`;
+    }, () => {
+      if (w !== w0 || h !== h0 || conf.w == null) updateWidget(conf.id, { w, h });
+      w0 = w; h0 = h;
+    });
   };
 
   return (
