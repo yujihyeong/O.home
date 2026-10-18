@@ -2490,3 +2490,47 @@ html[data-scene="night"] .mb-guest-av{background:#e6def2;box-shadow:inset 0 0 0 
   color:color-mix(in srgb,currentColor 58%,transparent);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .rp-list .rp-title{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .rp-list li:hover .rp-board{color:color-mix(in srgb,var(--accent) 70%,transparent)}
+
+/* ===== 모바일 상단바 · 메뉴 창 (사용자 요청) =====
+   모바일에선 홈 제목 대신 집 아이콘(메인으로) + 햄버거. 햄버거를 누르면 상단바 아래로 창이 열리며
+   메뉴·게시판이 위에서부터 차례로(쭈르륵) 나타난다 */
+.m-ico,.m-menu{display:none}
+.m-ico{width:36px;height:36px;place-items:center;border-radius:10px;color:var(--top-fg);flex-shrink:0;transition:background .15s}
+.m-ico:hover{background:rgba(127,127,127,.12)}
+.m-ico svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+@media (max-width:620px){
+  .topbar .brand{display:none}
+  .m-ico{display:grid}
+  .m-home{margin-left:auto}
+  .scene-tg{margin-left:0}
+  .topbar{gap:8px}
+  .m-menu{display:block;position:fixed;left:0;right:0;top:58px;bottom:0;z-index:95;overflow-y:auto;
+    padding:18px 26px calc(40px + var(--bgm-h,0px));color:var(--top-fg);
+    /* 아래 페이지가 비치지 않게 — 홈 배경색(그라데이션)을 거의 불투명하게 깔고 살짝 흐림 */
+    background:linear-gradient(180deg,var(--bg-g1),var(--bg-g2));
+    backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
+    animation:mmFade .28s ease both}
+}
+@keyframes mmFade{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:none}}
+@keyframes mmIn{from{opacity:0;transform:translateX(-10px)}to{opacity:1;transform:none}}
+.mm-head{display:flex;align-items:center;gap:14px;margin:4px 0 14px;font-family:var(--serif);font-size:12px;letter-spacing:.42em;opacity:.75}
+.mm-head i{flex:1;height:1px;background:currentColor;opacity:.25}
+.mm-head small{font-size:11px;letter-spacing:.14em;opacity:.8}
+.mm-row,.mm-cap,.mm-sep,.mm-foot{animation:mmIn .38s cubic-bezier(.2,.7,.3,1) both;animation-delay:calc(var(--i,0) * 45ms + 60ms)}
+.mm-row{display:flex;align-items:center;gap:14px;width:100%;padding:13px 6px;text-align:left;color:inherit;background:none;border:none;cursor:var(--cur-pointer,pointer)}
+.mm-row .mm-l{font-family:var(--serif);font-size:calc(16px*var(--fs,1));letter-spacing:.14em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:60%}
+.mm-row .mm-dots{flex:1;height:0;border-bottom:1.5px dotted currentColor;opacity:.28;min-width:20px}
+.mm-row .mm-r{font-size:calc(11px*var(--fs,1));letter-spacing:.24em;opacity:.7;white-space:nowrap}
+.mm-row.on .mm-l{background:color-mix(in srgb,var(--accent) 16%,transparent);padding:2px 8px;margin-left:-8px;border-radius:4px}
+.mm-row.on .mm-dots{border-bottom:none;height:1.5px;background:linear-gradient(90deg,var(--accent),transparent);opacity:.8}
+.mm-row:hover .mm-l{color:var(--accent)}
+.mm-grp{margin-top:6px}
+.mm-cap{font-size:calc(10.5px*var(--fs,1));letter-spacing:.3em;opacity:.55;padding:12px 6px 2px}
+.mm-row .nd{color:var(--accent);font-size:7px;vertical-align:top;margin-left:4px}
+.mm-sep{display:flex;align-items:center;gap:12px;margin:22px 0 14px;color:var(--accent)}
+.mm-sep i{flex:1;height:1px;background:var(--top-fg);opacity:.2}
+.mm-sep b{font-size:9px}
+.mm-foot{display:flex;justify-content:center;gap:34px}
+.mm-foot button{background:none;border:none;color:inherit;font-family:var(--serif);font-size:13px;letter-spacing:.3em;cursor:var(--cur-pointer,pointer)}
+.mm-foot small{font-family:var(--sans);font-size:10.5px;letter-spacing:.04em;opacity:.6;margin-left:4px}
+@media (prefers-reduced-motion:reduce){.m-menu,.mm-row,.mm-cap,.mm-sep,.mm-foot{animation:none}}
