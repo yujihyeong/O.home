@@ -18,6 +18,7 @@ import { ChatWidget } from '@/components/main/ChatWidget';
 import { QuoteWidget } from '@/components/main/QuoteWidget';
 import { GuideWaveWidget } from '@/components/main/GuideWaveWidget';
 import { ClockWidget } from '@/components/main/ClockWidget';
+import { PildamWidget } from '@/components/main/PildamWidget';
 import { ImagesWidget } from '@/components/main/ImagesWidget';
 import { PolaroidWidget } from '@/components/main/PolaroidWidget';
 import { SearchWidget } from '@/components/main/SearchWidget';
@@ -762,6 +763,7 @@ export function renderWidget(conf: WidgetConf) {
     case 'guidewave': return <GuideWaveWidget conf={conf} />;
     case 'clock': return <ClockWidget conf={conf} />;
     case 'images': return <ImagesWidget conf={conf} />;
+    case 'pildam': return <PildamWidget conf={conf} />;
     default: return <div className="panel widget"><h4>{WIDGET_META[conf.type]?.title ?? conf.type}</h4></div>;
   }
 }

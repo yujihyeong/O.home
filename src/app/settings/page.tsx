@@ -48,6 +48,7 @@ import { ChatEditor } from '@/components/main/ChatWidget';
 import { QuoteEditor } from '@/components/main/QuoteWidget';
 import { GuideWaveEditor } from '@/components/main/GuideWaveWidget';
 import { ClockEditor } from '@/components/main/ClockWidget';
+import { PildamEditor } from '@/components/main/PildamWidget';
 import { ImagesEditor } from '@/components/main/ImagesWidget';
 import { PolaroidEditor } from '@/components/main/PolaroidWidget';
 import { useBgm, BgmTrack, parseVideoId } from '@/lib/bgmStore';
@@ -635,7 +636,7 @@ function WidgetsPane() {
   const { state } = useMainStore();
   // 설정값이 있는 위젯만 — 실데이터 연동 위젯(DIARY·LATEST·UPCOMING)과 메뉴리스트·회원정보창은 설정값 없음
   const editable = state.widgets.filter(w =>
-    (['banner', 'memo', 'dday', 'todo', 'freetext', 'deco', 'chat', 'quote', 'polaroid', 'guidewave', 'clock', 'images'] as const).some(t => t === w.type));
+    (['banner', 'memo', 'dday', 'todo', 'freetext', 'deco', 'chat', 'quote', 'polaroid', 'guidewave', 'clock', 'images', 'pildam'] as const).some(t => t === w.type));
 
   const editorOf = (w: WidgetConf) => {
     switch (w.type) {
@@ -649,6 +650,7 @@ function WidgetsPane() {
       case 'polaroid': return <PolaroidEditor conf={w} />;
       case 'guidewave': return <GuideWaveEditor conf={w} />;
       case 'clock': return <ClockEditor conf={w} />;
+      case 'pildam': return <PildamEditor conf={w} />;
       case 'images': return <ImagesEditor conf={w} />;
       case 'banner': return <BannerEditor conf={w} />;
       default: return null;
