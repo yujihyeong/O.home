@@ -41,6 +41,7 @@ const PAGES: Record<string, React.ComponentType> = {
   '/guest': dynamic(() => import('../guest/page'), { loading: blank }),
   '/intro': dynamic(() => import('../intro/page'), { loading: blank }),
   '/info': dynamic(() => import('../info/page'), { loading: blank }),
+  '/prompt': dynamic(() => import('../prompt/page'), { loading: blank }),
 };
 
 const norm = aliasKey;

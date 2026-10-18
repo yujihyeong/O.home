@@ -2829,3 +2829,56 @@ input.if-pn{display:block;width:100%;text-align:center;padding:5px 8px;font-fami
   .if-pn{font-size:calc(14.5px*var(--fs,1))}
 }
 @media (prefers-reduced-motion:reduce){.if-star{animation:none}}
+
+/* ==========================================================
+   프롬프트 게시판 (사용자 요청) — 캐릭터 카드 목록 → 글: 위쪽 인덱스(복장) + 이미지 | 프롬프트(📋 복사)
+   색은 사이트 테마(낮/밤)를 그대로 따른다
+   ========================================================== */
+.pr-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:16px}
+.pr-card{display:flex;flex-direction:column;text-align:left;padding:8px 8px 12px;border-radius:var(--radius,16px);background:var(--panel-solid,#fff);color:var(--ink);border:1px solid var(--line);box-shadow:var(--sh-sm,0 4px 14px rgba(0,0,0,.06));cursor:var(--cur-pointer,pointer);transition:transform .2s,box-shadow .2s;font-family:inherit}
+.pr-card:hover{transform:translateY(-3px);box-shadow:var(--sh-md,0 10px 24px rgba(0,0,0,.1))}
+.pr-card-pic{aspect-ratio:3/4;border-radius:calc(var(--radius,16px) - 6px);overflow:hidden;background:color-mix(in srgb,var(--ink) 6%,transparent);display:flex;align-items:center;justify-content:center;font-size:28px}
+.pr-card-pic img{width:100%;height:100%;object-fit:cover;display:block}
+.pr-card-t{font-family:var(--serif);font-weight:700;font-size:calc(15px*var(--fs,1));margin:10px 4px 0;word-break:keep-all}
+.pr-card-n{font:italic 500 calc(12.5px*var(--fs,1)) 'Cormorant Garamond',var(--serif);letter-spacing:.08em;color:var(--accent);margin:2px 4px 0}
+.pr-actions{display:flex;align-items:center;gap:8px;margin:12px 0 14px}
+.pr-post{padding:26px 28px 28px}
+.pr-title{font-family:var(--serif);font-weight:700;font-size:calc(24px*var(--fs,1));margin:0 0 16px;letter-spacing:-.01em}
+input.pr-title{display:block;width:100%}
+.pr-index{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;margin-bottom:18px;border-bottom:1px solid var(--line);scrollbar-width:thin}
+.pr-index>button{flex-shrink:0;border:0;background:transparent;color:var(--faint);font:500 calc(13.5px*var(--fs,1)) var(--sans);padding:8px 14px 10px;margin-bottom:-5px;border-bottom:2px solid transparent;cursor:var(--cur-pointer,pointer);transition:color .15s,border-color .15s;white-space:nowrap}
+.pr-index>button:hover{color:var(--sub)}
+.pr-index>button.on{color:var(--accent);border-bottom-color:var(--accent);font-weight:700}
+.pr-index>.pr-index-add{color:var(--accent);font-weight:700}
+.pr-tabbar{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:-6px 0 16px}
+.pr-tabbar .pr-in{flex:1;min-width:140px}
+.pr-tabbar .btn{padding:6px 12px}
+.pr-body{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:22px;align-items:start}
+.pr-pic{position:relative;aspect-ratio:3/4;border-radius:calc(var(--radius,16px) - 4px);overflow:hidden;background:color-mix(in srgb,var(--ink) 6%,transparent);display:flex;align-items:center;justify-content:center}
+.pr-pic img{width:100%;height:100%;object-fit:cover;display:block}
+.pr-pic-empty{font-size:calc(13px*var(--fs,1));color:var(--faint)}
+.pr-pic.edit{cursor:var(--cur-pointer,pointer);outline:1.5px dashed var(--line);outline-offset:-1.5px}
+.pr-pic.edit:hover{outline-color:var(--accent)}
+.pr-pic-hint{position:absolute;left:50%;bottom:12px;transform:translateX(-50%);font-size:11px;color:#fff;background:rgba(0,0,0,.45);padding:3px 10px;border-radius:999px;white-space:nowrap;opacity:0;transition:opacity .2s}
+.pr-pic.edit:hover .pr-pic-hint{opacity:1}
+.pr-pic-x{position:absolute;top:10px;right:10px;width:26px;height:26px;border:0;border-radius:50%;background:rgba(0,0,0,.5);color:#fff;font-size:12px;cursor:var(--cur-pointer,pointer)}
+.pr-prompt{position:relative;min-width:0}
+.pr-ptext{display:block;width:100%;min-height:220px;max-height:62vh;overflow:auto;padding:16px 54px 16px 18px;border-radius:calc(var(--radius,16px) - 4px);background:color-mix(in srgb,var(--ink) 4%,transparent);border:1px solid var(--line);
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,'D2Coding',monospace;font-size:calc(13px*var(--fs,1));line-height:1.75;white-space:pre-wrap;word-break:break-word;color:var(--ink)}
+textarea.pr-ptext{resize:vertical;min-height:320px;padding-right:18px}
+.pr-copy{position:absolute;top:10px;right:10px;width:38px;height:38px;border-radius:12px;border:1px solid var(--line);background:var(--panel-solid,#fff);font-size:18px;line-height:1;cursor:var(--cur-pointer,pointer);box-shadow:0 2px 8px rgba(0,0,0,.08);transition:transform .15s}
+.pr-copy:hover{transform:scale(1.08)}
+.pr-copy:active{transform:scale(.94)}
+.pr-copy:disabled{opacity:.35;cursor:default;transform:none}
+.pr-copy.done{animation:prPop .35s ease}
+@keyframes prPop{0%{transform:scale(.8)}60%{transform:scale(1.15)}100%{transform:scale(1)}}
+.pr-in{font:inherit;color:var(--ink);background:color-mix(in srgb,var(--ink) 4%,transparent);border:1px dashed var(--line);border-radius:10px;padding:8px 12px;outline:none;min-width:0}
+.pr-in:focus{border-style:solid;border-color:var(--accent)}
+@media (max-width:620px){
+  .pr-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+  .pr-post{padding:20px 16px 20px}
+  .pr-title{font-size:calc(20px*var(--fs,1))}
+  .pr-body{grid-template-columns:1fr;gap:14px}
+  .pr-pic{max-width:340px;width:100%;margin:0 auto}
+  .pr-ptext{min-height:160px;max-height:none}
+}
