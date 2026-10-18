@@ -62,15 +62,23 @@ function Waves({ sync, id }: { sync: number; id: string }) {
     const p = Math.min(1, 0.15 + (1 - s) * 3.5);          // 이 지점(0~1)까지 오면 거의 겹친다
     const a0 = Math.min(1, 0.3 + (1 - s) * 1.2);          // 왼쪽 끝 흔들림
     const rest = (1 - s) * 0.5;                           // 끝까지 남는 잔흔들림
+    // 센티넬 파장은 곧은 선을 꺾어 이은 지그재그 — 딱딱하고 날 선 느낌 (사용자 요청: 구불구불 조잡해 보임)
+    const STEP = 10;
+    const hash = (k: number) => { const v = Math.sin(k * 127.1 + 311.7) * 43758.5453; return v - Math.floor(v); };
     const draw = (ph: number) => {
       let ds = '', dg = '';
-      for (let x = 0; x <= W; x += 3) {
+      for (let x = 0; x <= W; x += 3) dg += `${x ? 'L' : 'M'}${x},${(CY + Math.sin(x / 16 + ph) * AMP * 0.8).toFixed(1)}`;
+      // 꺾이는 점들이 왼쪽으로 천천히 흘러가게 — 점 번호(k)는 그대로 두고 위치만 민다
+      const shift = ph * 14;
+      const k0 = Math.floor(shift / STEP);
+      for (let i = 0; ; i++) {
+        const k = k0 + i;
+        const x = Math.min(W, Math.max(0, k * STEP - shift));
         const t = x / W;
-        const base = Math.sin(x / 16 + ph) * AMP * 0.8;
         const n = a0 * Math.max(0, 1 - t / p) + rest;
-        const jit = Math.sin(x / 3.1 + ph * 3) * 0.6 + Math.sin(x / 1.7 + 1 + ph * 5) * 0.4 + Math.sin(x / 0.9 + ph * 7) * 0.3;
-        ds += `${x ? 'L' : 'M'}${x},${(CY + base + n * AMP * jit).toFixed(1)}`;
-        dg += `${x ? 'L' : 'M'}${x},${(CY + base).toFixed(1)}`;
+        const jit = (k % 2 ? 1 : -1) * (0.35 + 0.65 * hash(k));
+        ds += `${i ? 'L' : 'M'}${x.toFixed(1)},${(CY + Math.sin(x / 16 + ph) * AMP * 0.8 + n * AMP * 1.15 * jit).toFixed(1)}`;
+        if (x >= W) break;
       }
       sRef.current?.setAttribute('d', ds);
       gRef.current?.setAttribute('d', dg);
@@ -99,7 +107,7 @@ function Waves({ sync, id }: { sync: number; id: string }) {
       {[22, 44, 66, 88].map(y => <path key={y} d={`M0,${y}H${W}`} stroke="rgba(127,214,224,.07)" vectorEffect="non-scaling-stroke" />)}
       <path ref={glowRef} fill="none" stroke="#7fd6e0" strokeWidth={sync >= 95 ? 8 : 6} opacity={sync >= 95 ? 0.45 : 0.22} filter={`url(#${fid})`} />
       <path ref={gRef} fill="none" stroke="#7fd6e0" strokeWidth="2" opacity={sync < 40 ? 0.45 : 1} strokeLinecap="round" vectorEffect="non-scaling-stroke" />
-      <path ref={sRef} fill="none" stroke={`url(#${gid})`} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+      <path ref={sRef} fill="none" stroke={`url(#${gid})`} strokeWidth="2" strokeLinecap="butt" strokeLinejoin="miter" strokeMiterlimit="8" vectorEffect="non-scaling-stroke" />
     </svg>
   );
 }
