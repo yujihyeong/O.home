@@ -2113,6 +2113,8 @@ html.gate-seen .gate{display:none}
 .exc-sw{width:38px;height:52px;border-radius:7px;border:1px solid var(--line);background-size:cover;background-position:center;cursor:var(--cur-pointer,pointer);color:var(--sub);font-size:16px;padding:0}
 .exc-sw.on{outline:2px solid var(--accent);outline-offset:2px}
 .exc-up{background-color:var(--panel-solid);border-style:dashed}
+.exc-sw.exc-photo.h{width:80px;height:32px}
+.exc-sw.exc-photo.v{width:26px;height:64px}
 .exc-quick{display:inline-flex;gap:5px}
 .exc-quick button{width:22px;height:22px;border-radius:50%;border:1px solid var(--line);cursor:var(--cur-pointer,pointer);padding:0}
 .k-range{flex:1;min-width:120px;accent-color:var(--accent);height:4px;cursor:var(--cur-pointer,pointer)}

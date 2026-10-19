@@ -3,6 +3,8 @@
 // 배경: 색 또는 이미지(기본 8장 + 직접 올리기) · 이미지는 밝기·블러 조절 / 글씨: 글씨체·색·크기.
 // 미리보기도 저장본과 같은 캔버스로 그린다 — 보이는 그대로 저장된다.
 // 고른 꾸밈은 이 브라우저에 기억해 두고 다음 발췌에도 쓴다.
+// 사진 따로 넣기 (사용자 요청): 배경과 별개로 2.5:1 사진 한 장 — 가로 띠는 글 위에, 세로 띠는 글 왼쪽에.
+// 배경 이미지와 같이 쓰면 흐린 배경 위에 사진과 글이 올라간다 (시안 B · E).
 import React, { useEffect, useRef, useState } from 'react';
 import { useFonts } from '@/lib/fontStore';
 import { KSelect } from '@/components/ui/Kit';
@@ -24,6 +26,8 @@ interface CardStyle {
   color: string;           // 글씨색
   size: number;            // 글씨 크기 (1080px 폭 기준)
   hl: string;              // 형광펜 색
+  photoDir?: 'none' | 'h' | 'v';   // 따로 넣는 사진 — 없음 / 가로 띠(글 위) / 세로 띠(글 옆)
+  photo?: string | null;   // 그 사진 (올린 이미지 data URL)
 }
 const DEF: CardStyle = { bg: '#f7f3ea', img: null, bright: 70, blur: 0, fontId: '', color: '#2c3037', size: 38, hl: '#ffe066' };
 
@@ -71,6 +75,24 @@ function toggleMark(runs: Run[], from: number, to: number, m: Mark): Run[] {
 const KEY = 'ohome.excerptCard.v1';
 const W = 1080;
 const PAD = 96;
+/* 따로 넣는 사진 — 비율 2.5:1(가로 띠) / 1:2.5(세로 띠) */
+const PHOTO_RATIO = 2.5;
+const PM = 72;          // 사진 바깥 여백
+const PGAP_H = 64;      // 가로 띠와 글 사이
+const PGAP_V = 56;      // 세로 띠와 글 사이
+const PW_V = 300;       // 세로 띠 폭
+
+/** 둥근 모서리로 잘라 꽉 채워(cover) 그린다 */
+function drawCover(ctx: CanvasRenderingContext2D, im: HTMLImageElement, x: number, y: number, w: number, h: number, r: number) {
+  const k = Math.max(w / im.width, h / im.height);
+  const sw = w / k, sh = h / k;
+  ctx.save();
+  ctx.beginPath();
+  ctx.roundRect(x, y, w, h, r);
+  ctx.clip();
+  ctx.drawImage(im, (im.width - sw) / 2, (im.height - sh) / 2, sw, sh, x, y, w, h);
+  ctx.restore();
+}
 
 const loadStyle = (): CardStyle => {
   try { return { ...DEF, ...(JSON.parse(localStorage.getItem(KEY) ?? '{}') as Partial<CardStyle>) }; } catch { return DEF; }
@@ -78,7 +100,7 @@ const loadStyle = (): CardStyle => {
 const saveStyle = (s: CardStyle) => {
   try { localStorage.setItem(KEY, JSON.stringify(s)); } catch {
     // 올린 이미지가 커서 못 담으면 이미지만 빼고 기억한다
-    try { localStorage.setItem(KEY, JSON.stringify({ ...s, img: s.img?.startsWith('data:') ? null : s.img })); } catch { /* 무시 */ }
+    try { localStorage.setItem(KEY, JSON.stringify({ ...s, img: s.img?.startsWith('data:') ? null : s.img, photo: null })); } catch { /* 무시 */ }
   }
 };
 
@@ -160,10 +182,34 @@ async function draw(canvas: HTMLCanvasElement, paras: Run[][], source: string, s
   } catch { /* 기본 글꼴로 */ }
   ctx.font = font;
   const lh = st.size * 1.75;
-  const lines = paras.map(p => wrap(ctx, p, W - PAD * 2, fontOf));
+  // 따로 넣는 사진
+  let ph: HTMLImageElement | null = null;
+  if (st.photo && st.photoDir && st.photoDir !== 'none') { try { ph = await loadImg(st.photo); } catch { ph = null; } }
+  const vert = !!ph && st.photoDir === 'v';
+  const textX = vert ? PM + PW_V + PGAP_V : PAD;
+  const textW = vert ? W - textX - PAD : W - PAD * 2;
+  const lines = paras.map(p => wrap(ctx, p, textW, fontOf));
   const textH = lines.reduce((n, l) => n + l.length * lh, 0) + (paras.length - 1) * st.size * 0.9;
   const srcH = st.size * 2.2;
-  const H = Math.max(W, Math.ceil(textH + srcH + PAD * 2));
+  let H: number, textTop: number, photoRect: { x: number; y: number; w: number; h: number } | null = null;
+  if (ph && !vert) {
+    // 가로 띠 — 사진 + 글을 한 덩어리로 가운데
+    const pw = W - PM * 2, phH = Math.round(pw / PHOTO_RATIO);
+    const total = phH + PGAP_H + textH + srcH;
+    H = Math.max(W, Math.ceil(total + PM + PAD));
+    const top = Math.max(PM, (H - total) / 2);
+    photoRect = { x: PM, y: top, w: pw, h: phH };
+    textTop = top + phH + PGAP_H;
+  } else if (ph) {
+    // 세로 띠 — 사진은 왼쪽, 글은 오른쪽, 둘 다 세로 가운데
+    const phH = Math.round(PW_V * PHOTO_RATIO);
+    H = Math.max(W, phH + PM * 2, Math.ceil(textH + srcH + PAD * 2));
+    photoRect = { x: PM, y: (H - phH) / 2, w: PW_V, h: phH };
+    textTop = (H - textH - srcH) / 2;
+  } else {
+    H = Math.max(W, Math.ceil(textH + srcH + PAD * 2));
+    textTop = (H - textH - srcH) / 2;
+  }
   // 아주 긴 글이면 휴대폰 캔버스 한도(약 1,600만 화소)를 넘지 않게 배율을 낮춘다
   const S = Math.max(1, Math.min(scale, Math.sqrt(16_000_000 / (W * H))));
   canvas.width = Math.round(W * S); canvas.height = Math.round(H * S);
@@ -203,17 +249,31 @@ async function draw(canvas: HTMLCanvasElement, paras: Run[][], source: string, s
     } catch { /* 이미지 없이 색 배경으로 */ }
   }
 
+  // 따로 넣은 사진 — 배경 이미지 위에서는 그림자로 띄운다
+  if (ph && photoRect) {
+    const { x, y, w, h } = photoRect;
+    if (st.img) {
+      ctx.save();
+      ctx.shadowColor = 'rgba(0,0,0,.45)'; ctx.shadowBlur = 36 * S; ctx.shadowOffsetY = 14 * S;
+      ctx.fillStyle = 'rgba(0,0,0,.3)';
+      ctx.beginPath(); ctx.roundRect(x, y, w, h, 18); ctx.fill();
+      ctx.restore();
+    }
+    ctx.imageSmoothingQuality = 'high';
+    drawCover(ctx, ph, x, y, w, h, 18);
+  }
+
   // 글
   ctx.fillStyle = st.color;
   ctx.textBaseline = 'top';
   if (st.img) { ctx.shadowColor = 'rgba(0,0,0,.28)'; ctx.shadowBlur = 10 * S; }   // 그림자 흐림은 변환을 따르지 않아 배율을 직접 곱한다
-  let y = (H - textH - srcH) / 2;
+  let y = textTop;
   lines.forEach((ls, i) => {
     if (i) y += st.size * 0.9;
     for (const l of ls) {
       // 형광펜 먼저 (글자 아래쪽 2/3쯤만 칠해 손으로 그은 느낌), 그 위에 글자
       // 이어진 형광펜 조각은 한 번에 칠한다 — 조각마다 칠하면 겹친 곳이 진해져 줄무늬가 생긴다
-      let x = PAD, hs: number | null = null;
+      let x = textX, hs: number | null = null;
       const sh = ctx.shadowBlur;
       const stroke = (from: number, to: number) => {
         ctx.shadowBlur = 0; ctx.globalAlpha = 0.6; ctx.fillStyle = st.hl;
@@ -228,7 +288,7 @@ async function draw(canvas: HTMLCanvasElement, paras: Run[][], source: string, s
         x += w;
       }
       if (hs !== null) stroke(hs, x);
-      x = PAD;
+      x = textX;
       ctx.fillStyle = st.color;
       for (const pc of l) {
         ctx.font = fontOf(pc.r);
@@ -241,7 +301,7 @@ async function draw(canvas: HTMLCanvasElement, paras: Run[][], source: string, s
   ctx.font = small;
   ctx.globalAlpha = 0.75;
   ctx.textAlign = 'right';
-  ctx.fillText(source, W - PAD, y + st.size * 1.2);
+  ctx.fillText(source, textX + textW, y + st.size * 1.2);
   ctx.globalAlpha = 1; ctx.textAlign = 'left'; ctx.shadowBlur = 0;
 }
 
@@ -277,6 +337,7 @@ export function ExcerptCard({ paras: plain, source, fileName }: { paras: string[
   const [ready, setReady] = useState(false);
   const ref = useRef<HTMLCanvasElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const photoRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => { setSt(loadStyle()); setReady(true); }, []);
@@ -297,7 +358,7 @@ export function ExcerptCard({ paras: plain, source, fileName }: { paras: string[
     return () => { alive = false; };
   }, [ready, paras, source, st, family]);
 
-  const upload = async (f?: File) => {
+  const upload = async (f?: File, to: 'img' | 'photo' = 'img') => {
     if (!f) return;
     try {
       // 메타데이터 없이, 긴 변 2160px까지만 — 고화질 저장(2배)에 맞춘 크기. 이 브라우저 안에만 둔다 (서버에 올리지 않음)
@@ -311,7 +372,7 @@ export function ExcerptCard({ paras: plain, source, fileName }: { paras: string[
       cx.imageSmoothingQuality = 'high';
       cx.drawImage(im, 0, 0, c.width, c.height);
       URL.revokeObjectURL(url); imgCache.delete(url);
-      set({ img: c.toDataURL('image/jpeg', 0.92) });
+      set(to === 'img' ? { img: c.toDataURL('image/jpeg', 0.92) } : { photo: c.toDataURL('image/jpeg', 0.92) });
     } catch (e) {
       toast(`이미지를 넣지 못했습니다 — ${e instanceof Error ? e.message : String(e)}`);
     }
@@ -407,6 +468,24 @@ export function ExcerptCard({ paras: plain, source, fileName }: { paras: string[
         ) : (
           <div className="exc-row"><label>배경색</label><ColorField value={st.bg} onChange={bg => set({ bg })} /></div>
         )}
+        {/* 사진 따로 넣기 — 가로 띠(글 위) / 세로 띠(글 왼쪽), 비율 2.5:1 */}
+        <div className="exc-row">
+          <label>사진</label>
+          <div className="mini-seg">
+            {([['none', '없음'], ['h', '▭ 가로 띠'], ['v', '▯ 세로 띠']] as const).map(([v, l]) => (
+              <button key={v} type="button" className={(st.photoDir ?? 'none') === v ? 'on' : ''}
+                onClick={() => { set({ photoDir: v }); if (v !== 'none' && !st.photo) setTimeout(() => photoRef.current?.click(), 0); }}>{l}</button>
+            ))}
+          </div>
+          {st.photoDir && st.photoDir !== 'none' && (
+            <button type="button" className={`exc-sw exc-up exc-photo ${st.photo ? 'on' : ''} ${st.photoDir}`}
+              style={st.photo ? { backgroundImage: `url(${st.photo})` } : undefined}
+              onClick={() => photoRef.current?.click()} data-tip={st.photo ? '사진 바꾸기' : '사진 올리기'}>{st.photo ? '' : '＋'}</button>
+          )}
+          <input ref={photoRef} type="file" accept="image/*" style={{ display: 'none' }}
+            data-crop={st.photoDir === 'v' ? '2:5' : '5:2'}
+            onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; void upload(f, 'photo'); }} />
+        </div>
         <div className="exc-row">
           <label>글씨체</label>
           <KSelect minWidth={170} value={st.fontId} onChange={fontId => set({ fontId })}
