@@ -8,7 +8,10 @@ import { boardEntries, useMenuSettings, buildMenu, canViewHref } from '@/lib/men
 import { useTheme } from '@/lib/ThemeProvider';
 import { sectionHref, MAIN_SEC, useSections, sectionMenuEntries } from '@/lib/sectionStore';
 import { useCustomLinks, linkEntries } from '@/lib/linkStore';
-import { useBoards, MAIN_BOARD_ID } from '@/lib/boardStore';
+import { useBoards, MAIN_BOARD_ID, Board } from '@/lib/boardStore';
+import { useAliases, aliasKey } from '@/lib/aliasStore';
+import type { CustomLink } from '@/lib/linkStore';
+import type { MenuItem } from '@/lib/menu';
 import { Modal } from '@/components/ui/Modal';
 import { KTextarea, KSelect, KStep, KCheck } from '@/components/ui/Kit';
 import { ColorField } from '@/components/ui/ColorField';
@@ -316,6 +319,34 @@ export function DdayWidget({ conf }: { conf: WidgetConf }) {
 
 /* ---------- 새 글 — 게시판 상관없이 최신 게시글 제목 3개/5개 (사용자 요청) ---------- */
 // 비밀글과 메뉴에서 비공개로 둔 게시판의 글은 빼고, 누르면 그 글로 이동한다
+/**
+ * 지금 장면(낮/밤) 메뉴에 들어 있는 게시판 id들 (사용자 요청 — 최신글 위젯은 낮 홈 글만 / 밤 홈 글만).
+ * 메뉴 주소가 `/board?b=…`이면 그 게시판, 직접 지은 짧은 주소(/LOG 등)면 짧은 주소 페이지와 같은 순서로 찾는다:
+ * 연결해 둔 곳(alias) → 그 주소를 건 링크 이름·주소와 같은 이름·id의 게시판
+ */
+function sceneBoardIds(menu: MenuItem[], boards: Board[], aliases: Record<string, string>, links: CustomLink[]): Set<string> {
+  const ids = new Set<string>();
+  const fromBoardHref = (href: string) => {
+    const [path, q] = href.split('?');
+    if (path !== '/board') return false;
+    ids.add(new URLSearchParams(q ?? '').get('b') || MAIN_BOARD_ID);
+    return true;
+  };
+  const hrefs = menu.flatMap(m => [m.href, ...(m.children ?? []).map(c => c.href)]).filter((h): h is string => !!h);
+  for (const h of hrefs) {
+    if (fromBoardHref(h)) continue;
+    const parts = h.split(/[?#]/)[0].split('/').filter(Boolean);
+    if (parts.length !== 1) continue;
+    const w = aliasKey(decodeURIComponent(parts[0]));
+    if (aliases[w]) { fromBoardHref(aliases[w]); continue; }
+    const keys = new Set([w]);
+    for (const l of links) if (aliasKey(l.href) === w && l.name.trim()) keys.add(aliasKey(l.name));
+    const b = boards.find(x => keys.has(aliasKey(x.id)) || keys.has(aliasKey(x.name)));
+    if (b) ids.add(b.id);
+  }
+  return ids;
+}
+
 export function RecentPostsWidget({ conf }: { conf: WidgetConf }) {
   const router = useRouter();
   const { user, isAdmin } = useAuth();
@@ -323,13 +354,21 @@ export function RecentPostsWidget({ conf }: { conf: WidgetConf }) {
   const [posts] = useLocalList<Post>('ohome.board.v1', BOARD_SEED);
   const [menuSet] = useMenuSettings();
   const { boards } = useBoards();
+  const { map: secMap } = useSections();
+  const { links } = useCustomLinks();
+  const [aliases] = useAliases();
+  const { scene } = useTheme();
   const [open, setOpen] = useState(false);
   useEditEvent(conf.id, () => setOpen(true));
   const count = conf.settings.count === 5 ? 5 : 3;
   const boardName = (p: Post) => boards.find(b => b.id === (p.boardId ?? MAIN_BOARD_ID))?.name ?? '';
   const viewer = { loggedIn: !!user, isAdmin, id: user?.id };
+  // 낮에는 낮 메뉴의 게시판 글만, 밤에는 밤 메뉴의 게시판 글만
+  const menu = buildMenu(menuSet, [...boardEntries(boards), ...sectionMenuEntries(secMap), ...linkEntries(links)], viewer, scene);
+  const inScene = sceneBoardIds(menu, boards, aliases, links);
   const list = posts
     .filter(p => !p.secret)
+    .filter(p => inScene.has(p.boardId ?? MAIN_BOARD_ID))
     .filter(p => {
       const b = p.boardId ?? MAIN_BOARD_ID;
       return canViewHref(menuSet, b === MAIN_BOARD_ID ? '/board' : `/board?b=${b}`, viewer);
@@ -349,7 +388,7 @@ export function RecentPostsWidget({ conf }: { conf: WidgetConf }) {
         ))}
       </ul>
       {list.length === 0 && <p className="hint">아직 게시글이 없습니다</p>}
-      <Modal open={open} onClose={() => setOpen(false)} small title="새 글 위젯" desc="게시판 상관없이 최신 게시글 제목을 보여 줍니다 — 비밀글은 빠집니다"
+      <Modal open={open} onClose={() => setOpen(false)} small title="새 글 위젯" desc="지금 낮/밤 메뉴에 있는 게시판의 최신 글 제목을 보여 줍니다 — 비밀글은 빠집니다"
         actions={<button className="btn btn-dark" onClick={() => setOpen(false)}>CLOSE</button>}>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
           <span className="cp-lb">보여 줄 글</span>
