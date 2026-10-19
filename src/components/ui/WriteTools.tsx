@@ -118,13 +118,15 @@ const CTX = 14;
  * 텍스트에리어 위에 얹는 도구 막대.
  * children으로 텍스트에리어(KTextarea 등)를 감싸면 그 안의 <textarea>에서 선택 범위를 읽는다.
  */
-export function TextTools({ value, onChange, log, spell: spellOn = true, font, children }: {
+export function TextTools({ value, onChange, log, spell: spellOn = true, font, upload, children }: {
   value: string;
   onChange: (v: string) => void;
   log?: boolean;              // 로그 정리 버튼 (글쓰기 「로그 정리」 모드)
   spell?: boolean;            // 맞춤법 검사 버튼 (HTML 코드에는 끈다)
   /** 글씨체·크기 — html이면 고른 부분을 통째로, 아니면(마크다운) 줄마다 감싼다 */
   font?: { whole: WholeFont; setWhole: (w: WholeFont) => void; html?: boolean };
+  /** 이미지 넣기 — 파일을 올리고 주소를 돌려준다. 있으면 커서 자리에 ![](주소)를 넣는 버튼이 생긴다 */
+  upload?: (files: File[]) => Promise<string[]>;
   children: React.ReactNode;
 }) {
   const toast = useToast();
@@ -148,6 +150,36 @@ export function TextTools({ value, onChange, log, spell: spellOn = true, font, c
     el.focus();
     el.setSelectionRange(from, to);
   });
+
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [upBusy, setUpBusy] = useState(false);
+  const caret = useRef<number | null>(null);
+  const addImages = async (files: FileList | null) => {
+    if (!upload || !files?.length) return;
+    setUpBusy(true);
+    try {
+      const urls = await upload(Array.from(files));
+      if (urls.length) {
+        const v = latest.current;
+        const at = Math.min(caret.current ?? v.length, v.length);
+        const before = v.slice(0, at), after = v.slice(at);
+        // 이미지는 앞뒤로 빈 줄을 둬 자기 문단이 되게 한다
+        const pre = !before || before.endsWith('\n\n') ? '' : before.endsWith('\n') ? '\n' : '\n\n';
+        const post = !after ? '\n\n' : after.startsWith('\n\n') ? '' : after.startsWith('\n') ? '\n' : '\n\n';
+        const ins = pre + urls.map(u => `![](${u})`).join('\n\n') + post;
+        const next = before + ins + after;
+        latest.current = next;
+        onChange(next);
+        setSpell(null);
+        const end = at + ins.length;
+        select(end, end);
+        toast(`이미지 ${urls.length}장을 넣었습니다`);
+      }
+    } catch (e) {
+      toast(`이미지를 올리지 못했습니다 — ${e instanceof Error ? e.message : String(e)}`);
+    }
+    setUpBusy(false);
+  };
 
   const runTidy = () => {
     const v = latest.current;
@@ -236,6 +268,15 @@ export function TextTools({ value, onChange, log, spell: spellOn = true, font, c
             가✓ 맞춤법 검사
           </button>
         )}
+        {upload && (<>
+          <button type="button" disabled={upBusy} onMouseDown={e => e.preventDefault()}
+            onClick={() => { caret.current = ta()?.selectionEnd ?? null; fileRef.current?.click(); }}
+            data-tip="커서가 있는 자리에 이미지를 넣어요 — 여러 장 가능">
+            {upBusy ? '올리는 중…' : '🖼 이미지'}
+          </button>
+          <input ref={fileRef} type="file" accept="image/*" multiple style={{ display: 'none' }}
+            onChange={e => { void addImages(e.target.files); e.target.value = ''; }} />
+        </>)}
         {font && <FontControls whole={font.whole} onPick={pickFont} />}
         <small>드래그하면 그 부분만, 아니면 글 전체에 적용</small>
       </div>
