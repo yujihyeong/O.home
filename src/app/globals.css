@@ -3011,19 +3011,31 @@ html[data-scene="night"] .bgm.bgm-glass{--g-bg:rgba(30,32,56,.72);--g-solid:rgba
 .bgm-glass .eq i:nth-child(2){animation-delay:-.3s}.bgm-glass .eq i:nth-child(3){animation-delay:-.6s}
 @keyframes bgmEq{0%,100%{height:3px}50%{height:12px}}
 @media (prefers-reduced-motion:reduce){.bgm-glass .eq i{animation:none;height:8px}}
-/* 모바일 — 지금처럼 오른쪽 가장자리의 세로 캡슐 (유리 색만 입힘) */
+/* 모바일 — PC와 같은 유리 카드를 조금 작게 (사용자 요청: 세로 캡슐 대신 예쁜 카드 그대로)
+   예전 세로 캡슐 규칙(세로 글씨·세로 버튼·옆으로 펼치는 목록)을 되돌린다 */
 @media (max-width:620px){
-  .bgm.bgm-glass{width:46px;padding:8px 0;gap:6px;border-radius:24px}
-  .bgm-glass .cover{width:32px;height:32px;border-radius:50%}
-  .bgm-glass .bgm-main{flex:none;align-items:center;gap:6px}
-  .bgm-glass .title{padding-right:0}
-  .bgm-glass .bgm-bar,.bgm-glass .bgm-tm{display:none}
-  .bgm-glass .bgm-row{flex-direction:column;margin:0}
-  .bgm-glass .ctrl{flex-direction:column;gap:2px}
-  .bgm-glass .ctrl .pp{width:30px;height:30px}
-  .bgm-glass .fold-btn{position:static;transform:rotate(90deg)}
-  .bgm.bgm-glass.folded{width:46px;padding:6px 0;border-radius:24px}
-  .bgm.bgm-glass.folded .cover{width:34px;height:34px;border-radius:50%}
-  .bgm-glass .bgm-list{bottom:0;right:calc(100% + 8px);width:250px}
-  .bgm.bgm-glass.bgm-left .bgm-list{right:auto;left:calc(100% + 8px)}
+  .bgm.bgm-glass,.bgm.bgm-glass.bgm-left{flex-direction:row;align-items:center;width:min(268px,calc(100vw - 20px));padding:9px 9px 7px;gap:10px;border-radius:18px}
+  .bgm-glass .cover{width:50px;height:50px;border-radius:12px}
+  .bgm-glass .bgm-main{flex:1;align-items:stretch;gap:0}
+  .bgm-glass .title{writing-mode:horizontal-tb;display:block;max-height:none;padding-right:16px}
+  .bgm-glass .title .mq{max-height:none}
+  .bgm-glass .title .tt{font-size:calc(11.5px*var(--fs,1))}
+  .bgm-glass .title .mq:not(.tt){display:block;font-size:calc(9.5px*var(--fs,1))}
+  .bgm-glass .mq-in{animation:mqScroll 9s linear infinite}
+  .bgm-glass .mq-in>span+span{display:inline}
+  .bgm-glass .bgm-bar{display:block;margin:6px 0 2px;height:3px}
+  .bgm-glass .bgm-tm{display:flex;font-size:9px}
+  .bgm-glass .bgm-row{flex-direction:row;margin-top:0}
+  .bgm-glass .ctrl{flex-direction:row;gap:3px}
+  .bgm-glass .ctrl button{width:24px;height:24px}
+  .bgm-glass .ctrl button svg{width:13px;height:13px}
+  .bgm-glass .ctrl .pp{width:27px;height:27px}
+  .bgm-glass .vol{display:block;width:44px}
+  .bgm-glass .fold-btn{position:absolute;top:5px;right:7px;transform:none}
+  .bgm.bgm-glass.folded,.bgm.bgm-glass.bgm-left.folded{width:auto;padding:4px;border-radius:14px}
+  .bgm.bgm-glass.folded .cover{width:42px;height:42px;border-radius:11px}
+  .bgm-glass .bgm-list{bottom:calc(100% + 8px);right:0;width:min(268px,calc(100vw - 20px));max-height:55vh}
+  .bgm.bgm-glass.bgm-left .bgm-list{right:auto;left:0}
+  /* 카드가 펼쳐져 있으면 페이지 맨 아래 내용이 카드에 가리지 않게 여백을 더 둔다 */
+  body:has(.bgm.bgm-glass:not(.folded)) .page{padding-bottom:calc(130px + env(safe-area-inset-bottom,0px))}
 }
