@@ -2,6 +2,8 @@
 // BGM 미니 플레이어 (4.1) — 유튜브 IFrame API, 화면은 숨기고 자체 컨트롤만 표시
 // 기본 위치 오른쪽 아래 · 곡 리스트 팝업 (v1.9) · 페이지 이동에도 유지(레이아웃 상주)
 // 브라우저 정책상 소리 재생은 사용자의 첫 클릭부터 시작
+// 모양 (사용자 확정 — 시안 C 「유리 카드」): 반투명 유리 카드 + 유튜브 영상 썸네일 커버 · 진행 바 · 시간,
+// 목록도 같은 유리판에 곡마다 썸네일. 낮/밤에 따라 유리 색과 포인트 색이 바뀐다
 import React, { useEffect, useRef, useState } from 'react';
 import { useBgm } from '@/lib/bgmStore';
 
@@ -41,6 +43,9 @@ interface YTPlayer {
   playVideo: () => void;
   pauseVideo: () => void;
   setVolume: (v: number) => void;
+  getCurrentTime?: () => number;
+  getDuration?: () => number;
+  seekTo?: (sec: number, allowSeekAhead: boolean) => void;
   destroy: () => void;
 }
 declare global {
@@ -49,6 +54,20 @@ declare global {
     onYouTubeIframeAPIReady?: () => void;
   }
 }
+
+/** 유튜브 영상 썸네일 (사용자 요청 — 앨범 커버 대신) */
+const thumbOf = (videoId?: string) => (videoId ? `https://i.ytimg.com/vi/${encodeURIComponent(videoId)}/mqdefault.jpg` : '');
+const fmt = (sec: number) => {
+  if (!Number.isFinite(sec) || sec <= 0) return '0:00';
+  const m = Math.floor(sec / 60), s = Math.floor(sec % 60);
+  return `${m}:${String(s).padStart(2, '0')}`;
+};
+const Ic = {
+  prev: <svg viewBox="0 0 24 24" aria-hidden><path d="M6 5h2v14H6zM19 5v14L9 12z" /></svg>,
+  next: <svg viewBox="0 0 24 24" aria-hidden><path d="M16 5h2v14h-2zM5 5v14l10-7z" /></svg>,
+  play: <svg viewBox="0 0 24 24" aria-hidden><path d="M8 5v14l11-7z" /></svg>,
+  pause: <svg viewBox="0 0 24 24" aria-hidden><path d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z" /></svg>,
+};
 
 // 곡 목록 픽토그램 (리스트 줄 + 음표) — 색은 CSS에서 currentColor(--bgm-ic) 연동
 const ListIcon = () => (
@@ -77,6 +96,30 @@ export function BgmPlayer() {
   const idxRef = useRef(0);
   idxRef.current = idx;
   const track = tracks[idx] ?? tracks[0];
+  // 진행 시간 — 재생 중에만 0.5초마다 읽는다
+  const [pos, setPos] = useState(0);
+  const [dur, setDur] = useState(0);
+  useEffect(() => {
+    const read = () => {
+      const p = playerRef.current;
+      if (!p?.getCurrentTime) return;
+      try { setPos(p.getCurrentTime() || 0); setDur(p.getDuration?.() || 0); } catch { /* 준비 전 */ }
+    };
+    read();
+    if (!playing) return;
+    const t = setInterval(read, 500);
+    return () => clearInterval(t);
+  }, [playing, idx]);
+  const barRef = useRef<HTMLDivElement>(null);
+  const onSeek = (e: React.PointerEvent) => {
+    e.stopPropagation();
+    const r = barRef.current?.getBoundingClientRect();
+    const p = playerRef.current;
+    if (!r || !p?.seekTo || !dur) return;
+    const sec = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)) * dur;
+    p.seekTo(sec, true);
+    setPos(sec);
+  };
 
   useEffect(() => { setVolume(settings.volume); playerRef.current?.setVolume(settings.volume); }, [settings.volume]);
 
@@ -170,6 +213,7 @@ export function BgmPlayer() {
     const t = tracks[i];
     if (!t || !playerRef.current) { setIdx(i); return; }
     setIdx(i);
+    setPos(0); setDur(0);
     startedRef.current = true;
     // loadVideoById는 로드 + 즉시 재생 — 큐만 된 첫 영상의 playVideo()가 무시되는
     // 유튜브 IFrame 이슈를 피하기 위해 첫 재생도 반드시 이 경로를 탄다
@@ -269,7 +313,7 @@ export function BgmPlayer() {
   return (
     <div
       ref={rootRef}
-      className={`bgm ${folded ? 'folded' : ''} ${settings.position === 'bl' ? 'bgm-left' : ''}`}
+      className={`bgm bgm-glass ${folded ? 'folded' : ''} ${settings.position === 'bl' ? 'bgm-left' : ''}`}
       style={settings.position === 'bl' ? { right: 'auto', left: 20 } : undefined}
       onClick={() => { if (folded) setFold(false); }}
       data-tip={folded ? '펼치기' : undefined}
@@ -278,25 +322,39 @@ export function BgmPlayer() {
       <div style={{ position: 'absolute', width: 0, height: 0, overflow: 'hidden', opacity: 0, pointerEvents: 'none' }}>
         <div ref={holderRef} />
       </div>
-      <div className="disc" style={{ animationPlayState: playing ? 'running' : 'paused' }} />
-      <div className="title">
-        {/* 흐르는 글씨는 제목만 — 설명은 항상 말줄임 (정신없지 않게) */}
-        <Marquee className="tt" text={track?.title ?? ''} active={playing} />
-        {track?.desc && <div className="mq">{track.desc}</div>}
+      {/* 앨범 커버 = 유튜브 썸네일 (접으면 이것만 남는다) */}
+      <div className={`cover ${playing ? 'on' : ''}`}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        {track?.videoId && <img src={thumbOf(track.videoId)} alt="" draggable={false} />}
       </div>
-      <div className="ctrl">
-        <button onClick={prev} data-tip="이전">◂◂</button>
-        <button onClick={togglePlay} data-tip={playing ? '일시정지' : '재생'}>{playing ? '❚❚' : '▶'}</button>
-        <button onClick={next} data-tip="다음">▸▸</button>
-        <button className="lst" data-tip="BGM 리스트" onClick={e => { e.stopPropagation(); setListOpen(o => !o); }}>
-          <ListIcon />
-        </button>
+      <div className="bgm-main">
+        <div className="title">
+          {/* 흐르는 글씨는 제목만 — 설명은 항상 말줄임 (정신없지 않게) */}
+          <Marquee className="tt" text={track?.title ?? ''} active={playing} />
+          {track?.desc && <div className="mq">{track.desc}</div>}
+        </div>
+        <div className="bgm-bar" ref={barRef} onPointerDown={onSeek} data-tip="눌러서 이동">
+          <b style={{ width: `${dur ? Math.min(100, (pos / dur) * 100) : 0}%` }} />
+        </div>
+        <div className="bgm-tm"><span>{fmt(pos)}</span><span>{fmt(dur)}</span></div>
+        <div className="bgm-row">
+          <div className="ctrl">
+            <button onClick={prev} data-tip="이전" aria-label="이전">{Ic.prev}</button>
+            <button className="pp" onClick={togglePlay} data-tip={playing ? '일시정지' : '재생'} aria-label={playing ? '일시정지' : '재생'}>
+              {playing ? Ic.pause : Ic.play}
+            </button>
+            <button onClick={next} data-tip="다음" aria-label="다음">{Ic.next}</button>
+            <button className="lst" data-tip="BGM 리스트" aria-label="BGM 리스트" onClick={e => { e.stopPropagation(); setListOpen(o => !o); }}>
+              <ListIcon />
+            </button>
+          </div>
+          <div className="vol" ref={volRef} onPointerDown={onVolDrag} data-tip={`볼륨 ${volume}`}>
+            <i style={{ width: `${volume}%` }} />
+          </div>
+        </div>
       </div>
-      <div className="vol" ref={volRef} onPointerDown={onVolDrag} data-tip={`볼륨 ${volume}`}>
-        <i style={{ width: `${volume}%` }} />
-      </div>
-      {/* 접기 — 디스크만 남김 (4.1) · 화살표는 접히는 방향(화면 가장자리 쪽) */}
-      <button className="fold-btn" data-tip="접기" onClick={e => { e.stopPropagation(); setFold(true); }}>
+      {/* 접기 — 커버만 남김 (4.1) · 화살표는 접히는 방향(화면 가장자리 쪽) */}
+      <button className="fold-btn" data-tip="접기" aria-label="접기" onClick={e => { e.stopPropagation(); setFold(true); }}>
         {settings.position === 'bl' ? '«' : '»'}
       </button>
       {/* 곡 목록 팝업 (v1.9) — 바깥 클릭 시 닫힘 */}
@@ -304,11 +362,14 @@ export function BgmPlayer() {
         <>
           <div style={{ position: 'fixed', inset: 0, zIndex: -1 }} onClick={() => setListOpen(false)} />
           <div className="bgm-list on">
-            <div className="h">BGM LIST</div>
+            <div className="h"><span>PLAYLIST</span><small>{tracks.length}곡</small></div>
             {tracks.map((t, i) => (
               <div key={t.id} className={`it ${i === idx ? 'on' : ''}`}
                 onClick={() => { playAt(i); setListOpen(false); }}>
-                <b>{t.title}</b><small>{t.desc}</small>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <span className="th">{t.videoId && <img src={thumbOf(t.videoId)} alt="" loading="lazy" draggable={false} />}</span>
+                <span className="nm"><b>{t.title}</b>{t.desc && <small>{t.desc}</small>}</span>
+                {i === idx && playing && <span className="eq" aria-hidden><i /><i /><i /></span>}
               </div>
             ))}
           </div>

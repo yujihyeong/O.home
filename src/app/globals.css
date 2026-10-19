@@ -2954,3 +2954,76 @@ html[data-scene="night"] .pd-tape{background:rgba(231,168,191,.6)}
 .mm-member{margin:0 0 18px;font-family:var(--sans);animation:mmIn .38s cubic-bezier(.2,.7,.3,1) both;animation-delay:30ms}
 .mm-member .login-box{color:var(--ink);text-align:left;letter-spacing:normal}
 @media (prefers-reduced-motion:reduce){.mm-member{animation:none}}
+
+/* ==========================================================
+   BGM 플레이어 — 시안 C 「유리 카드」 (사용자 확정)
+   반투명 유리 + 유튜브 썸네일 커버 · 진행 바 · 시간. 낮 = 흰 유리·쑥색 / 밤 = 남색 유리·벚꽃색
+   ========================================================== */
+.bgm.bgm-glass{--g-bg:rgba(255,255,255,.7);--g-solid:rgba(253,252,246,.96);--g-bd:rgba(255,255,255,.85);--g-fg:#2f3a2b;--g-sub:rgba(47,58,43,.6);--g-track:rgba(47,58,43,.12);
+  --g-acc:#6b7f59;--g-acc-fg:#fff;--g-hover:rgba(47,58,43,.07);--g-on:rgba(107,127,89,.14);--g-cover:linear-gradient(180deg,#bfe0f2,#cfe6b9);
+  width:310px;align-items:center;gap:12px;padding:12px 12px 10px;border-radius:20px;
+  background:var(--g-bg);border:1px solid var(--g-bd);color:var(--g-fg);
+  backdrop-filter:blur(14px) saturate(1.2);-webkit-backdrop-filter:blur(14px) saturate(1.2);box-shadow:0 14px 34px -14px rgba(0,0,0,.38)}
+html[data-scene="night"] .bgm.bgm-glass{--g-bg:rgba(30,32,56,.72);--g-solid:rgba(28,30,52,.96);--g-bd:rgba(255,255,255,.12);--g-fg:#f1eaf0;--g-sub:rgba(241,234,240,.6);--g-track:rgba(255,255,255,.14);
+  --g-acc:#e7a8bf;--g-acc-fg:#2a2443;--g-hover:rgba(255,255,255,.07);--g-on:rgba(231,168,191,.16);--g-cover:linear-gradient(180deg,#1d2547,#3a3570)}
+.bgm-glass .cover{width:64px;height:64px;flex-shrink:0;border-radius:14px;overflow:hidden;background:var(--g-cover);box-shadow:0 4px 12px -4px rgba(0,0,0,.3);transition:transform .3s}
+.bgm-glass .cover img{width:100%;height:100%;object-fit:cover;display:block}
+.bgm-glass .bgm-main{flex:1;min-width:0;display:flex;flex-direction:column}
+.bgm-glass .title{max-width:none;color:var(--g-fg);opacity:1;padding-right:14px}
+.bgm-glass .title .tt{color:var(--g-fg);font-size:calc(12.5px*var(--fs,1));font-weight:700}
+.bgm-glass .title .mq{max-width:none}
+.bgm-glass .title .mq:not(.tt){font-size:calc(10.5px*var(--fs,1));color:var(--g-sub)}
+.bgm-glass .bgm-bar{position:relative;height:4px;border-radius:2px;background:var(--g-track);margin:8px 0 3px;cursor:var(--cur-pointer,pointer)}
+.bgm-glass .bgm-bar::before{content:"";position:absolute;inset:-6px 0}
+.bgm-glass .bgm-bar b{position:absolute;left:0;top:0;bottom:0;border-radius:2px;background:var(--g-acc);transition:width .4s linear}
+.bgm-glass .bgm-tm{display:flex;justify-content:space-between;font-size:calc(9.5px*var(--fs,1));color:var(--g-sub);font-variant-numeric:tabular-nums}
+.bgm-glass .bgm-row{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:2px}
+.bgm-glass .ctrl{gap:6px;align-items:center}
+.bgm-glass .ctrl button{width:26px;height:26px;color:var(--g-fg);opacity:.8}
+.bgm-glass .ctrl button:hover{background:var(--g-hover);color:var(--g-fg);opacity:1}
+.bgm-glass .ctrl button svg{width:15px;height:15px;fill:currentColor;display:block}
+.bgm-glass .ctrl .pp{width:30px;height:30px;background:var(--g-acc);color:var(--g-acc-fg);opacity:1}
+.bgm-glass .ctrl .pp:hover{background:var(--g-acc);color:var(--g-acc-fg);filter:brightness(1.06)}
+.bgm-glass .ctrl .lst svg{fill:none}
+.bgm-glass .vol{width:56px;background:var(--g-track)}
+.bgm-glass .vol i{background:var(--g-acc)}
+.bgm-glass .fold-btn{position:absolute;top:6px;right:8px;width:18px;height:18px;color:var(--g-sub)}
+.bgm-glass .fold-btn:hover{color:var(--g-fg)}
+.bgm.bgm-glass.folded{width:auto;padding:5px;border-radius:16px}
+.bgm.bgm-glass.folded .bgm-main,.bgm.bgm-glass.folded .fold-btn{display:none}
+.bgm.bgm-glass.folded .cover{width:46px;height:46px;border-radius:12px}
+/* 목록 — 같은 유리판, 곡마다 썸네일 */
+.bgm-glass .bgm-list{right:0;width:310px;min-width:0;padding:10px;border-radius:20px;background:var(--g-solid);border:1px solid var(--g-bd);color:var(--g-fg);
+  backdrop-filter:blur(14px) saturate(1.2);-webkit-backdrop-filter:blur(14px) saturate(1.2);box-shadow:0 14px 34px -14px rgba(0,0,0,.38);max-height:min(60vh,420px);overflow-y:auto}
+.bgm-glass .bgm-list .h{display:flex;justify-content:space-between;align-items:center;font:600 calc(12px*var(--fs,1)) 'Cormorant Garamond',var(--serif);letter-spacing:.22em;color:var(--g-sub);padding:2px 6px 8px}
+.bgm-glass .bgm-list .h small{font:500 10px var(--sans);letter-spacing:0}
+.bgm-glass .bgm-list .it{display:grid;grid-template-columns:38px 1fr auto;gap:10px;align-items:center;padding:6px;border-radius:12px}
+.bgm-glass .bgm-list .it:hover{background:var(--g-hover)}
+.bgm-glass .bgm-list .it.on{background:var(--g-on)}
+.bgm-glass .bgm-list .th{width:38px;height:38px;border-radius:9px;overflow:hidden;background:var(--g-cover)}
+.bgm-glass .bgm-list .th img{width:100%;height:100%;object-fit:cover;display:block}
+.bgm-glass .bgm-list .nm{min-width:0}
+.bgm-glass .bgm-list .it b{color:var(--g-fg);font-size:calc(12px*var(--fs,1));white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bgm-glass .bgm-list .it small{display:block;color:var(--g-sub);font-size:calc(10px*var(--fs,1));white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bgm-glass .bgm-list .it.on b{color:var(--g-fg)}
+.bgm-glass .eq{display:inline-flex;gap:2px;align-items:flex-end;height:12px;margin-right:4px}
+.bgm-glass .eq i{width:3px;border-radius:1px;background:var(--g-acc);animation:bgmEq 1s ease-in-out infinite}
+.bgm-glass .eq i:nth-child(2){animation-delay:-.3s}.bgm-glass .eq i:nth-child(3){animation-delay:-.6s}
+@keyframes bgmEq{0%,100%{height:3px}50%{height:12px}}
+@media (prefers-reduced-motion:reduce){.bgm-glass .eq i{animation:none;height:8px}}
+/* 모바일 — 지금처럼 오른쪽 가장자리의 세로 캡슐 (유리 색만 입힘) */
+@media (max-width:620px){
+  .bgm.bgm-glass{width:46px;padding:8px 0;gap:6px;border-radius:24px}
+  .bgm-glass .cover{width:32px;height:32px;border-radius:50%}
+  .bgm-glass .bgm-main{flex:none;align-items:center;gap:6px}
+  .bgm-glass .title{padding-right:0}
+  .bgm-glass .bgm-bar,.bgm-glass .bgm-tm{display:none}
+  .bgm-glass .bgm-row{flex-direction:column;margin:0}
+  .bgm-glass .ctrl{flex-direction:column;gap:2px}
+  .bgm-glass .ctrl .pp{width:30px;height:30px}
+  .bgm-glass .fold-btn{position:static;transform:rotate(90deg)}
+  .bgm.bgm-glass.folded{width:46px;padding:6px 0;border-radius:24px}
+  .bgm.bgm-glass.folded .cover{width:34px;height:34px;border-radius:50%}
+  .bgm-glass .bgm-list{bottom:0;right:calc(100% + 8px);width:250px}
+  .bgm.bgm-glass.bgm-left .bgm-list{right:auto;left:calc(100% + 8px)}
+}
