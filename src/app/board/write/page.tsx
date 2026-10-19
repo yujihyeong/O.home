@@ -123,16 +123,21 @@ function WriteInner() {
     );
   }
 
+  /** 이미지 올리기 — 서버가 있으면 주소, 없으면(로컬) 본문에 심을 data URL */
+  const uploadImages = async (files: File[]) => {
+    const added: string[] = [];
+    for (const f of files) {
+      const clean = await stripImageMeta(f);   // 메타데이터 없이 (보안 강화)
+      const ref = await putBlob(clean);
+      added.push(/^https?:/.test(ref) ? ref : await toDataUrl(clean));
+    }
+    return added;
+  };
   const addImages = async (files: FileList | null) => {
     if (!files?.length) return;
     setUpBusy(true);
     try {
-      const added: string[] = [];
-      for (const f of Array.from(files)) {
-        const clean = await stripImageMeta(f);   // 메타데이터 없이 (보안 강화)
-        const ref = await putBlob(clean);
-        added.push(/^https?:/.test(ref) ? ref : await toDataUrl(clean));
-      }
+      const added = await uploadImages(Array.from(files));
       setImages(l => [...l, ...added]);
     } catch (e) {
       toast(`이미지를 올리지 못했습니다 — ${e instanceof Error ? e.message : String(e)}`);
@@ -272,7 +277,7 @@ function WriteInner() {
                 );
                 // HTML 코드에는 맞춤법 검사를 걸지 않는다 — 태그가 걸린다 (미리보기 편집은 에디터 쪽 검사를 쓴다)
                 return isMd
-                  ? <TextTools value={body} onChange={setBody} log={writeMode === 'log'} font={font}>{ta}</TextTools>
+                  ? <TextTools value={body} onChange={setBody} log={writeMode === 'log'} font={font} upload={uploadImages}>{ta}</TextTools>
                   : <TextTools value={body} onChange={setBody} spell={false} font={{ ...font, html: true }}>{ta}</TextTools>;
               })()}
               <div className="preview-box" style={{ marginTop: 14 }}>
