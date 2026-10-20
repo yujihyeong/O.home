@@ -4,7 +4,7 @@
 // .ani(윈도우 애니메이션 커서)는 프레임을 뽑아 CSS cursor를 교체하며 재생 (lib/aniCursor).
 // .cur는 파일에 내장된 핫스팟을 그대로 사용 (CSS 좌표 생략).
 import { useEffect } from 'react';
-import { useCursorSettings, CursorState } from '@/lib/cursorStore';
+import { useCursorSettings, CursorState, BUILTIN_CURSORS } from '@/lib/cursorStore';
 import { getBlob } from '@/lib/blobStore';
 import { parseAni, isCur } from '@/lib/aniCursor';
 
@@ -40,6 +40,9 @@ const RULES: Record<CursorState, { sel: string; fallback: string }> = {
   rsNesw: { sel: '.cur-rs-nesw', fallback: 'nesw-resize' },
   rsEw: { sel: '.cur-rs-ew', fallback: 'ew-resize' },
   rsNs: { sel: '.cur-rs-ns', fallback: 'ns-resize' },
+  wait: { sel: '[aria-busy="true"], .cur-wait', fallback: 'progress' },
+  help: { sel: 'abbr[title], .cur-help', fallback: 'help' },
+  notAllowed: { sel: 'button:disabled, input:disabled, [aria-disabled="true"], .cur-no', fallback: 'not-allowed' },
 };
 
 interface AnimState { key: CursorState; urls: string[]; delays: number[] }
@@ -50,7 +53,7 @@ export function CursorLayer() {
   useEffect(() => {
     const styleId = 'ohome-cursor-style';
     let styleEl = document.getElementById(styleId) as HTMLStyleElement | null;
-    if (!st.enabled || Object.keys(st.states).length === 0) {
+    if (!st.enabled) {
       styleEl?.remove();
       return;
     }
@@ -60,9 +63,18 @@ export function CursorLayer() {
     (async () => {
       const staticParts: string[] = [];
       const anims: AnimState[] = [];
-      for (const key of Object.keys(st.states) as CursorState[]) {
+      // 직접 등록하지 않은 상태는 기본 커서 세트(BUILTIN_CURSORS)
+      for (const key of Object.keys(RULES) as CursorState[]) {
         const entry = st.states[key];
-        if (!entry) continue;
+        if (!entry) {
+          const b = BUILTIN_CURSORS[key];
+          if (!b) continue;
+          const rule = RULES[key];
+          staticParts.push(`${rule.sel}{cursor:url("${b.url}") ${b.hx} ${b.hy}, ${rule.fallback} !important}`);
+          const vn = VAR_NAME[key];
+          if (vn) staticParts.push(`:root{${vn}:url("${b.url}") ${b.hx} ${b.hy}, ${rule.fallback}}`);
+          continue;
+        }
         const blob = await getBlob(entry.imgId);
         if (!blob || cancelled) continue;
         const buf = await blob.arrayBuffer();
