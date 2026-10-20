@@ -2737,20 +2737,20 @@ html[data-scene="night"] .if-card .if-day{display:none}
 .if-star{fill:#fff6e0;opacity:.8;animation:ifTwinkle 3.6s ease-in-out infinite}
 @keyframes ifTwinkle{0%,100%{opacity:.85}50%{opacity:.25}}
 .if-card>*:not(.if-deco){position:relative}
-.if-eyebrow{font:italic 500 calc(15px*var(--fs,1)) 'Cormorant Garamond',var(--serif);letter-spacing:.32em;color:var(--if-accent);text-align:center}
-.if-nick{font-family:var(--serif);font-weight:700;font-size:calc(34px*var(--fs,1));text-align:center;margin:10px 0 0;letter-spacing:-.01em;line-height:1.3;word-break:keep-all;color:var(--if-ink)}
+.if-eyebrow{font:italic 500 calc(14px*var(--fs,1)) 'Cormorant Garamond',var(--serif);letter-spacing:.32em;color:var(--if-accent);text-align:center}
+.if-nick{font-family:var(--serif);font-weight:700;font-size:calc(33px*var(--fs,1));text-align:center;margin:10px 0 0;letter-spacing:-.01em;line-height:1.3;word-break:keep-all;color:var(--if-ink)}
 .if-id{display:flex;justify-content:center;margin-top:12px}
-.if-id>span{display:inline-flex;align-items:center;gap:2px;font-size:calc(13px*var(--fs,1));font-weight:500;color:var(--if-chipfg);background:var(--if-chip);border-radius:999px;padding:5px 14px;letter-spacing:.02em}
+.if-id>span{display:inline-flex;align-items:center;gap:2px;font-size:calc(12px*var(--fs,1));font-weight:500;color:var(--if-chipfg);background:var(--if-chip);border-radius:999px;padding:5px 14px;letter-spacing:.02em}
 .if-orn{display:flex;align-items:center;gap:12px;margin:26px 0 6px;color:var(--if-orn)}
 .if-orn::before,.if-orn::after{content:"";flex:1;height:1px;background:var(--if-line)}
 .if-sec{margin-top:26px}
 .if-sh{display:flex;align-items:baseline;gap:10px;margin-bottom:12px}
-.if-sh b{font:600 calc(17px*var(--fs,1)) 'Cormorant Garamond',var(--serif);letter-spacing:.28em;color:var(--if-accent)}
-.if-sh small{font-size:calc(12px*var(--fs,1));color:var(--if-faint)}
-.if-notice{display:block;width:100%;background:var(--if-chip);border-radius:14px;padding:16px 20px;font-size:calc(13.5px*var(--fs,1));line-height:1.85;color:var(--if-ink);white-space:pre-wrap;word-break:break-word}
+.if-sh b{font:600 calc(16px*var(--fs,1)) 'Cormorant Garamond',var(--serif);letter-spacing:.28em;color:var(--if-accent)}
+.if-sh small{font-size:calc(11px*var(--fs,1));color:var(--if-faint)}
+.if-notice{display:block;width:100%;background:var(--if-chip);border-radius:14px;padding:16px 20px;font-size:calc(12.5px*var(--fs,1));line-height:1.85;color:var(--if-ink);white-space:pre-wrap;word-break:break-word}
 .if-ng{display:flex;flex-wrap:wrap;gap:8px}
-.if-ng>span{font-size:calc(13.5px*var(--fs,1));padding:7px 14px 7px 12px;border-radius:999px;border:1px solid var(--if-line);color:var(--if-ink);display:inline-flex;align-items:center;gap:7px;max-width:100%;word-break:break-word}
-.if-ng>span i{font-style:normal;color:var(--if-accent);font-size:12px;font-weight:700}
+.if-ng>span{font-size:calc(12.5px*var(--fs,1));padding:7px 14px 7px 12px;border-radius:999px;border:1px solid var(--if-line);color:var(--if-ink);display:inline-flex;align-items:center;gap:7px;max-width:100%;word-break:break-word}
+.if-ng>span i{font-style:normal;color:var(--if-accent);font-size:11px;font-weight:700}
 .if-pairs{display:grid;grid-template-columns:1fr 1fr;gap:18px}
 .if-pair{min-width:0;text-align:center}
 .if-pairs:has(> .if-pair:only-child){grid-template-columns:minmax(0,300px);justify-content:center}
@@ -2758,25 +2758,25 @@ html[data-scene="night"] .if-card .if-day{display:none}
    위아래만 비던 문제를 없앤다 (사용자 제보) */
 .if-pic{position:relative;border-radius:16px;overflow:hidden;background:var(--if-frame);padding:8px;display:block}
 .if-pic img,.if-pic-empty{width:100%;height:auto;aspect-ratio:4/3;object-fit:cover;border-radius:10px;display:block}
-.if-pn{font-family:var(--serif);font-weight:700;font-size:calc(16px*var(--fs,1));margin-top:12px;display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;word-break:keep-all}
-.if-pn em{font:italic 500 calc(15px*var(--fs,1)) 'Cormorant Garamond',var(--serif);color:var(--if-accent)}
+.if-pn{font-family:var(--serif);font-weight:700;font-size:calc(15px*var(--fs,1));margin-top:12px;display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;word-break:keep-all}
+.if-pn em{font:italic 500 calc(14px*var(--fs,1)) 'Cormorant Garamond',var(--serif);color:var(--if-accent)}
 /* 주플랫폼 — 고른 것만 아이디 칸과 같은 알약으로. 편집 땐 다섯 개 다 보이고 누르면 켜고 끈다 */
 .if-plat{display:flex;flex-wrap:wrap;gap:8px}
-.if-plat>span,.if-plat>button{font-size:calc(13.5px*var(--fs,1));font-weight:500;padding:7px 15px;border-radius:999px;background:var(--if-chip);color:var(--if-chipfg);border:1px solid transparent;display:inline-flex;align-items:center;gap:6px;font-family:inherit}
+.if-plat>span,.if-plat>button{font-size:calc(12.5px*var(--fs,1));font-weight:500;padding:7px 15px;border-radius:999px;background:var(--if-chip);color:var(--if-chipfg);border:1px solid transparent;display:inline-flex;align-items:center;gap:6px;font-family:inherit}
 .if-plat>button{background:transparent;border:1px dashed var(--if-line);color:var(--if-faint);cursor:var(--cur-pointer,pointer);transition:.15s}
 .if-plat>button:hover{border-color:var(--if-accent);color:var(--if-sub)}
 .if-plat>button.on{background:var(--if-chip);color:var(--if-chipfg);border:1px solid var(--if-accent)}
-.if-plat>button i{font-style:normal;color:var(--if-accent);font-size:11px;font-weight:700}
-.if-hint{margin:8px 0 0;font-size:calc(11.5px*var(--fs,1));color:var(--if-faint)}
+.if-plat>button i{font-style:normal;color:var(--if-accent);font-size:10px;font-weight:700}
+.if-hint{margin:8px 0 0;font-size:calc(10.5px*var(--fs,1));color:var(--if-faint)}
 /* PLAYING — 줄마다 제작자 @아이디 · 캐릭터 이름 */
 .if-play{display:flex;flex-direction:column;gap:8px}
 .if-prow{display:flex;align-items:center;gap:12px;padding:11px 16px;border-radius:14px;background:var(--if-chip)}
-.if-pmaker{font-size:calc(13px*var(--fs,1));font-weight:500;color:var(--if-chipfg);opacity:.85;white-space:nowrap;display:inline-flex;align-items:center}
-.if-pchar{flex:1;min-width:0;font-family:var(--serif);font-weight:700;font-size:calc(15px*var(--fs,1));color:var(--if-ink);word-break:keep-all}
+.if-pmaker{font-size:calc(12px*var(--fs,1));font-weight:500;color:var(--if-chipfg);opacity:.85;white-space:nowrap;display:inline-flex;align-items:center}
+.if-pchar{flex:1;min-width:0;font-family:var(--serif);font-weight:700;font-size:calc(14px*var(--fs,1));color:var(--if-ink);word-break:keep-all}
 .if-prow.edit{padding:6px 8px 6px 14px;gap:8px}
 .if-prow.edit .if-pmaker .if-in{width:150px;border:0;background:transparent;padding:2px 4px;color:var(--if-chipfg)}
 .if-prow.edit .if-pchar{padding:4px 8px}
-.if-prow.edit button{border:0;background:var(--if-card);color:var(--if-chipfg);width:20px;height:20px;border-radius:50%;line-height:20px;padding:0;font-size:12px;flex-shrink:0;cursor:var(--cur-pointer,pointer)}
+.if-prow.edit button{border:0;background:var(--if-card);color:var(--if-chipfg);width:20px;height:20px;border-radius:50%;line-height:20px;padding:0;font-size:11px;flex-shrink:0;cursor:var(--cur-pointer,pointer)}
 .if-play .if-ng-add{align-self:flex-start}
 @media (max-width:620px){.if-prow.edit .if-pmaker .if-in{width:100px}}
 /* 관리자 버튼 — 큰 제목을 없앤 자리, 카드 위 오른쪽 */
@@ -2787,14 +2787,14 @@ html[data-scene="night"] .if-card .if-day{display:none}
 .if-etc{display:flex;flex-direction:column;gap:8px}
 .if-acct{display:flex;align-items:center;gap:12px;padding:11px 16px;border-radius:14px;border:1px solid var(--if-line);color:var(--if-ink);text-decoration:none;transition:border-color .2s,background .2s}
 a.if-acct:hover{border-color:var(--if-accent);background:var(--if-soft)}
-.if-acct-h{font-weight:600;font-size:calc(14px*var(--fs,1));color:var(--if-accent);white-space:nowrap;display:inline-flex;align-items:center}
-.if-acct-d{flex:1;min-width:0;font-size:calc(13.5px*var(--fs,1));color:var(--if-sub);word-break:break-word}
-.if-acct-go{margin-left:auto;color:var(--if-faint);font-size:13px;transition:transform .2s,color .2s}
+.if-acct-h{font-weight:600;font-size:calc(13px*var(--fs,1));color:var(--if-accent);white-space:nowrap;display:inline-flex;align-items:center}
+.if-acct-d{flex:1;min-width:0;font-size:calc(12.5px*var(--fs,1));color:var(--if-sub);word-break:break-word}
+.if-acct-go{margin-left:auto;color:var(--if-faint);font-size:12px;transition:transform .2s,color .2s}
 a.if-acct:hover .if-acct-go{color:var(--if-accent);transform:translate(2px,-2px)}
 .if-acct.edit{padding:6px 8px 6px 14px;gap:8px}
 .if-acct.edit .if-acct-h .if-in{width:170px;border:0;background:transparent;color:var(--if-accent);font-weight:600;padding:2px 4px}
-.if-acct.edit .if-acct-d{padding:4px 8px;font-size:calc(13.5px*var(--fs,1));color:var(--if-ink)}
-.if-acct.edit button{border:0;background:var(--if-chip);color:var(--if-chipfg);width:20px;height:20px;border-radius:50%;line-height:20px;padding:0;font-size:12px;flex-shrink:0;cursor:var(--cur-pointer,pointer)}
+.if-acct.edit .if-acct-d{padding:4px 8px;font-size:calc(12.5px*var(--fs,1));color:var(--if-ink)}
+.if-acct.edit button{border:0;background:var(--if-chip);color:var(--if-chipfg);width:20px;height:20px;border-radius:50%;line-height:20px;padding:0;font-size:11px;flex-shrink:0;cursor:var(--cur-pointer,pointer)}
 .if-etc .if-ng-add{align-self:flex-start}
 @media (max-width:620px){
   .if-acct{flex-wrap:wrap;gap:4px 10px}
@@ -2805,30 +2805,30 @@ a.if-acct:hover .if-acct-go{color:var(--if-accent);transform:translate(2px,-2px)
 .if-in{font:inherit;color:inherit;background:var(--if-in);border:1px dashed var(--if-line);border-radius:8px;padding:2px 8px;outline:none;min-width:0}
 .if-in:focus{border-color:var(--if-accent);border-style:solid}
 .if-in::placeholder{color:var(--if-faint);opacity:1}
-input.if-nick{display:block;width:100%;padding:6px 10px;margin-top:10px;font-family:var(--serif);font-weight:700;font-size:calc(30px*var(--fs,1));text-align:center}
+input.if-nick{display:block;width:100%;padding:6px 10px;margin-top:10px;font-family:var(--serif);font-weight:700;font-size:calc(29px*var(--fs,1));text-align:center}
 .if-id .if-in{width:150px;padding:0 6px;border-radius:999px;background:transparent}
 textarea.if-notice{resize:vertical;min-height:110px;border:1px dashed var(--if-line)}
 textarea.if-notice:focus{border:1px solid var(--if-accent)}
 .if-ng>span.edit{padding:4px 6px 4px 12px}
 .if-ng>span.edit .if-in{border:0;background:transparent;padding:2px 2px;max-width:220px}
-.if-ng>span.edit button,.if-pic-x{border:0;background:var(--if-chip);color:var(--if-chipfg);width:20px;height:20px;border-radius:50%;line-height:20px;padding:0;font-size:12px;cursor:var(--cur-pointer,pointer)}
-.if-ng-add{border:1px dashed var(--if-line);background:transparent;color:var(--if-sub);border-radius:999px;padding:7px 14px;font-size:calc(13px*var(--fs,1));cursor:var(--cur-pointer,pointer)}
+.if-ng>span.edit button,.if-pic-x{border:0;background:var(--if-chip);color:var(--if-chipfg);width:20px;height:20px;border-radius:50%;line-height:20px;padding:0;font-size:11px;cursor:var(--cur-pointer,pointer)}
+.if-ng-add{border:1px dashed var(--if-line);background:transparent;color:var(--if-sub);border-radius:999px;padding:7px 14px;font-size:calc(12px*var(--fs,1));cursor:var(--cur-pointer,pointer)}
 .if-ng-add:hover{border-color:var(--if-accent);color:var(--if-accent)}
 .if-pic.edit{cursor:var(--cur-pointer,pointer);outline:1.5px dashed var(--if-line);outline-offset:-1.5px}
 .if-pic.edit:hover{outline-color:var(--if-accent)}
-.if-pic-empty{display:flex;align-items:center;justify-content:center;font-size:calc(13px*var(--fs,1));color:var(--if-sub)}
-.if-pic-hint{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);font-size:11px;color:#fff;background:rgba(0,0,0,.45);padding:3px 10px;border-radius:999px;white-space:nowrap;opacity:0;transition:opacity .2s}
+.if-pic-empty{display:flex;align-items:center;justify-content:center;font-size:calc(12px*var(--fs,1));color:var(--if-sub)}
+.if-pic-hint{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);font-size:10px;color:#fff;background:rgba(0,0,0,.45);padding:3px 10px;border-radius:999px;white-space:nowrap;opacity:0;transition:opacity .2s}
 .if-pic.edit:hover .if-pic-hint{opacity:1}
 .if-pic-x{position:absolute;top:12px;right:12px;width:24px;height:24px;line-height:24px;box-shadow:0 2px 6px rgba(0,0,0,.25)}
-input.if-pn{display:block;width:100%;text-align:center;padding:5px 8px;font-family:var(--serif);font-weight:700;font-size:calc(15px*var(--fs,1))}
+input.if-pn{display:block;width:100%;text-align:center;padding:5px 8px;font-family:var(--serif);font-weight:700;font-size:calc(14px*var(--fs,1))}
 @media (max-width:620px){
   .if-card{padding:34px 20px 30px;border-radius:18px}
   .if-d-tl,.if-d-br{width:110px;height:66px}
-  .if-nick{font-size:calc(27px*var(--fs,1))}
+  .if-nick{font-size:calc(26px*var(--fs,1))}
   .if-pairs{gap:12px}
   .if-pic{padding:5px;border-radius:12px}
   .if-pic img,.if-pic-empty{border-radius:8px}
-  .if-pn{font-size:calc(14.5px*var(--fs,1))}
+  .if-pn{font-size:calc(13.5px*var(--fs,1))}
 }
 @media (prefers-reduced-motion:reduce){.if-star{animation:none}}
 
@@ -3079,11 +3079,11 @@ html[data-scene="night"] .tr-face{box-shadow:0 0 22px rgba(160,140,255,.35),0 8p
 /* 인포 LIST — 접기 (사용자 요청) */
 .if-fold > summary{list-style:none;cursor:var(--cur-pointer,pointer);user-select:none;margin-bottom:0}
 .if-fold > summary::-webkit-details-marker{display:none}
-.if-fold-ic{font-size:calc(15px*var(--fs,1));color:var(--if-accent);transition:transform .2s;transform:rotate(-90deg)}
+.if-fold-ic{font-size:calc(14px*var(--fs,1));color:var(--if-accent);transition:transform .2s;transform:rotate(-90deg)}
 .if-fold[open] > summary{margin-bottom:12px}
 .if-fold[open] .if-fold-ic{transform:none}
 /* 인포 LIST 줄 — 장르 | 캐릭터 */
-.if-lgenre{width:96px;flex-shrink:0;font-size:calc(13px*var(--fs,1));font-weight:600;color:var(--if-chipfg);word-break:keep-all}
+.if-lgenre{width:96px;flex-shrink:0;font-size:calc(12px*var(--fs,1));font-weight:600;color:var(--if-chipfg);word-break:keep-all}
 .if-lbar{width:1px;align-self:stretch;background:var(--if-chipfg);opacity:.3;flex-shrink:0}
 .if-prow.edit .if-lgenre{border:0;background:transparent;padding:4px 4px;color:var(--if-chipfg)}
 @media (max-width:620px){.if-lgenre{width:72px}}
@@ -3092,7 +3092,7 @@ textarea.if-notice.if-lnote{min-height:64px}
 /* 인포 리스트 위 글 — 굵게 버튼 */
 .if-bold-wrap{display:flex;flex-direction:column;gap:6px;margin-bottom:10px}
 .if-bold-wrap .if-lnote{margin-bottom:0}
-.if-bold-btn{align-self:flex-start;border:1px solid var(--if-line);background:transparent;color:var(--if-sub);border-radius:8px;padding:3px 10px;font-size:calc(12px*var(--fs,1));cursor:var(--cur-pointer,pointer)}
+.if-bold-btn{align-self:flex-start;border:1px solid var(--if-line);background:transparent;color:var(--if-sub);border-radius:8px;padding:3px 10px;font-size:calc(11px*var(--fs,1));cursor:var(--cur-pointer,pointer)}
 .if-bold-btn:hover{border-color:var(--if-accent);color:var(--if-accent)}
 .if-bold-btn b{font-weight:800;margin-right:3px}
 .if-notice b{font-weight:700}
