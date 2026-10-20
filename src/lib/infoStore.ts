@@ -30,28 +30,52 @@ export function handleOf(raw: string): string {
 export const profileUrl = (handle: string) => `https://x.com/${encodeURIComponent(handleOf(handle))}`;
 
 export interface InfoDoc {
+  /** 동그란 프로필 이미지 (사용자 요청) */
+  avatar: string | null;
   nick: string;
   uid: string;
   /** 아이디를 눌렀을 때 갈 주소 (사용자 요청, 비우면 링크 없음) */
   uidLink: string;
+  /** INFO 칸 (카드 블록형 템플릿, 사용자 요청) */
+  gender: string;
+  age: string;           // INFO_AGES 중 하나 또는 ''
+  couplings: string[];   // INFO_COUPLINGS 중 고른 것
+  taste: string;         // INFO_TASTES 중 하나 또는 ''
   /** 주플랫폼 — 아래 목록 중 고른 것만 보인다 (사용자 요청) */
   platforms: string[];
+  /** NOTICE — 줄마다 앞에 ♡ */
   notice: string;
+  /** 계정 성향 — 고른 것만 보인다 */
+  account: string[];
   /** LIST — 공지 밑, 접어 두는 항목 (사용자 요청). 장르 | 캐릭터 줄을 원하는 만큼 */
   list: InfoListRow[];
   /** LIST 맨 위에 따로 쓰는 글 (사용자 요청) */
   listNote: string;
-  ng: string[];
+  /** NG — 줄글, 줄마다 앞에 ✕ (예전에는 항목 배열이었다) */
+  ng: string;
+  /** DREAM — 이미지 + 커플명, 누르면 글 팝업 (예전 PAIR) */
   pairs: InfoPair[];
   plays: InfoPlay[];
   etc: InfoAcct[];
 }
 
 /** 고를 수 있는 주플랫폼 — 보여 줄 때도 이 순서 */
-export const INFO_PLATFORMS = ['Caveduck', 'Rofan AI', 'teapot', 'elyn', 'Plaitoon'];
+export const INFO_PLATFORMS = ['Caveduck', 'Rofan AI', 'Teapot', 'elyn', 'Plaitoon'];
+export const INFO_AGES = ['성인', '미성년'];
+export const INFO_COUPLINGS = ['HL', 'BL', 'GL', 'NCP', 'ALL'];
+export const INFO_TASTES = ['ONLY', 'OPEN'];
+export const INFO_ACCOUNT = ['구독', '소비', '탐라대화', 'RT/인용', '로그', '연성', 'AI이미지', '사담', '마음'];
+
+/** 목록에 있는 것만, 목록 순서대로 (대소문자 무시 — 예전 'teapot'도 'Teapot'으로) */
+const pick = (all: string[], v: unknown) => {
+  const got = Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string').map(x => x.toLowerCase()) : [];
+  return all.filter(a => got.includes(a.toLowerCase()));
+};
+const one = (all: string[], v: unknown) => (typeof v === 'string' && all.includes(v) ? v : '');
 
 export const EMPTY_INFO: InfoDoc = {
-  nick: '', uid: '', uidLink: '', platforms: [], notice: '', list: [], listNote: '', ng: [],
+  avatar: null, nick: '', uid: '', uidLink: '', gender: '', age: '', couplings: [], taste: '',
+  platforms: [], notice: '', account: [], list: [], listNote: '', ng: '',
   pairs: [{ img: null, name: '', desc: '' }, { img: null, name: '', desc: '' }],
   plays: [],
   etc: [],
@@ -62,11 +86,17 @@ export function normInfo(raw: Partial<InfoDoc> | null | undefined): InfoDoc {
   const r = raw ?? {};
   const pairs = Array.isArray(r.pairs) ? r.pairs : [];
   return {
+    avatar: typeof r.avatar === 'string' ? r.avatar : null,
     nick: typeof r.nick === 'string' ? r.nick : '',
     uid: typeof r.uid === 'string' ? r.uid : '',
     uidLink: typeof r.uidLink === 'string' ? r.uidLink : '',
-    platforms: Array.isArray(r.platforms) ? INFO_PLATFORMS.filter(p => r.platforms!.includes(p)) : [],
+    gender: typeof r.gender === 'string' ? r.gender : '',
+    age: one(INFO_AGES, r.age),
+    couplings: pick(INFO_COUPLINGS, r.couplings),
+    taste: one(INFO_TASTES, r.taste),
+    platforms: pick(INFO_PLATFORMS, r.platforms),
     notice: typeof r.notice === 'string' ? r.notice : '',
+    account: pick(INFO_ACCOUNT, r.account),
     listNote: typeof r.listNote === 'string' ? r.listNote : '',
     // 예전에는 글 한 칸이었다 — 줄마다 캐릭터 칸으로 옮긴다
     list: typeof r.list === 'string'
@@ -75,7 +105,8 @@ export function normInfo(raw: Partial<InfoDoc> | null | undefined): InfoDoc {
         genre: typeof a?.genre === 'string' ? a.genre : '',
         char: typeof a?.char === 'string' ? a.char : '',
       })),
-    ng: Array.isArray(r.ng) ? r.ng.filter(s => typeof s === 'string') : [],
+    ng: typeof r.ng === 'string' ? r.ng
+      : Array.isArray(r.ng) ? (r.ng as unknown[]).filter((x): x is string => typeof x === 'string').join('\n') : '',
     pairs: [0, 1].map(i => ({
       img: typeof pairs[i]?.img === 'string' ? pairs[i].img : null,
       name: typeof pairs[i]?.name === 'string' ? pairs[i].name : '',
