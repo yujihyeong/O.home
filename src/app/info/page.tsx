@@ -2,7 +2,7 @@
 /**
  * 인포 페이지 (사용자 요청) — 목록 없이 **자기소개 글 하나**만 보이는 페이지.
  *
- * 글은 정해진 템플릿이다: 닉네임 · 아이디 · 공지 · PLAYING(제작자 · 캐릭터) · NG · 페어 소개(이미지 + 페어명) 2칸 · ETC.(다른 계정).
+ * 글은 정해진 템플릿이다: 닉네임 · 아이디 · 공지 · LIST(접기) · PLAYING(제작자 · 캐릭터) · NG · 페어 소개(이미지 + 페어명) 2칸 · ETC.(다른 계정).
  * 관리자는 EDIT을 누르면 **같은 카드 모양 그대로** 칸이 입력창으로 바뀌어, 칸만 채우고 저장한다.
  * 카드 색·장식은 홈의 낮/밤 장면을 따라 저절로 바뀐다 (낮 = 풀잎·들꽃, 밤 = 별·달·벚꽃잎).
  */
@@ -153,6 +153,22 @@ function InfoCard({ doc, editing, set }: { doc: InfoDoc; editing: boolean; set: 
         </section>
       )}
 
+      {/* LIST — 접어 둔 항목, 누르면 펼쳐진다 (사용자 요청) */}
+      {(editing || doc.list.trim()) && (
+        <section className="if-sec">
+          {editing ? (<>
+            <div className="if-sh"><b>LIST</b><small>보는 사람에게는 접힌 채로 보여요</small></div>
+            <textarea className="if-in if-notice" value={doc.list} rows={4} placeholder={'목록을 적어 주세요 — 줄을 바꾸면 그대로 줄바꿈돼요'}
+              onChange={e => set({ list: e.target.value })} />
+          </>) : (
+            <details className="if-fold">
+              <summary className="if-sh"><b>LIST</b><span className="if-fold-ic" aria-hidden>▾</span></summary>
+              <div className="if-notice">{doc.list}</div>
+            </details>
+          )}
+        </section>
+      )}
+
       {(editing || plays.length > 0) && (
         <section className="if-sec">
           <div className="if-sh"><b>PLAYING</b></div>
@@ -260,7 +276,7 @@ export default function InfoPage() {
     toast('저장되었습니다');
   };
 
-  const empty = !doc.nick.trim() && !doc.uid.trim() && !doc.notice.trim() && !doc.platforms.length
+  const empty = !doc.nick.trim() && !doc.uid.trim() && !doc.notice.trim() && !doc.list.trim() && !doc.platforms.length
     && !doc.ng.some(s => s.trim()) && !doc.pairs.some(p => p.img || p.name.trim())
     && !doc.etc.some(a => handleOf(a.handle)) && !doc.plays.some(a => a.maker.trim() || a.char.trim());
 
