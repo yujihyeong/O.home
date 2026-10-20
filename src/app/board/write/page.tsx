@@ -52,7 +52,7 @@ function WriteInner() {
   // 게시판은 여기서 고른다 (pickB)
   const shared = !editPid && (params.get('share') === '1' || !!params.get('text') || !!params.get('url'));
   const [pickB, setPickB] = useState<string | null>(null);
-  const bid = editing?.boardId ?? pickB ?? params.get('b') ?? MAIN_BOARD_ID;
+  const bid = pickB ?? editing?.boardId ?? params.get('b') ?? MAIN_BOARD_ID;
   const { boards } = useBoards();
   const board = boards.find(b => b.id === bid) ?? boards[0];
   const [title, setTitle] = useState('');
@@ -175,7 +175,7 @@ function WriteInner() {
         images: undefined, caption: undefined,
       };
     if (editing) {
-      // 수정 — 작성자 본인만 (관리자도 타인 글은 삭제만, v1.9). 작성자/날짜/댓글/소속 게시판은 유지
+      // 수정 — 작성자 본인만 (관리자도 타인 글은 삭제만, v1.9). 작성자/날짜/댓글은 유지, 게시판은 옮길 수 있다 (사용자 요청)
       if (editing.authorId !== user.id) { toast('수정은 작성자 본인만 할 수 있습니다'); return; }
       setPosts(posts.map(p => (p.id === editing.id ? {
         ...p,
@@ -185,6 +185,7 @@ function WriteInner() {
         tags: parseTags(tagsText),
         fold: foldType === 'none' ? null : { type: foldType, label: foldType === 'custom' ? foldLabel : undefined },
         thumbSrc, thumbCrop,
+        boardId: board.id,
       } : p)));
       toast('수정되었습니다');
       router.push(`/board/${editing.id}`);
@@ -221,12 +222,13 @@ function WriteInner() {
       <div className="write-grid">
         {/* 좌: 본문 */}
         <div className="panel" style={{ padding: 24 }}>
-          {/* 게시판 고르기 — 새 글이면 늘 보인다 (사용자 요청). 공유로 들어온 글은 글 게시판만 */}
-          {!editPid && (
+          {/* 게시판 고르기 — 새 글·수정 모두 (사용자 요청). 공유로 들어온 글은 글 게시판만,
+              수정하는 글은 같은 종류(글/갤러리) 게시판으로만 옮길 수 있다 */}
+          {(!editPid || editing) && (
             <div className="form-row">
               <label className="k-label" style={{ width: 60 }}>게시판</label>
               <KSelect value={board.id} onChange={setPickB} minWidth={180}
-                options={boards.filter(b => !shared || (b.kind ?? 'log') === 'log').map(b => ({ value: b.id, label: b.name }))} />
+                options={boards.filter(b => editing ? (b.kind ?? 'log') === kind : !shared || (b.kind ?? 'log') === 'log').map(b => ({ value: b.id, label: b.name }))} />
             </div>
           )}
           <div className="form-row">
