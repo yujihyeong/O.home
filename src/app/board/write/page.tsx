@@ -221,11 +221,12 @@ function WriteInner() {
       <div className="write-grid">
         {/* 좌: 본문 */}
         <div className="panel" style={{ padding: 24 }}>
-          {shared && (
+          {/* 게시판 고르기 — 새 글이면 늘 보인다 (사용자 요청). 공유로 들어온 글은 글 게시판만 */}
+          {!editPid && (
             <div className="form-row">
               <label className="k-label" style={{ width: 60 }}>게시판</label>
               <KSelect value={board.id} onChange={setPickB} minWidth={180}
-                options={boards.filter(b => (b.kind ?? 'log') === 'log').map(b => ({ value: b.id, label: b.name }))} />
+                options={boards.filter(b => !shared || (b.kind ?? 'log') === 'log').map(b => ({ value: b.id, label: b.name }))} />
             </div>
           )}
           <div className="form-row">
