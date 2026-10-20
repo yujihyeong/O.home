@@ -138,6 +138,14 @@ function Deco() {
 }
 
 function InfoCard({ doc, editing, set }: { doc: InfoDoc; editing: boolean; set: (p: Partial<InfoDoc>) => void }) {
+  // 인포 글씨는 전부 나눔명조 (사용자 요청) — 이 페이지에서만 불러온다
+  useEffect(() => {
+    if (document.getElementById('if-font')) return;
+    const l = document.createElement('link');
+    l.id = 'if-font'; l.rel = 'stylesheet';
+    l.href = 'https://fonts.googleapis.com/css2?family=Nanum+Myeongjo:wght@400;700;800&display=swap';
+    document.head.appendChild(l);
+  }, []);
   const ng = editing ? doc.ng : doc.ng.map(s => s.trim()).filter(Boolean);
   const showPairs = editing || doc.pairs.some(p => p.img || p.name.trim());
   const etc = editing ? doc.etc : doc.etc.filter(a => handleOf(a.handle));
