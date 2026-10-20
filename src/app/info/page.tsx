@@ -296,7 +296,7 @@ function InfoCard({ doc, editing, set }: { doc: InfoDoc; editing: boolean; set: 
 
       {showPairs && (
         <section className="if-sec">
-          <div className="if-sh"><b>PAIR</b></div>
+          <div className="if-sh"><b>PAIR</b>{!editing && doc.pairs.some(p => p.desc.trim()) && <small>클릭 시 자세한 성향</small>}</div>
           <div className="if-pairs">
             {doc.pairs.map((p, i) => (editing || p.img || p.name.trim()) && (
               <div key={i} className="if-pair">
