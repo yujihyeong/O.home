@@ -3100,3 +3100,7 @@ textarea.if-notice.if-lnote{min-height:64px}
 .if-card,.if-card *{font-family:'Nanum Myeongjo',serif !important}
 .if-lrow .if-pchar{font-weight:400}
 .if-notice.if-lnote b{font-weight:800}
+/* 인포 LIST 순서 바꾸기 ▲▼ */
+.if-move{display:inline-flex;flex-direction:column;gap:2px;flex-shrink:0}
+.if-prow.edit .if-move button{width:20px;height:14px;border-radius:5px;line-height:14px;font-size:8px}
+.if-prow.edit .if-move button:disabled{opacity:.3;cursor:default}

@@ -137,6 +137,15 @@ function Deco() {
   );
 }
 
+/** 줄 순서 바꾸기 — i번째를 d(−1 위 / +1 아래)만큼 */
+function moveRow<T>(arr: T[], i: number, d: number): T[] {
+  const j = i + d;
+  if (j < 0 || j >= arr.length) return arr;
+  const n = [...arr];
+  [n[i], n[j]] = [n[j], n[i]];
+  return n;
+}
+
 function InfoCard({ doc, editing, set }: { doc: InfoDoc; editing: boolean; set: (p: Partial<InfoDoc>) => void }) {
   // 인포 글씨는 전부 나눔명조 (사용자 요청) — 이 페이지에서만 불러온다
   useEffect(() => {
@@ -207,6 +216,10 @@ function InfoCard({ doc, editing, set }: { doc: InfoDoc; editing: boolean; set: 
                   <span className="if-lbar" aria-hidden />
                   <input className="if-in if-pchar" value={a.char} placeholder="캐릭터"
                     onChange={e => { const n = [...doc.list]; n[i] = { ...a, char: e.target.value }; set({ list: n }); }} />
+                  <span className="if-move">
+                    <button type="button" aria-label="위로" disabled={i === 0} onClick={() => set({ list: moveRow(doc.list, i, -1) })}>▲</button>
+                    <button type="button" aria-label="아래로" disabled={i === doc.list.length - 1} onClick={() => set({ list: moveRow(doc.list, i, 1) })}>▼</button>
+                  </span>
                   <button type="button" aria-label="빼기" onClick={() => set({ list: doc.list.filter((_, j) => j !== i) })}>−</button>
                 </div>
               ))}
