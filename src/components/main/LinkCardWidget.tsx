@@ -1,6 +1,6 @@
 'use client';
-// 링크 카드 위젯 (사용자 요청) — AI 채팅 캐릭터 이미지 하나 | 옆에 플랫폼별 링크.
-// 링크는 약자(예: CD, RF)를 적은 작은 알약으로, 늘어나면 이미지 옆에서 줄을 바꿔 계속 이어진다.
+// 링크 카드 위젯 (사용자 요청) — 길쭉한(3:4) AI 채팅 캐릭터 이미지 하나 | 옆에 플랫폼별 링크.
+// 링크는 약자(예: CD, RF)를 한 줄에 하나씩, 사이사이 선을 긋고 늘어나면 아래로 이어진다 (넘치면 스크롤).
 // 낮/밤 테마 색은 CSS가 맡는다. 여러 개 추가할 수 있다 (캐릭터마다 하나씩).
 import React, { useEffect, useRef, useState } from 'react';
 import { WidgetConf, useMainStore } from '@/lib/mainStore';
@@ -87,7 +87,7 @@ export function LinkCardEditor({ conf }: { conf: WidgetConf }) {
           {/* eslint-disable-next-line @next/next/no-img-element */}
           {src ? <img src={src} alt="" /> : <span>{busy ? '올리는 중…' : '＋ 이미지'}</span>}
         </button>
-        <input ref={fileRef} type="file" accept="image/*" data-crop="1:1" style={{ display: 'none' }}
+        <input ref={fileRef} type="file" accept="image/*" data-crop="3:4" style={{ display: 'none' }}
           onChange={async e => {
             const f = e.target.files?.[0]; e.target.value = '';
             if (!f) return;

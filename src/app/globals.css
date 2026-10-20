@@ -3128,27 +3128,28 @@ html[data-scene="night"] .if-pop-box{box-shadow:0 24px 60px -16px rgba(0,0,0,.7)
 .if-id-link{display:flex;justify-content:center;margin-top:6px}
 .if-id-link .if-in{width:min(320px,100%);text-align:center;font-size:calc(12px*var(--fs,1));padding:5px 10px;border:1px dashed var(--if-line);border-radius:999px;background:transparent}
 
-/* ---------- 링크 카드 위젯 (사용자 요청) — 캐릭터 이미지 | 플랫폼 링크 ---------- */
-.lc-widget{--lc-chip:#eef1e4;--lc-chipfg:#4f5d42;--lc-chipline:#d9dfc8;--lc-hover:#6e7f56;--lc-frame:#e9eedf;
-  height:100%;display:flex;gap:14px;padding:14px;align-items:flex-start;overflow:hidden}
-html[data-scene="night"] .lc-widget{--lc-chip:#3b3270;--lc-chipfg:#f0ecff;--lc-chipline:#5a4fa0;--lc-hover:#8b7bd8;--lc-frame:rgba(139,123,216,.22)}
-.lc-pic{width:clamp(64px,36%,150px);aspect-ratio:1;flex-shrink:0;border-radius:14px;overflow:hidden;background:var(--lc-frame);
-  display:grid;place-items:center;box-shadow:0 0 0 4px var(--lc-frame)}
+/* ---------- 링크 카드 위젯 (사용자 요청) — 길쭉한 캐릭터 이미지 | 줄마다 링크 하나, 사이사이 선 ---------- */
+.lc-widget{--lc-line:rgba(70,80,50,.16);--lc-fg:#4f5d42;--lc-hover:#6e7f56;--lc-frame:#e9eedf;
+  height:100%;display:flex;gap:14px;padding:12px;align-items:stretch;overflow:hidden}
+html[data-scene="night"] .lc-widget{--lc-line:rgba(139,123,216,.35);--lc-fg:#5a4dae;--lc-hover:#8b7bd8;--lc-frame:rgba(139,123,216,.22)}
+.lc-pic{height:100%;aspect-ratio:3/4;max-width:46%;flex-shrink:0;border-radius:12px;overflow:hidden;background:var(--lc-frame);display:grid;place-items:center}
 .lc-pic img{width:100%;height:100%;object-fit:cover;display:block}
 .lc-pic span{font-size:11px;color:var(--faint)}
-.lc-side{flex:1;min-width:0;max-height:100%;overflow:auto;display:flex;flex-direction:column;gap:9px;padding-top:2px}
-.lc-name{font-family:'Nanum Myeongjo',var(--serif);font-weight:700;font-size:calc(14.5px*var(--fs,1));letter-spacing:.02em;color:var(--wg-fg,var(--ink));word-break:keep-all}
-.lc-links{display:flex;flex-wrap:wrap;gap:6px}
-.lc-chip{display:inline-flex;align-items:center;gap:3px;padding:3px 9px 3px 10px;border-radius:999px;background:var(--lc-chip);color:var(--lc-chipfg);
-  border:1px solid var(--lc-chipline);font-size:calc(11px*var(--fs,1));font-weight:700;letter-spacing:.06em;text-decoration:none;white-space:nowrap;
-  cursor:var(--cur-pointer,pointer);transition:background .15s,color .15s,transform .15s}
-.lc-chip i{font-style:normal;font-size:.85em;opacity:.55}
-.lc-chip:hover{background:var(--lc-hover);color:#fff;border-color:transparent;transform:translateY(-1px)}
-.lc-empty{font-size:11px;color:var(--faint)}
+.lc-side{flex:1;min-width:0;max-height:100%;overflow:auto;display:flex;flex-direction:column}
+.lc-name{font-family:'Nanum Myeongjo',var(--serif);font-weight:700;font-size:calc(14px*var(--fs,1));color:var(--wg-fg,var(--ink));word-break:keep-all;padding:2px 2px 8px;border-bottom:1.5px solid var(--lc-line)}
+.lc-links{display:flex;flex-direction:column}
+.lc-chip{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 4px;border-bottom:1px solid var(--lc-line);
+  color:var(--lc-fg);font-size:calc(12.5px*var(--fs,1));font-weight:700;letter-spacing:.08em;text-decoration:none;white-space:nowrap;overflow:hidden;
+  cursor:var(--cur-pointer,pointer);transition:color .15s,padding .15s}
+.lc-chip:last-child{border-bottom:0}
+.lc-chip i{font-style:normal;font-size:.85em;opacity:.45;flex-shrink:0}
+.lc-chip:hover{color:var(--lc-hover);padding-left:8px}
+.lc-chip:hover i{opacity:1}
+.lc-empty{font-size:11px;color:var(--faint);padding:8px 2px}
 /* 편집 창 */
 .lc-edit{display:flex;flex-direction:column;gap:14px}
 .lc-edit-top{display:flex;gap:12px;align-items:flex-start}
-.lc-epic{width:88px;height:88px;border-radius:12px;overflow:hidden;border:1.5px dashed var(--line);background:var(--panel-solid);flex-shrink:0;cursor:var(--cur-pointer,pointer);padding:0;display:grid;place-items:center;color:var(--sub);font-size:11px}
+.lc-epic{width:84px;height:112px;border-radius:12px;overflow:hidden;border:1.5px dashed var(--line);background:var(--panel-solid);flex-shrink:0;cursor:var(--cur-pointer,pointer);padding:0;display:grid;place-items:center;color:var(--sub);font-size:11px}
 .lc-epic img{width:100%;height:100%;object-fit:cover}
 .lc-erows{display:flex;flex-direction:column;gap:7px}
 .lc-erow{display:flex;gap:6px;align-items:center}
