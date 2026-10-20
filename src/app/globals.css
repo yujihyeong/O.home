@@ -3096,3 +3096,7 @@ textarea.if-notice.if-lnote{min-height:64px}
 .if-bold-btn:hover{border-color:var(--if-accent);color:var(--if-accent)}
 .if-bold-btn b{font-weight:800;margin-right:3px}
 .if-notice b{font-weight:700}
+/* 인포 — 영어·한글 상관없이 전부 나눔명조 (사용자 요청) */
+.if-card,.if-card *{font-family:'Nanum Myeongjo',serif !important}
+.if-lrow .if-pchar{font-weight:400}
+.if-notice.if-lnote b{font-weight:800}
