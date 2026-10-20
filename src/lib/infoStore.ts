@@ -36,6 +36,8 @@ export interface InfoDoc {
   notice: string;
   /** LIST — 공지 밑, 접어 두는 항목 (사용자 요청). 장르 | 캐릭터 줄을 원하는 만큼 */
   list: InfoListRow[];
+  /** LIST 맨 위에 따로 쓰는 글 (사용자 요청) */
+  listNote: string;
   ng: string[];
   pairs: InfoPair[];
   plays: InfoPlay[];
@@ -46,7 +48,7 @@ export interface InfoDoc {
 export const INFO_PLATFORMS = ['Caveduck', 'Rofan AI', 'teapot', 'elyn', 'Plaitoon'];
 
 export const EMPTY_INFO: InfoDoc = {
-  nick: '', uid: '', platforms: [], notice: '', list: [], ng: [],
+  nick: '', uid: '', platforms: [], notice: '', list: [], listNote: '', ng: [],
   pairs: [{ img: null, name: '' }, { img: null, name: '' }],
   plays: [],
   etc: [],
@@ -61,6 +63,7 @@ export function normInfo(raw: Partial<InfoDoc> | null | undefined): InfoDoc {
     uid: typeof r.uid === 'string' ? r.uid : '',
     platforms: Array.isArray(r.platforms) ? INFO_PLATFORMS.filter(p => r.platforms!.includes(p)) : [],
     notice: typeof r.notice === 'string' ? r.notice : '',
+    listNote: typeof r.listNote === 'string' ? r.listNote : '',
     // 예전에는 글 한 칸이었다 — 줄마다 캐릭터 칸으로 옮긴다
     list: typeof r.list === 'string'
       ? (r.list as string).split('\n').map(l => l.trim()).filter(Boolean).map(char => ({ genre: '', char }))

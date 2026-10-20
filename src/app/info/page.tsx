@@ -155,10 +155,12 @@ function InfoCard({ doc, editing, set }: { doc: InfoDoc; editing: boolean; set: 
       )}
 
       {/* LIST — 접어 둔 항목, 누르면 펼쳐진다 (사용자 요청) · 장르 | 캐릭터 */}
-      {(editing || list.length > 0) && (
+      {(editing || list.length > 0 || doc.listNote.trim()) && (
         <section className="if-sec">
           {editing ? (<>
             <div className="if-sh"><b>LIST</b><small>보는 사람에게는 접힌 채로 보여요</small></div>
+            <textarea className="if-in if-notice if-lnote" value={doc.listNote} rows={2} placeholder={'목록 위에 쓸 글 (비워 두면 안 보여요)'}
+              onChange={e => set({ listNote: e.target.value })} />
             <div className="if-play">
               {doc.list.map((a, i) => (
                 <div key={i} className="if-prow edit if-lrow">
@@ -175,6 +177,7 @@ function InfoCard({ doc, editing, set }: { doc: InfoDoc; editing: boolean; set: 
           </>) : (
             <details className="if-fold">
               <summary className="if-sh"><b>LIST</b><span className="if-fold-ic" aria-hidden>▾</span></summary>
+              {doc.listNote.trim() && <div className="if-notice if-lnote">{doc.listNote}</div>}
               <div className="if-play">
                 {list.map((a, i) => (
                   <div key={i} className="if-prow if-lrow">
@@ -296,7 +299,7 @@ export default function InfoPage() {
     toast('저장되었습니다');
   };
 
-  const empty = !doc.nick.trim() && !doc.uid.trim() && !doc.notice.trim() && !doc.list.some(a => a.genre.trim() || a.char.trim()) && !doc.platforms.length
+  const empty = !doc.nick.trim() && !doc.uid.trim() && !doc.notice.trim() && !doc.list.some(a => a.genre.trim() || a.char.trim()) && !doc.listNote.trim() && !doc.platforms.length
     && !doc.ng.some(s => s.trim()) && !doc.pairs.some(p => p.img || p.name.trim())
     && !doc.etc.some(a => handleOf(a.handle)) && !doc.plays.some(a => a.maker.trim() || a.char.trim());
 
