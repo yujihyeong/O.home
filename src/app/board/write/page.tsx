@@ -9,7 +9,7 @@ import { putBlob } from '@/lib/blobStore';
 import { stripImageMeta } from '@/lib/imageMeta';
 import { useBoards, boardHref, MAIN_BOARD_ID } from '@/lib/boardStore';
 import { renderBody } from '@/lib/sanitize';
-import { KInput, KTextarea, KCheck } from '@/components/ui/Kit';
+import { KInput, KTextarea, KCheck, KSelect } from '@/components/ui/Kit';
 import { CropEditor, CropImg, CropValue } from '@/components/ui/CropEditor';
 import { ConfirmModal } from '@/components/ui/Modal';
 import { RichEditor } from '@/components/ui/RichEditor';
@@ -48,7 +48,11 @@ function WriteInner() {
   const editPid = params.get('edit');
   const [posts, setPosts, postsLoaded] = useLocalList<Post>('ohome.board.v1', BOARD_SEED);
   const editing = editPid ? posts.find(p => p.id === editPid) : undefined;
-  const bid = editing?.boardId ?? params.get('b') ?? MAIN_BOARD_ID;
+  // 공유로 들어온 글 (사용자 요청) — 사파리에서 글을 드래그 → 공유 → 단축어가 ?share=1&text=… 로 연다.
+  // 게시판은 여기서 고른다 (pickB)
+  const shared = !editPid && (params.get('share') === '1' || !!params.get('text') || !!params.get('url'));
+  const [pickB, setPickB] = useState<string | null>(null);
+  const bid = editing?.boardId ?? pickB ?? params.get('b') ?? MAIN_BOARD_ID;
   const { boards } = useBoards();
   const board = boards.find(b => b.id === bid) ?? boards[0];
   const [title, setTitle] = useState('');
@@ -92,6 +96,18 @@ function WriteInner() {
   useEffect(() => {
     if (thumbSrc && !bodyImages.includes(thumbSrc)) { setThumbSrc(undefined); setThumbCrop(undefined); }
   }, [bodyImages, thumbSrc]);
+
+  // 공유로 받은 글을 본문에 한 번 채운다 (안드로이드 공유 대상은 title·url도 함께 온다)
+  const sharedIn = useRef(false);
+  useEffect(() => {
+    if (editPid || sharedIn.current) return;
+    const text = [params.get('text'), params.get('url')].filter(Boolean).join('\n').trim();
+    const t = params.get('title')?.trim();
+    if (!text && !t) return;
+    sharedIn.current = true;
+    if (text) setBody(text);
+    if (t && t !== text) setTitle(t);
+  }, [editPid, params]);
 
   // 수정 모드 — 저장본 로드가 끝나면 폼을 한 번 채움 (본문은 저장 모드 그대로: md→Markdown, html→HTML)
   const hydrated = useRef(false);
@@ -205,6 +221,13 @@ function WriteInner() {
       <div className="write-grid">
         {/* 좌: 본문 */}
         <div className="panel" style={{ padding: 24 }}>
+          {shared && (
+            <div className="form-row">
+              <label className="k-label" style={{ width: 60 }}>게시판</label>
+              <KSelect value={board.id} onChange={setPickB} minWidth={180}
+                options={boards.filter(b => (b.kind ?? 'log') === 'log').map(b => ({ value: b.id, label: b.name }))} />
+            </div>
+          )}
           <div className="form-row">
             <label className="k-label" style={{ width: 60 }}>제목</label>
             <KInput value={title} onChange={e => setTitle(e.target.value)} style={{ flex: 1 }} />

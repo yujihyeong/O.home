@@ -13,6 +13,12 @@ export default async function manifest(): Promise<MetadataRoute.Manifest> {
     display: 'standalone',
     background_color: '#ffffff',
     theme_color: '#22272e',
+    // 안드로이드 — 홈 화면에 설치한 웹앱이 공유 목록에 뜬다 (아이폰은 단축어로 같은 주소를 연다)
+    share_target: {
+      action: '/board/write',
+      method: 'get',
+      params: { title: 'title', text: 'text', url: 'url' },
+    },
     icons: [
       { src: '/icon-192.png?v=2', sizes: '192x192', type: 'image/png' },
       { src: '/icon-512.png?v=2', sizes: '512x512', type: 'image/png', purpose: 'any' },
