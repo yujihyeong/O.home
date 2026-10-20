@@ -32,7 +32,7 @@ import { useSections, sectionsOf, sectionMenuEntries, MAIN_SEC, inSection } from
 import { useCustomLinks, linkEntries, toInternalPath } from '@/lib/linkStore';
 import { useSiteDraft } from '@/lib/siteStore';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useCursorSettings, CursorState, CURSOR_STATE_LABEL } from '@/lib/cursorStore';
+import { useCursorSettings, CursorState, CURSOR_STATE_LABEL, BUILTIN_CURSORS } from '@/lib/cursorStore';
 import { RelQuestionSet, RELQ_SEED, RELQ_KEY, CP_LABEL } from '@/lib/relqStore';
 import { SymbolInput } from '@/components/ui/SymbolInput';
 import { allBlobs, putBlobAs, useBlobUrl, getBlob } from '@/lib/blobStore';
@@ -1510,7 +1510,10 @@ function CursorRow({ state }: { state: CursorState }) {
           display: 'grid', placeItems: 'center', overflow: 'hidden', flexShrink: 0,
         }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          {url ? <img src={url} alt="" style={{ maxWidth: 32, maxHeight: 32 }} /> : <span style={{ color: 'var(--faint)', fontSize: 14 }}>✛</span>}
+          {/* 등록 안 한 상태는 기본 커서 세트를 보여 준다 */}
+          {(url ?? BUILTIN_CURSORS[state]?.url)
+            ? <img src={(url ?? BUILTIN_CURSORS[state]?.url)!} alt="" style={{ maxWidth: 32, maxHeight: 32 }} />
+            : <span style={{ color: 'var(--faint)', fontSize: 14 }}>✛</span>}
         </span>
         <div><b>{CURSOR_STATE_LABEL[state].label}</b><small>{CURSOR_STATE_LABEL[state].desc}</small></div>
       </div>
