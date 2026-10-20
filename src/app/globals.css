@@ -3089,3 +3089,10 @@ html[data-scene="night"] .tr-face{box-shadow:0 0 22px rgba(160,140,255,.35),0 8p
 @media (max-width:620px){.if-lgenre{width:72px}}
 .if-notice.if-lnote{margin-bottom:10px}
 textarea.if-notice.if-lnote{min-height:64px}
+/* 인포 리스트 위 글 — 굵게 버튼 */
+.if-bold-wrap{display:flex;flex-direction:column;gap:6px;margin-bottom:10px}
+.if-bold-wrap .if-lnote{margin-bottom:0}
+.if-bold-btn{align-self:flex-start;border:1px solid var(--if-line);background:transparent;color:var(--if-sub);border-radius:8px;padding:3px 10px;font-size:calc(12px*var(--fs,1));cursor:var(--cur-pointer,pointer)}
+.if-bold-btn:hover{border-color:var(--if-accent);color:var(--if-accent)}
+.if-bold-btn b{font-weight:800;margin-right:3px}
+.if-notice b{font-weight:700}

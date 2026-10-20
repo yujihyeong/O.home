@@ -64,6 +64,37 @@ function PairPic({ img, editing, onSet }: { img: string | null; editing: boolean
 }
 
 /** 낮/밤 장식 — 둘 다 그려 두고 CSS가 지금 장면 것만 보인다 */
+/** **굵게** — 별표 두 개로 감싼 부분만 굵게 (리스트 위 글, 사용자 요청) */
+function BoldText({ text }: { text: string }) {
+  return <>{text.split(/(\*\*[^*\n]+?\*\*)/g).map((t, i) =>
+    /^\*\*[^*\n]+?\*\*$/.test(t) ? <b key={i}>{t.slice(2, -2)}</b> : t)}</>;
+}
+
+/** 리스트 위 글 입력칸 — 글자를 드래그하고 B를 누르면 **로 감싼다 */
+function BoldArea({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const ref = useRef<HTMLTextAreaElement>(null);
+  const bold = () => {
+    const el = ref.current;
+    if (!el) return;
+    const a = el.selectionStart, b = el.selectionEnd;
+    const sel = value.slice(a, b);
+    // 이미 굵게면 풀고, 아니면 감싼다
+    const on = /^\*\*[\s\S]*\*\*$/.test(sel) && sel.length >= 4;
+    const done = on ? sel.slice(2, -2) : `**${sel || '굵게'}**`;
+    onChange(value.slice(0, a) + done + value.slice(b));
+    requestAnimationFrame(() => { el.focus(); el.setSelectionRange(a, a + done.length); });
+  };
+  return (
+    <div className="if-bold-wrap">
+      <button type="button" className="if-bold-btn" onMouseDown={e => e.preventDefault()} onClick={bold}
+        title="드래그한 글자를 굵게 — **글자** 로 감싸져요"><b>B</b> 굵게</button>
+      <textarea ref={ref} className="if-in if-notice if-lnote" value={value} rows={2}
+        placeholder={'목록 위에 쓸 글 (비워 두면 안 보여요) — 굵게는 **글자**'}
+        onChange={e => onChange(e.target.value)} />
+    </div>
+  );
+}
+
 function Deco() {
   const leaf = (
     <g fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round">
@@ -159,8 +190,7 @@ function InfoCard({ doc, editing, set }: { doc: InfoDoc; editing: boolean; set: 
         <section className="if-sec">
           {editing ? (<>
             <div className="if-sh"><b>LIST</b><small>보는 사람에게는 접힌 채로 보여요</small></div>
-            <textarea className="if-in if-notice if-lnote" value={doc.listNote} rows={2} placeholder={'목록 위에 쓸 글 (비워 두면 안 보여요)'}
-              onChange={e => set({ listNote: e.target.value })} />
+            <BoldArea value={doc.listNote} onChange={v => set({ listNote: v })} />
             <div className="if-play">
               {doc.list.map((a, i) => (
                 <div key={i} className="if-prow edit if-lrow">
@@ -177,7 +207,7 @@ function InfoCard({ doc, editing, set }: { doc: InfoDoc; editing: boolean; set: 
           </>) : (
             <details className="if-fold">
               <summary className="if-sh"><b>LIST</b><span className="if-fold-ic" aria-hidden>▾</span></summary>
-              {doc.listNote.trim() && <div className="if-notice if-lnote">{doc.listNote}</div>}
+              {doc.listNote.trim() && <div className="if-notice if-lnote"><BoldText text={doc.listNote} /></div>}
               <div className="if-play">
                 {list.map((a, i) => (
                   <div key={i} className="if-prow if-lrow">
