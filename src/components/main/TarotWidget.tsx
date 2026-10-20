@@ -69,7 +69,7 @@ function CardFront({ no, en, motif }: { no: string; en: string; motif: Motif }) 
       ))}
       <MotifArt m={motif} />
       <path d="M18 150 H102 L97 158 L102 166 H18 L23 158 Z" fill="none" stroke="var(--tr-gold)" strokeWidth=".9" />
-      <text x="60" y="161" textAnchor="middle" className="tr-en" textLength={en.length > 14 ? 74 : undefined} lengthAdjust="spacingAndGlyphs">{en}</text>
+      <text x="60" y="161" textAnchor="middle" className="tr-en" textLength={en.length > 11 ? 76 : undefined} lengthAdjust="spacingAndGlyphs">{en}</text>
     </svg>
   );
 }
@@ -103,7 +103,7 @@ export function TarotWidget() {
     if (document.getElementById('tr-font')) return;
     const l = document.createElement('link');
     l.id = 'tr-font'; l.rel = 'stylesheet';
-    l.href = 'https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&display=swap';
+    l.href = 'https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=Nanum+Myeongjo:wght@400;700;800&display=swap';
     document.head.appendChild(l);
   }, []);
 
