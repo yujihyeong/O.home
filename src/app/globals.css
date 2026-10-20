@@ -3098,7 +3098,7 @@ textarea.if-notice.if-lnote{min-height:64px}
 .if-notice b{font-weight:700}
 /* 인포 — 영어·한글 상관없이 전부 나눔명조 (사용자 요청) */
 .if-card,.if-card *{font-family:'Nanum Myeongjo',serif !important}
-.if-lrow .if-pchar{font-weight:400}
+.if-lrow .if-pchar{font-weight:400;font-size:calc(12.5px*var(--fs,1))}   /* 리스트 캐릭터 — 한 단계 작게 (사용자 요청) */
 .if-notice.if-lnote b{font-weight:800}
 /* 인포 LIST 순서 바꾸기 ▲▼ */
 .if-move{display:inline-flex;flex-direction:column;gap:2px;flex-shrink:0}
