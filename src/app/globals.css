@@ -3157,3 +3157,54 @@ html[data-scene="night"] .lc-widget{--lc-line:rgba(139,123,216,.35);--lc-fg:#5a4
 .lc-erow .lc-eurl{flex:1;min-width:0}
 .lc-erow button{border:0;background:var(--panel-solid);color:var(--sub);width:24px;height:24px;border-radius:7px;flex-shrink:0;cursor:var(--cur-pointer,pointer);font-size:10px}
 .lc-erow button:disabled{opacity:.3;cursor:default}
+
+/* ---------- 인포 — 카드 블록형 템플릿 (사용자 확정 시안) ---------- */
+.ib-card{padding:30px 26px 28px}
+.ib-card .if-sec{margin-top:22px}
+.ib-card .if-sh{align-items:center;margin-bottom:10px}
+.ib-card .if-sh b{font-size:calc(12px*var(--fs,1));font-weight:800;letter-spacing:.3em}
+.ib-card .if-sh::after{content:"";flex:1;height:1px;background:var(--if-line)}
+.ib-card .if-sh small{font-size:calc(10.5px*var(--fs,1))}
+/* 프로필 */
+.ib-head{display:flex;gap:16px;align-items:center}
+.ib-av{width:68px;height:68px;border-radius:50%;flex-shrink:0;overflow:hidden;position:relative;
+  background:linear-gradient(135deg,color-mix(in srgb,var(--if-accent) 55%,var(--if-chip)),color-mix(in srgb,var(--if-orn) 60%,var(--if-chip)))}
+.ib-av img{width:100%;height:100%;object-fit:cover;display:block}
+.ib-av.edit{cursor:var(--cur-pointer,pointer);outline:1.5px dashed var(--if-line);outline-offset:3px;display:grid;place-items:center;color:#fff;font-size:20px}
+.ib-av.edit img{position:absolute;inset:0}
+.ib-av-x{position:absolute;top:2px;right:2px;width:20px;height:20px;border-radius:50%;border:0;background:rgba(0,0,0,.45);color:#fff;font-size:10px;cursor:var(--cur-pointer,pointer)}
+.ib-who{min-width:0;flex:1}
+.ib-nick{font-size:calc(24px*var(--fs,1));font-weight:800;margin:0;line-height:1.25;word-break:keep-all;color:var(--if-ink)}
+input.ib-nick{width:100%;padding:4px 8px}
+.ib-card .if-id{justify-content:flex-start;margin-top:6px}
+.ib-card .if-id-link{justify-content:flex-start}
+/* INFO 칸 */
+.ib-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.ib-cell{background:var(--if-chip);border-radius:12px;padding:9px 12px;min-width:0}
+.ib-cell.full{grid-column:1/-1}
+.ib-cell small{display:block;font-size:calc(10px*var(--fs,1));letter-spacing:.14em;color:var(--if-sub);margin-bottom:4px}
+.ib-cell b{font-size:calc(13.5px*var(--fs,1));font-weight:700;color:var(--if-ink);word-break:keep-all}
+.ib-cell .if-in{width:100%;padding:3px 6px}
+.ib-plat{display:flex;flex-wrap:wrap;gap:5px;margin-top:2px}
+.ib-plat i{font-style:normal;font-size:calc(11px*var(--fs,1));font-weight:700;padding:2px 10px;border-radius:999px;background:var(--if-card);color:var(--if-chipfg)}
+/* 고르기 버튼 (편집) */
+.ib-picks{display:flex;flex-wrap:wrap;gap:5px}
+.ib-picks button{border:1px solid var(--if-line);background:transparent;color:var(--if-sub);border-radius:999px;padding:3px 10px;font-size:calc(11px*var(--fs,1));font-weight:700;cursor:var(--cur-pointer,pointer)}
+.ib-picks button.on{background:var(--if-chipfg);color:var(--if-card);border-color:transparent}
+/* NOTICE ♡ · NG ✕ 줄글 */
+.ib-lines{background:var(--if-chip);border-radius:12px;padding:11px 15px;font-size:calc(12.5px*var(--fs,1));line-height:1.8;color:var(--if-ink)}
+.ib-lines p{display:flex;gap:8px;margin:0;word-break:break-word}
+.ib-lines.nt p::before{content:"♡";color:var(--if-accent);flex-shrink:0}
+.ib-lines.ngl p::before{content:"✕";color:var(--if-accent);font-weight:700;flex-shrink:0}
+textarea.ib-lines-in{width:100%;min-height:84px;resize:vertical;border:1px dashed var(--if-line);border-radius:12px;padding:10px 14px;font-size:calc(12.5px*var(--fs,1));line-height:1.8;background:var(--if-in)}
+/* ACCOUNT — 고른 것만, 글자 길이만큼 작은 반투명 네모칸 */
+.ib-sq{display:flex;flex-wrap:wrap;gap:5px}
+.ib-sq span{display:inline-flex;align-items:center;height:26px;padding:0 10px;border-radius:7px;font-size:calc(11px*var(--fs,1));font-weight:700;
+  color:var(--if-chipfg);background:color-mix(in srgb,var(--if-chipfg) 12%,transparent);border:1px solid color-mix(in srgb,var(--if-chipfg) 28%,transparent)}
+/* LIST 접기 — 테두리 상자 */
+.ib-fold{border:1px solid var(--if-line);border-radius:12px;overflow:hidden}
+.ib-card .ib-fold>summary.if-sh{margin:0;padding:11px 15px}
+.ib-card .ib-fold>summary.if-sh::after{display:none}
+.ib-fold-hint{margin-left:auto}
+.ib-fold[open] .ib-fold-hint{display:none}
+.ib-fold-bd{border-top:1px solid var(--if-line);padding:12px 14px 14px}
