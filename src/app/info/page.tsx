@@ -7,6 +7,7 @@
  * 카드 색·장식은 홈의 낮/밤 장면을 따라 저절로 바뀐다 (낮 = 풀잎·들꽃, 밤 = 별·달·벚꽃잎).
  */
 import React, { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useAuth } from '@/lib/auth';
 import { useInfo, InfoDoc, normInfo, handleOf, profileUrl, INFO_PLATFORMS } from '@/lib/infoStore';
 import { putBlob, useBlobUrl } from '@/lib/blobStore';
@@ -34,14 +35,16 @@ function PairName({ name }: { name: string }) {
   );
 }
 
-function PairPic({ img, editing, onSet }: { img: string | null; editing: boolean; onSet: (ref: string | null) => void }) {
+function PairPic({ img, editing, onSet, onOpen }: { img: string | null; editing: boolean; onSet: (ref: string | null) => void; onOpen?: () => void }) {
   const toast = useToast();
   const src = usePic(img);
   const fileRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   return (
-    <div className={`if-pic ${editing ? 'edit' : ''}`}
-      onClick={() => { if (editing && !busy) fileRef.current?.click(); }}>
+    <div className={`if-pic ${editing ? 'edit' : ''} ${!editing && onOpen ? 'open' : ''}`}
+      role={!editing && onOpen ? 'button' : undefined} tabIndex={!editing && onOpen ? 0 : undefined}
+      onKeyDown={e => { if (!editing && onOpen && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onOpen(); } }}
+      onClick={() => { if (editing) { if (!busy) fileRef.current?.click(); } else onOpen?.(); }}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       {src ? <img src={src} alt="" draggable={false} /> : <span className="if-pic-empty">{editing ? (busy ? '올리는 중…' : '＋ 이미지') : ''}</span>}
       {editing && src && <span className="if-pic-hint">{busy ? '올리는 중…' : '눌러서 바꾸기'}</span>}
@@ -71,7 +74,7 @@ function BoldText({ text }: { text: string }) {
 }
 
 /** 리스트 위 글 입력칸 — 글자를 드래그하고 B를 누르면 **로 감싼다 */
-function BoldArea({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+function BoldArea({ value, onChange, placeholder, cls = 'if-lnote' }: { value: string; onChange: (v: string) => void; placeholder?: string; cls?: string }) {
   const ref = useRef<HTMLTextAreaElement>(null);
   const bold = () => {
     const el = ref.current;
@@ -88,8 +91,8 @@ function BoldArea({ value, onChange }: { value: string; onChange: (v: string) =>
     <div className="if-bold-wrap">
       <button type="button" className="if-bold-btn" onMouseDown={e => e.preventDefault()} onClick={bold}
         title="드래그한 글자를 굵게 — **글자** 로 감싸져요"><b>B</b> 굵게</button>
-      <textarea ref={ref} className="if-in if-notice if-lnote" value={value} rows={2}
-        placeholder={'목록 위에 쓸 글 (비워 두면 안 보여요) — 굵게는 **글자**'}
+      <textarea ref={ref} className={`if-in if-notice ${cls}`} value={value} rows={2}
+        placeholder={placeholder ?? '목록 위에 쓸 글 (비워 두면 안 보여요) — 굵게는 **글자**'}
         onChange={e => onChange(e.target.value)} />
     </div>
   );
@@ -155,6 +158,14 @@ function InfoCard({ doc, editing, set }: { doc: InfoDoc; editing: boolean; set: 
     l.href = 'https://fonts.googleapis.com/css2?family=Nanum+Myeongjo:wght@400;700;800&display=swap';
     document.head.appendChild(l);
   }, []);
+  const [pop, setPop] = useState<number | null>(null);   // 페어 사진을 눌러 연 글
+  useEffect(() => {
+    if (pop === null) return;
+    const k = (e: KeyboardEvent) => { if (e.key === 'Escape') setPop(null); };
+    window.addEventListener('keydown', k);
+    return () => window.removeEventListener('keydown', k);
+  }, [pop]);
+  const popPair = pop !== null && !editing ? doc.pairs[pop] : null;
   const ng = editing ? doc.ng : doc.ng.map(s => s.trim()).filter(Boolean);
   const showPairs = editing || doc.pairs.some(p => p.img || p.name.trim());
   const etc = editing ? doc.etc : doc.etc.filter(a => handleOf(a.handle));
@@ -290,15 +301,33 @@ function InfoCard({ doc, editing, set }: { doc: InfoDoc; editing: boolean; set: 
             {doc.pairs.map((p, i) => (editing || p.img || p.name.trim()) && (
               <div key={i} className="if-pair">
                 <PairPic img={p.img} editing={editing}
+                  onOpen={p.desc.trim() ? () => setPop(i) : undefined}
                   onSet={ref => set({ pairs: doc.pairs.map((q, j) => (j === i ? { ...q, img: ref } : q)) })} />
                 {editing
                   ? <input className="if-in if-pn" value={p.name} placeholder="페어명 (예: 도브 & 시오)"
                     onChange={e => set({ pairs: doc.pairs.map((q, j) => (j === i ? { ...q, name: e.target.value } : q)) })} />
                   : p.name.trim() && <div className="if-pn"><PairName name={p.name} /></div>}
+                {editing && (
+                  <BoldArea value={p.desc} cls="if-pdesc" placeholder="사진을 누르면 뜨는 글 (비워 두면 안 떠요)"
+                    onChange={v => set({ pairs: doc.pairs.map((q, j) => (j === i ? { ...q, desc: v } : q)) })} />
+                )}
               </div>
             ))}
           </div>
         </section>
+      )}
+
+      {/* 페어 사진을 누르면 뜨는 글 (사용자 요청) */}
+      {popPair && createPortal(
+        <div className="if-pop" role="dialog" aria-modal="true" onClick={() => setPop(null)}>
+          <div className="if-pop-box" onClick={e => e.stopPropagation()}>
+            <button type="button" className="if-pop-x" aria-label="닫기" onClick={() => setPop(null)}>✕</button>
+            {popPair.name.trim() && <div className="if-pn"><PairName name={popPair.name} /></div>}
+            <div className="if-pop-body"><BoldText text={popPair.desc} /></div>
+          </div>
+        </div>,
+        // 페이지 쪽 transform 안에 있으면 화면 전체를 덮지 못한다 — body에 바로 띄운다
+        document.body,
       )}
 
       {(editing || etc.length > 0) && (

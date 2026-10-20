@@ -3104,3 +3104,20 @@ textarea.if-notice.if-lnote{min-height:64px}
 .if-move{display:inline-flex;flex-direction:column;gap:2px;flex-shrink:0}
 .if-prow.edit .if-move button{width:20px;height:14px;border-radius:5px;line-height:14px;font-size:8px}
 .if-prow.edit .if-move button:disabled{opacity:.3;cursor:default}
+/* 인포 페어 — 사진을 누르면 뜨는 글 (사용자 요청) */
+.if-pic.open{cursor:var(--cur-pointer,pointer);transition:transform .2s}
+.if-pic.open:hover{transform:translateY(-2px)}
+.if-pair .if-bold-wrap{margin:10px 0 0}
+textarea.if-notice.if-pdesc{min-height:80px;font-size:calc(13px*var(--fs,1))}
+.if-pop{--if-card:#fffdf7;--if-ink:#2f3a2b;--if-sub:#7a8670;--if-chip:#eef1e4;--if-accent:#c9725f;
+  position:fixed;inset:0;z-index:1000;background:rgba(20,22,18,.45);display:flex;align-items:center;justify-content:center;padding:20px;animation:ifPopIn .2s ease}
+.if-pop-box{position:relative;width:min(440px,100%);max-height:80vh;overflow:auto;background:var(--if-card);color:var(--if-ink);border-radius:18px;padding:30px 28px 26px;box-shadow:0 24px 60px -20px rgba(0,0,0,.5)}
+html[data-scene="night"] .if-pop{--if-card:#1d1f36;--if-ink:#f3e9ef;--if-sub:#b3abc4;--if-chip:#2a2b45;--if-accent:#e7a8bf}
+.if-pop,.if-pop *{font-family:'Nanum Myeongjo',serif !important}
+html[data-scene="night"] .if-pop-box{box-shadow:0 24px 60px -16px rgba(0,0,0,.7),inset 0 0 0 1px rgba(255,255,255,.08)}
+.if-pop-box .if-pn{margin:0 0 14px;text-align:center}
+.if-pop-body{font-size:calc(13.5px*var(--fs,1));line-height:1.85;white-space:pre-wrap;word-break:break-word;background:var(--if-chip);border-radius:14px;padding:16px 20px}
+.if-pop-body b{font-weight:800}
+.if-pop-x{position:absolute;top:10px;right:12px;border:0;background:transparent;color:var(--if-sub);font-size:15px;width:28px;height:28px;border-radius:50%;cursor:var(--cur-pointer,pointer)}
+.if-pop-x:hover{background:var(--if-chip)}
+@keyframes ifPopIn{from{opacity:0}to{opacity:1}}
