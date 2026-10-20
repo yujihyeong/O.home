@@ -29,8 +29,17 @@ export function handleOf(raw: string): string {
 }
 export const profileUrl = (handle: string) => `https://x.com/${encodeURIComponent(handleOf(handle))}`;
 
+export type InfoTemplate = 'classic' | 'block';
+/** 고를 수 있는 템플릿 — 편집 화면에서 고른다 (사용자 요청) */
+export const INFO_TEMPLATES: { id: InfoTemplate; label: string }[] = [
+  { id: 'classic', label: '기본' },
+  { id: 'block', label: '카드 블록' },
+];
+
 export interface InfoDoc {
-  /** 동그란 프로필 이미지 (사용자 요청) */
+  /** 템플릿 — 같은 내용을 어느 디자인으로 보여 줄지 */
+  template: InfoTemplate;
+  /** 동그란 프로필 이미지 (사용자 요청) — 카드 블록 템플릿 */
   avatar: string | null;
   nick: string;
   uid: string;
@@ -74,7 +83,7 @@ const pick = (all: string[], v: unknown) => {
 const one = (all: string[], v: unknown) => (typeof v === 'string' && all.includes(v) ? v : '');
 
 export const EMPTY_INFO: InfoDoc = {
-  avatar: null, nick: '', uid: '', uidLink: '', gender: '', age: '', couplings: [], taste: '',
+  template: 'classic', avatar: null, nick: '', uid: '', uidLink: '', gender: '', age: '', couplings: [], taste: '',
   platforms: [], notice: '', account: [], list: [], listNote: '', ng: '',
   pairs: [{ img: null, name: '', desc: '' }, { img: null, name: '', desc: '' }],
   plays: [],
@@ -86,6 +95,7 @@ export function normInfo(raw: Partial<InfoDoc> | null | undefined): InfoDoc {
   const r = raw ?? {};
   const pairs = Array.isArray(r.pairs) ? r.pairs : [];
   return {
+    template: r.template === 'block' ? 'block' : 'classic',
     avatar: typeof r.avatar === 'string' ? r.avatar : null,
     nick: typeof r.nick === 'string' ? r.nick : '',
     uid: typeof r.uid === 'string' ? r.uid : '',

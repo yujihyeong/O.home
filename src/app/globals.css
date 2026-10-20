@@ -3208,3 +3208,5 @@ textarea.ib-lines-in{width:100%;min-height:84px;resize:vertical;border:1px dashe
 .ib-fold-hint{margin-left:auto}
 .ib-fold[open] .ib-fold-hint{display:none}
 .ib-fold-bd{border-top:1px solid var(--if-line);padding:12px 14px 14px}
+/* 인포 편집 — 템플릿 고르기 (사용자 요청) */
+.if-tpl{margin-right:auto;align-self:center}
