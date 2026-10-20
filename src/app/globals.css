@@ -1603,7 +1603,7 @@ body.edit-on .main-grid.gridlines .wgt{outline-offset:0}
 .post-body p:empty::after,.prose p:empty::after,.html-body p:empty::after{content:"\00a0"}
 .post-body h1,.post-body h2,.post-body h3{margin:18px 0 8px;line-height:1.4}
 .post-body h1{font-size:calc(22px*var(--fs,1))}.post-body h2{font-size:calc(19px*var(--fs,1))}.post-body h3{font-size:calc(16.5px*var(--fs,1))}
-.post-body p{margin:8px 0}
+.post-body p{margin:14px 0}   /* 문단 사이 (사용자 요청 — 8px은 너무 붙어 보였다) */
 /* 빈 줄 (v2.0 사용자 발견) — 에디터가 만든 빈 문단은 내용이 없어 높이가 0이라 그냥 사라져 보였다.
    보이지 않는 공백을 하나 넣어 한 줄만큼의 자리를 만든다 */
 .post-body p:empty::before{content:"\00a0"}
