@@ -2740,7 +2740,7 @@ html[data-scene="night"] .if-card .if-day{display:none}
 .if-eyebrow{font:italic 500 calc(14px*var(--fs,1)) 'Cormorant Garamond',var(--serif);letter-spacing:.32em;color:var(--if-accent);text-align:center}
 .if-nick{font-family:var(--serif);font-weight:700;font-size:calc(33px*var(--fs,1));text-align:center;margin:10px 0 0;letter-spacing:-.01em;line-height:1.3;word-break:keep-all;color:var(--if-ink)}
 .if-id{display:flex;justify-content:center;margin-top:12px}
-.if-id>span{display:inline-flex;align-items:center;gap:2px;font-size:calc(12px*var(--fs,1));font-weight:500;color:var(--if-chipfg);background:var(--if-chip);border-radius:999px;padding:5px 14px;letter-spacing:.02em}
+.if-id>span,.if-id>a{display:inline-flex;align-items:center;gap:2px;font-size:calc(12px*var(--fs,1));font-weight:500;color:var(--if-chipfg);background:var(--if-chip);border-radius:999px;padding:5px 14px;letter-spacing:.02em}
 .if-orn{display:flex;align-items:center;gap:12px;margin:26px 0 6px;color:var(--if-orn)}
 .if-orn::before,.if-orn::after{content:"";flex:1;height:1px;background:var(--if-line)}
 .if-sec{margin-top:26px}
@@ -3121,3 +3121,38 @@ html[data-scene="night"] .if-pop-box{box-shadow:0 24px 60px -16px rgba(0,0,0,.7)
 .if-pop-x{position:absolute;top:10px;right:12px;border:0;background:transparent;color:var(--if-sub);font-size:15px;width:28px;height:28px;border-radius:50%;cursor:var(--cur-pointer,pointer)}
 .if-pop-x:hover{background:var(--if-chip)}
 @keyframes ifPopIn{from{opacity:0}to{opacity:1}}
+/* 인포 아이디 링크 (사용자 요청) */
+.if-id>a{text-decoration:none;cursor:var(--cur-pointer,pointer);transition:filter .15s}
+.if-id>a:hover{filter:brightness(.95)}
+.if-id>a i{font-style:normal;font-size:.85em;opacity:.6;margin-left:4px}
+.if-id-link{display:flex;justify-content:center;margin-top:6px}
+.if-id-link .if-in{width:min(320px,100%);text-align:center;font-size:calc(12px*var(--fs,1));padding:5px 10px;border:1px dashed var(--if-line);border-radius:999px;background:transparent}
+
+/* ---------- 링크 카드 위젯 (사용자 요청) — 캐릭터 이미지 | 플랫폼 링크 ---------- */
+.lc-widget{--lc-chip:#eef1e4;--lc-chipfg:#4f5d42;--lc-chipline:#d9dfc8;--lc-hover:#6e7f56;--lc-frame:#e9eedf;
+  height:100%;display:flex;gap:14px;padding:14px;align-items:flex-start;overflow:hidden}
+html[data-scene="night"] .lc-widget{--lc-chip:#3b3270;--lc-chipfg:#f0ecff;--lc-chipline:#5a4fa0;--lc-hover:#8b7bd8;--lc-frame:rgba(139,123,216,.22)}
+.lc-pic{width:clamp(64px,36%,150px);aspect-ratio:1;flex-shrink:0;border-radius:14px;overflow:hidden;background:var(--lc-frame);
+  display:grid;place-items:center;box-shadow:0 0 0 4px var(--lc-frame)}
+.lc-pic img{width:100%;height:100%;object-fit:cover;display:block}
+.lc-pic span{font-size:11px;color:var(--faint)}
+.lc-side{flex:1;min-width:0;max-height:100%;overflow:auto;display:flex;flex-direction:column;gap:9px;padding-top:2px}
+.lc-name{font-family:'Nanum Myeongjo',var(--serif);font-weight:700;font-size:calc(14.5px*var(--fs,1));letter-spacing:.02em;color:var(--wg-fg,var(--ink));word-break:keep-all}
+.lc-links{display:flex;flex-wrap:wrap;gap:6px}
+.lc-chip{display:inline-flex;align-items:center;gap:3px;padding:3px 9px 3px 10px;border-radius:999px;background:var(--lc-chip);color:var(--lc-chipfg);
+  border:1px solid var(--lc-chipline);font-size:calc(11px*var(--fs,1));font-weight:700;letter-spacing:.06em;text-decoration:none;white-space:nowrap;
+  cursor:var(--cur-pointer,pointer);transition:background .15s,color .15s,transform .15s}
+.lc-chip i{font-style:normal;font-size:.85em;opacity:.55}
+.lc-chip:hover{background:var(--lc-hover);color:#fff;border-color:transparent;transform:translateY(-1px)}
+.lc-empty{font-size:11px;color:var(--faint)}
+/* 편집 창 */
+.lc-edit{display:flex;flex-direction:column;gap:14px}
+.lc-edit-top{display:flex;gap:12px;align-items:flex-start}
+.lc-epic{width:88px;height:88px;border-radius:12px;overflow:hidden;border:1.5px dashed var(--line);background:var(--panel-solid);flex-shrink:0;cursor:var(--cur-pointer,pointer);padding:0;display:grid;place-items:center;color:var(--sub);font-size:11px}
+.lc-epic img{width:100%;height:100%;object-fit:cover}
+.lc-erows{display:flex;flex-direction:column;gap:7px}
+.lc-erow{display:flex;gap:6px;align-items:center}
+.lc-erow .lc-elabel{width:70px;flex-shrink:0;text-align:center;font-weight:700}
+.lc-erow .lc-eurl{flex:1;min-width:0}
+.lc-erow button{border:0;background:var(--panel-solid);color:var(--sub);width:24px;height:24px;border-radius:7px;flex-shrink:0;cursor:var(--cur-pointer,pointer);font-size:10px}
+.lc-erow button:disabled{opacity:.3;cursor:default}

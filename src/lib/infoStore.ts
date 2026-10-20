@@ -32,6 +32,8 @@ export const profileUrl = (handle: string) => `https://x.com/${encodeURIComponen
 export interface InfoDoc {
   nick: string;
   uid: string;
+  /** 아이디를 눌렀을 때 갈 주소 (사용자 요청, 비우면 링크 없음) */
+  uidLink: string;
   /** 주플랫폼 — 아래 목록 중 고른 것만 보인다 (사용자 요청) */
   platforms: string[];
   notice: string;
@@ -49,7 +51,7 @@ export interface InfoDoc {
 export const INFO_PLATFORMS = ['Caveduck', 'Rofan AI', 'teapot', 'elyn', 'Plaitoon'];
 
 export const EMPTY_INFO: InfoDoc = {
-  nick: '', uid: '', platforms: [], notice: '', list: [], listNote: '', ng: [],
+  nick: '', uid: '', uidLink: '', platforms: [], notice: '', list: [], listNote: '', ng: [],
   pairs: [{ img: null, name: '', desc: '' }, { img: null, name: '', desc: '' }],
   plays: [],
   etc: [],
@@ -62,6 +64,7 @@ export function normInfo(raw: Partial<InfoDoc> | null | undefined): InfoDoc {
   return {
     nick: typeof r.nick === 'string' ? r.nick : '',
     uid: typeof r.uid === 'string' ? r.uid : '',
+    uidLink: typeof r.uidLink === 'string' ? r.uidLink : '',
     platforms: Array.isArray(r.platforms) ? INFO_PLATFORMS.filter(p => r.platforms!.includes(p)) : [],
     notice: typeof r.notice === 'string' ? r.notice : '',
     listNote: typeof r.listNote === 'string' ? r.listNote : '',
@@ -105,3 +108,9 @@ export function useInfo(): [InfoDoc, (next: InfoDoc) => void, boolean] {
   }, []);
   return [doc, save, loaded];
 }
+
+/** 주소에 http(s)가 없으면 https:// 를 붙인다 */
+export const hrefOf = (raw: string) => {
+  const s = raw.trim();
+  return !s ? '' : /^https?:\/\//i.test(s) ? s : `https://${s.replace(/^\/+/, '')}`;
+};

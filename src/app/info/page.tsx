@@ -9,7 +9,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useAuth } from '@/lib/auth';
-import { useInfo, InfoDoc, normInfo, handleOf, profileUrl, INFO_PLATFORMS } from '@/lib/infoStore';
+import { useInfo, InfoDoc, normInfo, handleOf, profileUrl, INFO_PLATFORMS, hrefOf } from '@/lib/infoStore';
 import { putBlob, useBlobUrl } from '@/lib/blobStore';
 import { useToast } from '@/components/ui/Toast';
 
@@ -179,8 +179,17 @@ function InfoCard({ doc, editing, set }: { doc: InfoDoc; editing: boolean; set: 
         ? <input className="if-in if-nick" value={doc.nick} placeholder="닉네임" onChange={e => set({ nick: e.target.value })} />
         : doc.nick.trim() && <h2 className="if-nick">{doc.nick}</h2>}
       {editing
-        ? <div className="if-id"><span>@ <input className="if-in" value={doc.uid} placeholder="아이디" onChange={e => set({ uid: e.target.value.replace(/^@\s*/, '') })} /></span></div>
-        : doc.uid.trim() && <div className="if-id"><span>@ {doc.uid}</span></div>}
+        ? (<>
+          <div className="if-id"><span>@ <input className="if-in" value={doc.uid} placeholder="아이디" onChange={e => set({ uid: e.target.value.replace(/^@\s*/, '') })} /></span></div>
+          <div className="if-id-link"><input className="if-in" value={doc.uidLink} placeholder="아이디를 누르면 갈 주소 (비우면 링크 없음)" onChange={e => set({ uidLink: e.target.value })} /></div>
+        </>)
+        : doc.uid.trim() && (
+          <div className="if-id">
+            {hrefOf(doc.uidLink)
+              ? <a href={hrefOf(doc.uidLink)} target="_blank" rel="noopener noreferrer">@ {doc.uid}<i aria-hidden>↗</i></a>
+              : <span>@ {doc.uid}</span>}
+          </div>
+        )}
       <div className="if-orn" aria-hidden><span className="if-day">❀</span><span className="if-night">✦</span></div>
 
       {(editing || doc.platforms.length > 0) && (
