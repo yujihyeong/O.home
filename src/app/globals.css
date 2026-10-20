@@ -3210,3 +3210,5 @@ textarea.ib-lines-in{width:100%;min-height:84px;resize:vertical;border:1px dashe
 .ib-fold-bd{border-top:1px solid var(--if-line);padding:12px 14px 14px}
 /* 인포 편집 — 템플릿 고르기 (사용자 요청) */
 .if-tpl{margin-right:auto;align-self:center}
+/* 인포 굵게 — 나눔명조는 800이 가장 두꺼워서 글자 테두리를 살짝 덧그려 더 진하게 (사용자 요청) */
+.if-notice b,.if-pop-body b{font-weight:800;-webkit-text-stroke:.45px currentColor;paint-order:stroke fill}
