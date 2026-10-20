@@ -31,6 +31,8 @@ export interface InfoDoc {
   /** 주플랫폼 — 아래 목록 중 고른 것만 보인다 (사용자 요청) */
   platforms: string[];
   notice: string;
+  /** LIST — 공지 밑, 접어 두는 항목 (사용자 요청). 줄바꿈 그대로 */
+  list: string;
   ng: string[];
   pairs: InfoPair[];
   plays: InfoPlay[];
@@ -41,7 +43,7 @@ export interface InfoDoc {
 export const INFO_PLATFORMS = ['Caveduck', 'Rofan AI', 'teapot', 'elyn', 'Plaitoon'];
 
 export const EMPTY_INFO: InfoDoc = {
-  nick: '', uid: '', platforms: [], notice: '', ng: [],
+  nick: '', uid: '', platforms: [], notice: '', list: '', ng: [],
   pairs: [{ img: null, name: '' }, { img: null, name: '' }],
   plays: [],
   etc: [],
@@ -56,6 +58,7 @@ export function normInfo(raw: Partial<InfoDoc> | null | undefined): InfoDoc {
     uid: typeof r.uid === 'string' ? r.uid : '',
     platforms: Array.isArray(r.platforms) ? INFO_PLATFORMS.filter(p => r.platforms!.includes(p)) : [],
     notice: typeof r.notice === 'string' ? r.notice : '',
+    list: typeof r.list === 'string' ? r.list : '',
     ng: Array.isArray(r.ng) ? r.ng.filter(s => typeof s === 'string') : [],
     pairs: [0, 1].map(i => ({
       img: typeof pairs[i]?.img === 'string' ? pairs[i].img : null,

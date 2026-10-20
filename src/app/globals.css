@@ -3076,3 +3076,9 @@ html[data-scene="night"] .tr-face{box-shadow:0 0 22px rgba(160,140,255,.35),0 8p
 .tr-btn{border:0;border-radius:999px;padding:7px 18px;font-size:12px;font-weight:700;letter-spacing:.06em;color:#fff;background:var(--tr-acc);cursor:var(--cur-pointer,pointer);
   box-shadow:0 4px 12px rgba(0,0,0,.15)}
 .tr-btn:disabled{opacity:.5}
+/* 인포 LIST — 접기 (사용자 요청) */
+.if-fold > summary{list-style:none;cursor:var(--cur-pointer,pointer);user-select:none;margin-bottom:0}
+.if-fold > summary::-webkit-details-marker{display:none}
+.if-fold-ic{font-size:calc(15px*var(--fs,1));color:var(--if-accent);transition:transform .2s;transform:rotate(-90deg)}
+.if-fold[open] > summary{margin-bottom:12px}
+.if-fold[open] .if-fold-ic{transform:none}
