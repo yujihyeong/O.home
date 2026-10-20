@@ -111,6 +111,7 @@ function InfoCard({ doc, editing, set }: { doc: InfoDoc; editing: boolean; set: 
   const showPairs = editing || doc.pairs.some(p => p.img || p.name.trim());
   const etc = editing ? doc.etc : doc.etc.filter(a => handleOf(a.handle));
   const plays = editing ? doc.plays : doc.plays.filter(a => a.maker.trim() || a.char.trim());
+  const list = doc.list.filter(a => a.genre.trim() || a.char.trim());
   return (
     <article className={`if-card ${editing ? 'editing' : ''}`}>
       <Deco />
@@ -153,17 +154,36 @@ function InfoCard({ doc, editing, set }: { doc: InfoDoc; editing: boolean; set: 
         </section>
       )}
 
-      {/* LIST — 접어 둔 항목, 누르면 펼쳐진다 (사용자 요청) */}
-      {(editing || doc.list.trim()) && (
+      {/* LIST — 접어 둔 항목, 누르면 펼쳐진다 (사용자 요청) · 장르 | 캐릭터 */}
+      {(editing || list.length > 0) && (
         <section className="if-sec">
           {editing ? (<>
             <div className="if-sh"><b>LIST</b><small>보는 사람에게는 접힌 채로 보여요</small></div>
-            <textarea className="if-in if-notice" value={doc.list} rows={4} placeholder={'목록을 적어 주세요 — 줄을 바꾸면 그대로 줄바꿈돼요'}
-              onChange={e => set({ list: e.target.value })} />
+            <div className="if-play">
+              {doc.list.map((a, i) => (
+                <div key={i} className="if-prow edit if-lrow">
+                  <input className="if-in if-lgenre" value={a.genre} placeholder="장르"
+                    onChange={e => { const n = [...doc.list]; n[i] = { ...a, genre: e.target.value }; set({ list: n }); }} />
+                  <span className="if-lbar" aria-hidden />
+                  <input className="if-in if-pchar" value={a.char} placeholder="캐릭터"
+                    onChange={e => { const n = [...doc.list]; n[i] = { ...a, char: e.target.value }; set({ list: n }); }} />
+                  <button type="button" aria-label="빼기" onClick={() => set({ list: doc.list.filter((_, j) => j !== i) })}>−</button>
+                </div>
+              ))}
+              <button type="button" className="if-ng-add" onClick={() => set({ list: [...doc.list, { genre: '', char: '' }] })}>＋ 추가</button>
+            </div>
           </>) : (
             <details className="if-fold">
               <summary className="if-sh"><b>LIST</b><span className="if-fold-ic" aria-hidden>▾</span></summary>
-              <div className="if-notice">{doc.list}</div>
+              <div className="if-play">
+                {list.map((a, i) => (
+                  <div key={i} className="if-prow if-lrow">
+                    <span className="if-lgenre">{a.genre}</span>
+                    <span className="if-lbar" aria-hidden />
+                    <span className="if-pchar">{a.char}</span>
+                  </div>
+                ))}
+              </div>
             </details>
           )}
         </section>
@@ -276,7 +296,7 @@ export default function InfoPage() {
     toast('저장되었습니다');
   };
 
-  const empty = !doc.nick.trim() && !doc.uid.trim() && !doc.notice.trim() && !doc.list.trim() && !doc.platforms.length
+  const empty = !doc.nick.trim() && !doc.uid.trim() && !doc.notice.trim() && !doc.list.some(a => a.genre.trim() || a.char.trim()) && !doc.platforms.length
     && !doc.ng.some(s => s.trim()) && !doc.pairs.some(p => p.img || p.name.trim())
     && !doc.etc.some(a => handleOf(a.handle)) && !doc.plays.some(a => a.maker.trim() || a.char.trim());
 

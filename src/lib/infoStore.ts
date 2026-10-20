@@ -14,6 +14,9 @@ export interface InfoPair { img: string | null; name: string }
 /** ETC. — 다른 계정 (사용자 요청). 누르면 그 트위터(X) 프로필로 */
 export interface InfoAcct { handle: string; desc: string }
 
+/** LIST — 장르 | 캐릭터 (사용자 요청) */
+export interface InfoListRow { genre: string; char: string }
+
 /** PLAYING — 지금 플레이 중인 캐릭터 (사용자 요청): 제작자 아이디 · 캐릭터 이름 */
 export interface InfoPlay { maker: string; char: string }
 
@@ -31,8 +34,8 @@ export interface InfoDoc {
   /** 주플랫폼 — 아래 목록 중 고른 것만 보인다 (사용자 요청) */
   platforms: string[];
   notice: string;
-  /** LIST — 공지 밑, 접어 두는 항목 (사용자 요청). 줄바꿈 그대로 */
-  list: string;
+  /** LIST — 공지 밑, 접어 두는 항목 (사용자 요청). 장르 | 캐릭터 줄을 원하는 만큼 */
+  list: InfoListRow[];
   ng: string[];
   pairs: InfoPair[];
   plays: InfoPlay[];
@@ -43,7 +46,7 @@ export interface InfoDoc {
 export const INFO_PLATFORMS = ['Caveduck', 'Rofan AI', 'teapot', 'elyn', 'Plaitoon'];
 
 export const EMPTY_INFO: InfoDoc = {
-  nick: '', uid: '', platforms: [], notice: '', list: '', ng: [],
+  nick: '', uid: '', platforms: [], notice: '', list: [], ng: [],
   pairs: [{ img: null, name: '' }, { img: null, name: '' }],
   plays: [],
   etc: [],
@@ -58,7 +61,13 @@ export function normInfo(raw: Partial<InfoDoc> | null | undefined): InfoDoc {
     uid: typeof r.uid === 'string' ? r.uid : '',
     platforms: Array.isArray(r.platforms) ? INFO_PLATFORMS.filter(p => r.platforms!.includes(p)) : [],
     notice: typeof r.notice === 'string' ? r.notice : '',
-    list: typeof r.list === 'string' ? r.list : '',
+    // 예전에는 글 한 칸이었다 — 줄마다 캐릭터 칸으로 옮긴다
+    list: typeof r.list === 'string'
+      ? (r.list as string).split('\n').map(l => l.trim()).filter(Boolean).map(char => ({ genre: '', char }))
+      : (Array.isArray(r.list) ? r.list : []).map(a => ({
+        genre: typeof a?.genre === 'string' ? a.genre : '',
+        char: typeof a?.char === 'string' ? a.char : '',
+      })),
     ng: Array.isArray(r.ng) ? r.ng.filter(s => typeof s === 'string') : [],
     pairs: [0, 1].map(i => ({
       img: typeof pairs[i]?.img === 'string' ? pairs[i].img : null,

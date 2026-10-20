@@ -3082,3 +3082,8 @@ html[data-scene="night"] .tr-face{box-shadow:0 0 22px rgba(160,140,255,.35),0 8p
 .if-fold-ic{font-size:calc(15px*var(--fs,1));color:var(--if-accent);transition:transform .2s;transform:rotate(-90deg)}
 .if-fold[open] > summary{margin-bottom:12px}
 .if-fold[open] .if-fold-ic{transform:none}
+/* 인포 LIST 줄 — 장르 | 캐릭터 */
+.if-lgenre{width:96px;flex-shrink:0;font-size:calc(13px*var(--fs,1));font-weight:600;color:var(--if-chipfg);word-break:keep-all}
+.if-lbar{width:1px;align-self:stretch;background:var(--if-chipfg);opacity:.3;flex-shrink:0}
+.if-prow.edit .if-lgenre{border:0;background:transparent;padding:4px 4px;color:var(--if-chipfg)}
+@media (max-width:620px){.if-lgenre{width:72px}}
