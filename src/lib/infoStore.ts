@@ -9,7 +9,8 @@ import { getRawSetting, setSetting } from './settingStore';
 
 const KEY = 'ohome.info.v1';
 
-export interface InfoPair { img: string | null; name: string }
+/** 페어 — 사진을 누르면 desc가 팝업으로 뜬다 (사용자 요청, **굵게** 가능) */
+export interface InfoPair { img: string | null; name: string; desc: string }
 
 /** ETC. — 다른 계정 (사용자 요청). 누르면 그 트위터(X) 프로필로 */
 export interface InfoAcct { handle: string; desc: string }
@@ -49,7 +50,7 @@ export const INFO_PLATFORMS = ['Caveduck', 'Rofan AI', 'teapot', 'elyn', 'Plaito
 
 export const EMPTY_INFO: InfoDoc = {
   nick: '', uid: '', platforms: [], notice: '', list: [], listNote: '', ng: [],
-  pairs: [{ img: null, name: '' }, { img: null, name: '' }],
+  pairs: [{ img: null, name: '', desc: '' }, { img: null, name: '', desc: '' }],
   plays: [],
   etc: [],
 };
@@ -75,6 +76,7 @@ export function normInfo(raw: Partial<InfoDoc> | null | undefined): InfoDoc {
     pairs: [0, 1].map(i => ({
       img: typeof pairs[i]?.img === 'string' ? pairs[i].img : null,
       name: typeof pairs[i]?.name === 'string' ? pairs[i].name : '',
+      desc: typeof pairs[i]?.desc === 'string' ? pairs[i].desc : '',
     })),
     plays: (Array.isArray(r.plays) ? r.plays : []).map(a => ({
       maker: typeof a?.maker === 'string' ? a.maker : '',
