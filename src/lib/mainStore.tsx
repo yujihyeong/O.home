@@ -20,6 +20,7 @@ export type WidgetType =
   | 'polaroid'
   | 'images'     // 이미지 — 1~3장 나란히, 위젯 크기에 맞춰 늘어남 (사용자 요청)
   | 'clock'      // 시계 — 지금 시간 (사용자 요청)
+  | 'tarot'      // 오늘의 타로 — 하루 한 번 카드 뒤집기 운세 (사용자 요청)
   | 'pildam'     // 필담노트 — 지선우·춘열망이 번갈아 적은 손글씨 노트 (사용자 요청)
   | 'guidewave'  // 가이딩 파장 — 센티넬버스 커플(도브·시오) 파장 일치율 (사용자 요청)
   | 'search';   // 검색창 — 내 홈 게시글에서 검색어가 든 글 찾기 (사용자 요청)  // 폴라로이드 스택 — 누르면 한 장씩 넘김 (사용자 요청)
@@ -74,6 +75,7 @@ export const WIDGET_META: Record<WidgetType, { title: string; desc: string }> = 
   polaroid: { title: '폴라로이드', desc: '사진을 겹쳐 두고 누르면 한 장씩 넘어감 — 손글씨 메모' },
   images: { title: 'IMAGES', desc: '이미지 — 1·2·3장을 나란히, 위젯 크기에 맞춰 길이가 바뀜' },
   clock: { title: 'CLOCK', desc: '시계 — 지금 시간 (디지털·아날로그, 배경 없이 쓰기 좋게)' },
+  tarot: { title: "TODAY'S CARD", desc: '오늘의 타로 — 방문자마다 하루 한 번 카드를 뒤집어 짧은 운세 한 문장' },
   pildam: { title: '필담노트', desc: '지선우·춘열망 필담 — 줄노트에 손글씨로 번갈아 적은 대화' },
   guidewave: { title: 'GUIDING WAVE', desc: '가이딩 파장 — 센티넬과 가이드의 파장 일치율' },
   search: { title: 'SEARCH', desc: '검색창 — 모든 게시판 글에서 검색어가 들어간 글을 찾아 보여 줌' },
@@ -84,7 +86,7 @@ export const WIDGET_META: Record<WidgetType, { title: string; desc: string }> = 
 /** 설정 창이 있는 위젯 — 편집 모드 ✎ · 제목 숨김 때의 ⚙ 버튼이 'ohome-widget-edit'로 연다 */
 export const EDITABLE_TYPES: WidgetType[] = ['banner', 'memo', 'dday', 'todo', 'freetext', 'deco', 'apply', 'chat', 'recent', 'quote', 'polaroid', 'guidewave', 'clock', 'images', 'pildam'];
 /** 처음부터 제목 줄이 없는 위젯 — 설정 버튼(⚙)을 따로 띄운다 */
-export const TITLELESS_TYPES: WidgetType[] = ['clock', 'images', 'pildam'];
+export const TITLELESS_TYPES: WidgetType[] = ['clock', 'images', 'pildam', 'tarot'];
 export const MULTI_TYPES: WidgetType[] = ['freetext', 'deco', 'banner', 'chat', 'quote', 'polaroid', 'guidewave', 'clock', 'images', 'pildam'];   // banner: v2.0 사용자 요청 — 슬라이드 배너 여러 개
 
 /** 위젯 표시 이름 — 중복 추가 가능한 위젯이 2개 이상이면 번호를 붙여 구분 (v1.9) */
