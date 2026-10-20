@@ -2747,7 +2747,7 @@ html[data-scene="night"] .if-card .if-day{display:none}
 .if-sh{display:flex;align-items:baseline;gap:10px;margin-bottom:12px}
 .if-sh b{font:600 calc(17px*var(--fs,1)) 'Cormorant Garamond',var(--serif);letter-spacing:.28em;color:var(--if-accent)}
 .if-sh small{font-size:calc(12px*var(--fs,1));color:var(--if-faint)}
-.if-notice{display:block;width:100%;background:var(--if-chip);border-radius:14px;padding:16px 20px;font-size:calc(14.5px*var(--fs,1));line-height:1.85;color:var(--if-ink);white-space:pre-wrap;word-break:break-word}
+.if-notice{display:block;width:100%;background:var(--if-chip);border-radius:14px;padding:16px 20px;font-size:calc(13.5px*var(--fs,1));line-height:1.85;color:var(--if-ink);white-space:pre-wrap;word-break:break-word}
 .if-ng{display:flex;flex-wrap:wrap;gap:8px}
 .if-ng>span{font-size:calc(13.5px*var(--fs,1));padding:7px 14px 7px 12px;border-radius:999px;border:1px solid var(--if-line);color:var(--if-ink);display:inline-flex;align-items:center;gap:7px;max-width:100%;word-break:break-word}
 .if-ng>span i{font-style:normal;color:var(--if-accent);font-size:12px;font-weight:700}
