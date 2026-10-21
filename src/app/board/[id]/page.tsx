@@ -20,6 +20,8 @@ import { ExcerptBody } from '@/components/ui/Excerpt';
 import { wholeFontStyle } from '@/components/ui/WriteTools';
 import { useFonts } from '@/lib/fontStore';
 import { pushNotif } from '@/lib/notifStore';
+import { postContentKey, openBody } from '@/lib/promptStore';
+import { LockScreen } from '@/components/ui/LockScreen';
 
 const FOLD_LABEL = { spoiler: '스포일러 주의', adult: '수위 주의' };
 
@@ -48,7 +50,25 @@ export default function BoardDetailPage() {
   const blocked = useHrefBlock(post && (bid === MAIN_BOARD_ID ? '/board' : extraBoardHref(bid)));
   // loaded 이후에만 본문 렌더 (SSR/하이드레이션 불일치 방지)
   const [exOn, setExOn] = useState(false);   // 발췌 모드 (로그 글)
-  const html = useMemo(() => (post && loaded ? renderBody(post.mode, post.body) : ''), [post, loaded]);
+  /* 비밀번호 글 (사용자 요청) — 프롬프트 게시판 비밀번호로 푼 본문. 이 탭·관리자 기기에 키가 있으면 바로 열린다 */
+  const [opened, setOpened] = useState<{ id: string; body: string } | null>(null);
+  const sealed = post?.locked;
+  const openWith = async (pw?: string) => {
+    if (!post?.locked) return false;
+    const k = await postContentKey(isAdmin, pw);
+    if (!k) return false;
+    try {
+      const o = await openBody<{ body: string }>(k, post.locked);
+      setOpened({ id: post.id, body: o.body ?? '' });
+      return true;
+    } catch { return false; }
+  };
+  useEffect(() => {
+    if (sealed && loaded) void openWith();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sealed?.data, loaded, isAdmin]);
+  const unlocked = post?.locked ? (opened?.id === post.id ? opened : null) : null;
+  const html = useMemo(() => (post && loaded ? renderBody(post.mode, post.locked ? unlocked?.body ?? '' : post.body) : ''), [post, loaded, unlocked]);
 
   /* 이미 달린 댓글도 글의 비밀 여부에 맞춘다 (보안 강화) — 관리자가 글을 열면 정리된다.
      비밀글로 바꾸면 댓글도 가리고, 비밀글을 풀면 댓글도 다시 보이게 */
@@ -80,6 +100,15 @@ export default function BoardDetailPage() {
     return (
       <section className="page post-read">
         <div className="page-head"><PageTitle>BOARD</PageTitle><p>비밀글 — 작성자와 관리자만 열람할 수 있습니다</p></div>
+      </section>
+    );
+  }
+
+  if (post.locked && !unlocked) {
+    return (
+      <section className="page post-read">
+        <div className="page-head"><PageTitle>BOARD</PageTitle><p>{post.title}</p></div>
+        <LockScreen onUnlock={pw => openWith(pw)} />
       </section>
     );
   }
@@ -186,7 +215,7 @@ export default function BoardDetailPage() {
       <div className="panel" style={{ padding: '26px 28px' }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
           <h2 style={{ fontSize: 19, marginBottom: 4, flex: 1 }}>
-            {post.secret && '🔒 '}{post.title}
+            {(post.secret || post.locked) && '🔒 '}{post.title}
           </h2>
           {/* 로그 글 — 원하는 문단을 눌러 골라 발췌 */}
           {post.kind !== 'gallery' && (!post.fold || open) && (

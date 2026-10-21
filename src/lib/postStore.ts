@@ -86,6 +86,8 @@ export interface Post {
   /** 글 전체 글씨체(폰트 id)·크기(px) — 글쓰기에서 드래그 없이 고르면 여기에. 드래그한 부분은 본문 안 <span style>로 */
   fontId?: string;
   fontSize?: number;
+  /** 비밀번호 글 (사용자 요청) — 본문·이미지·설명을 프롬프트 게시판 비밀번호로 암호화한 것. 있으면 body는 비어 있다 */
+  locked?: { iv: string; data: string };
 }
 
 export type PostKind = 'gallery' | 'log';

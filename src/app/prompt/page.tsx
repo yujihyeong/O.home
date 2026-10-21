@@ -18,6 +18,7 @@ import { putBlob, useBlobUrl } from '@/lib/blobStore';
 import { PageTitle, EditableDesc } from '@/components/ui/PageText';
 import { ConfirmModal, Modal } from '@/components/ui/Modal';
 import { useToast } from '@/components/ui/Toast';
+import { LockScreen } from '@/components/ui/LockScreen';
 
 /** 사진 주소 — 사이트에 든 그림(/…)은 그대로, 올린 사진은 저장소에서 */
 function usePic(img?: string | null) {
@@ -178,31 +179,6 @@ function NoticeBox({ text, editable, onSave }: { text: string; editable: boolean
 }
 
 /** 잠금 화면 — 비밀번호를 넣어야 목록·글이 보인다 */
-function LockScreen({ onUnlock }: { onUnlock: (pw: string) => Promise<boolean> }) {
-  const [pw, setPw] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [bad, setBad] = useState(false);
-  const go = async () => {
-    if (!pw || busy) return;
-    setBusy(true); setBad(false);
-    const ok = await onUnlock(pw);
-    setBusy(false);
-    if (!ok) { setBad(true); setPw(''); }
-  };
-  return (
-    <div className="panel pr-lock">
-      <div className="pr-lock-ic" aria-hidden>🔒</div>
-      <p className="pr-lock-t">비밀번호를 입력해 주세요</p>
-      <form className={`pr-lock-f ${bad ? 'bad' : ''}`} onSubmit={e => { e.preventDefault(); void go(); }}>
-        <input className="pr-in" type="password" value={pw} autoFocus autoComplete="current-password"
-          placeholder="비밀번호" onChange={e => { setPw(e.target.value); setBad(false); }} />
-        <button type="submit" className="btn btn-dark" disabled={!pw || busy}>{busy ? '…' : '열기'}</button>
-      </form>
-      {bad && <p className="pr-lock-bad">비밀번호가 맞지 않아요</p>}
-    </div>
-  );
-}
-
 /** 비밀번호 걸기·바꾸기·풀기 */
 function PasswordModal({ open, locked, onClose, onSet }: {
   open: boolean; locked: boolean; onClose: () => void; onSet: (pw: string | null) => Promise<void>;
