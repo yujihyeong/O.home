@@ -292,6 +292,15 @@ begin
   end loop;
 end $$;
 
+-- ── 9-1. API 접근 권한 (Supabase 2026-10-30 변경 대응) ─────────
+-- 10월 30일부터 public 스키마에 새로 만든 테이블은 API(supabase-js) 권한이 자동으로 붙지 않는다.
+-- 새 프로젝트에 이 스크립트를 처음 돌릴 때도 예전과 똑같이 쓸 수 있도록 직접 붙여 둔다.
+-- 누가 무엇을 읽고 쓸 수 있는지는 위의 RLS 정책이 그대로 정한다 (권한 = 문 열기, 정책 = 열쇠).
+grant usage on schema public to anon, authenticated, service_role;
+grant select, insert, update, delete on all tables in schema public to anon, authenticated, service_role;
+grant usage, select on all sequences in schema public to anon, authenticated, service_role;
+grant execute on all functions in schema public to anon, authenticated, service_role;
+
 -- ── 10. 스키마 캐시 갱신 (중요) ──────────────────────────────
 -- PostgREST(= REST API)는 테이블·컬럼 목록을 캐시해 둔다. SQL로 컬럼을 새로 추가해도
 -- 캐시가 갱신되기 전에는 API가 그 컬럼을 모른다 —
