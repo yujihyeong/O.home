@@ -103,7 +103,7 @@ function BoardInner() {
                   {canRead(p) && (p.images?.length ?? 0) > 1 && <span className="gal-n">{p.images!.length}</span>}
                 </div>
                 <div className="gal-cap">
-                  <b>{canRead(p) ? <>{p.secret && '🔒 '}{p.title}</> : '비밀글입니다'}</b>
+                  <b>{canRead(p) ? <>{(p.secret || p.locked) && '🔒 '}{p.title}</> : '비밀글입니다'}</b>
                   <small>{p.author} · {fmtDate(p.date)}</small>
                 </div>
               </div>
@@ -133,7 +133,7 @@ function BoardInner() {
                     </div>
                   )}
                   <div className="bt-title">
-                    {canRead(p) ? <>{p.secret && '🔒 '}{p.title}</> : '🔒 비밀글입니다'}
+                    {canRead(p) ? <>{(p.secret || p.locked) && '🔒 '}{p.title}</> : '🔒 비밀글입니다'}
                     {canRead(p) && cmtCount(p) > 0 && <span className="cmt">{cmtCount(p)}</span>}
                   </div>
                   <div className="bt-meta">{p.author} · {fmtDate(p.date)}</div>
@@ -155,7 +155,7 @@ function BoardInner() {
               <div className="tcell">
                 {canRead(p) ? (
                   <b>
-                    {p.secret && '🔒 '}{p.title}
+                    {(p.secret || p.locked) && '🔒 '}{p.title}
                     {cmtCount(p) > 0 && <span className="cmt">{cmtCount(p)}</span>}
                     {p.fold && <span style={{ ...boardBadgeStyle(boardSet.system[2]), marginLeft: 6 }}>{boardSet.system[2].label}</span>}
                   </b>

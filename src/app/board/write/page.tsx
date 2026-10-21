@@ -17,6 +17,7 @@ import { TextTools, WholeFont, wholeFontStyle } from '@/components/ui/WriteTools
 import { useFonts } from '@/lib/fontStore';
 import { useToast } from '@/components/ui/Toast';
 import { PageTitle, EditableDesc } from '@/components/ui/PageText';
+import { postLockAvailable, postContentKey, ensurePostContentKey, sealBody, openBody } from '@/lib/promptStore';
 
 /** 로컬 모드용 — 올릴 서버가 없으면 이미지를 본문에 그대로 심는다 (에디터와 같은 규칙) */
 function toDataUrl(f: Blob): Promise<string> {
@@ -42,7 +43,7 @@ const hasRichHtml = (html: string) =>
 
 function WriteInner() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const toast = useToast();
   const params = useSearchParams();
   const editPid = params.get('edit');
@@ -70,6 +71,8 @@ function WriteInner() {
   const [htmlView, setHtmlView] = useState<'code' | 'preview'>('code');
   const [askRich, setAskRich] = useState<null | (() => void)>(null);   // 정리 경고 후 실행할 전환
   const [secret, setSecret] = useState(false);
+  /** 비밀번호 글 (사용자 요청) — 프롬프트 게시판과 같은 비밀번호로 본문을 암호화한다 (관리자) */
+  const [lockOn, setLockOn] = useState(false);
   // 글 전체 글씨체·크기 — 드래그 없이 고르면 여기에 (드래그한 부분은 본문 안에 직접)
   const [whole, setWhole] = useState<WholeFont>({});
   const { familyOf } = useFonts();
@@ -126,6 +129,19 @@ function WriteInner() {
     setFoldType(p.fold?.type ?? 'none'); setFoldLabel(p.fold?.label ?? '');
     setTagsText((p.tags ?? []).join(', '));
     setThumbSrc(p.thumbSrc); setThumbCrop(p.thumbCrop);
+    if (p.locked) {
+      // 잠긴 글 — 이 기기에 기억된 비밀번호 키로 풀어 폼을 채운다
+      setLockOn(true);
+      const sealed = p.locked;
+      void (async () => {
+        const k = await postContentKey(true);
+        if (!k) { toast('잠긴 글을 열지 못했습니다 — 프롬프트 게시판을 먼저 열어 주세요'); return; }
+        try {
+          const o = await openBody<{ body: string; images?: string[]; caption?: string }>(k, sealed);
+          setBody(o.body ?? ''); setImages(o.images ?? []); setCaption(o.caption ?? '');
+        } catch { toast('잠긴 글을 열지 못했습니다'); }
+      })();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editPid, postsLoaded, posts]);
 
@@ -161,7 +177,7 @@ function WriteInner() {
     setUpBusy(false);
   };
 
-  const post = () => {
+  const post = async () => {
     const isGal = kind === 'gallery';
     if (!title.trim()) { toast('제목을 입력해 주세요'); return; }
     if (isGal && images.length === 0) { toast('이미지를 한 장 이상 올려 주세요'); return; }
@@ -174,6 +190,18 @@ function WriteInner() {
         authored: writeMode === 'editor' ? 'editor' as const : writeMode === 'log' ? 'log' as const : undefined,
         images: undefined, caption: undefined,
       };
+    // 비밀번호 글 — 본문·이미지·설명을 암호화해 locked에 넣고 겉에는 비워 둔다 (대표 썸네일도 숨김)
+    let lockPart: Pick<Post, 'locked'> = { locked: undefined };
+    if (lockOn && isAdmin) {
+      const k = await ensurePostContentKey();
+      if (!k) {
+        toast(postLockAvailable() ? '이 기기에서 프롬프트 게시판을 한 번 열어 주세요 (비밀번호 입력)' : '먼저 프롬프트 게시판에 비밀번호를 걸어 주세요');
+        return;
+      }
+      lockPart = { locked: await sealBody(k, { body: content.body, images: content.images, caption: content.caption }) };
+      Object.assign(content, { body: '', images: undefined, caption: undefined });
+    }
+    const thumb = lockPart.locked ? { thumbSrc: undefined, thumbCrop: undefined } : { thumbSrc, thumbCrop };
     if (editing) {
       // 수정 — 작성자 본인만 (관리자도 타인 글은 삭제만, v1.9). 작성자/날짜/댓글은 유지, 게시판은 옮길 수 있다 (사용자 요청)
       if (editing.authorId !== user.id) { toast('수정은 작성자 본인만 할 수 있습니다'); return; }
@@ -184,7 +212,7 @@ function WriteInner() {
         secret,
         tags: parseTags(tagsText),
         fold: foldType === 'none' ? null : { type: foldType, label: foldType === 'custom' ? foldLabel : undefined },
-        thumbSrc, thumbCrop,
+        ...thumb, ...lockPart,
         boardId: board.id,
       } : p)));
       toast('수정되었습니다');
@@ -199,7 +227,7 @@ function WriteInner() {
       fold: foldType === 'none' ? null : { type: foldType, label: foldType === 'custom' ? foldLabel : undefined },
       comments: [],
       boardId: board.id,   // 소속 게시판 (5.2 다중 게시판)
-      thumbSrc, thumbCrop,
+      ...thumb, ...lockPart,
     };
     setPosts([p, ...posts]);
     toast('등록되었습니다');
@@ -352,6 +380,7 @@ function WriteInner() {
             </div>
             <div style={{ display: 'grid', gap: 9 }}>
               <KCheck label="비밀글 (관리자와 나만 열람)" checked={secret} onChange={setSecret} />
+              {isAdmin && <KCheck label="🔒 비밀번호 걸기 (프롬프트 게시판과 같은 비밀번호 · 매달 함께 바뀜)" checked={lockOn} onChange={setLockOn} />}
             </div>
           </div>
           <div className="panel widget" style={{ marginBottom: 14 }}>

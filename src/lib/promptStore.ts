@@ -30,7 +30,10 @@ export const DEFAULT_PROMPT_NOTICE = '모든 프롬프트 타인에게 전달 �
 
 interface Lock { salt: string; iv: string; data: string; imgs: string[] }
 /** rotated — 비밀번호를 마지막으로 정한 달(한국 시간 'YYYY-MM'). 매달 1일 자동 변경의 기준 (사용자 요청) */
-interface Stored { notice?: string; posts?: unknown; lock?: Lock; ordered?: boolean; rotated?: string }
+/** kw — 비밀번호 글(일반 게시판 글)용 콘텐츠 키를 게시판 키로 잠근 것 · kOpen — 게시판 비밀번호를 풀었을 때의 날 키
+ *  (글마다 다시 잠그지 않고, 비밀번호가 바뀌면 이 키 하나만 새 비밀번호로 다시 잠근다) */
+interface Wrapped { iv: string; data: string }
+interface Stored { notice?: string; posts?: unknown; lock?: Lock; ordered?: boolean; rotated?: string; kw?: Wrapped; kOpen?: string }
 
 /** 처음 한 번 맞춰 둘 글 순서 (사용자 요청) — 관리자가 순서를 한 번이라도 저장하면(ordered) 그 순서를 따른다 */
 const PREFERRED_ORDER = ['도브', '시오', '지선우', '춘열망'];
@@ -168,11 +171,17 @@ export function usePromptBoard(isAdmin = false): PromptBoard {
     return () => { alive = false; };
   }, [isAdmin, loaded, sealed]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const write = useCallback((c: Cur) => {
+  const write = useCallback((c: Cur, keys?: Pick<Stored, 'kw' | 'kOpen'>) => {
     cur.current = c;
     const out: Stored = c.lock ? { notice: c.notice, lock: c.lock } : { notice: c.notice, posts: c.posts };
     if (c.ordered) out.ordered = true;
     if (c.lock && c.rotated) out.rotated = c.rotated;
+    // 비밀번호 글 키는 따로 붙는다 — 바꾸지 않을 때는 저장돼 있던 것을 그대로 (같은 잠금일 때만)
+    const prev = readStored();
+    const kw = keys ? keys.kw : (c.lock && prev.lock?.salt === c.lock.salt ? prev.kw : undefined);
+    const kOpen = keys ? keys.kOpen : (!c.lock ? prev.kOpen : undefined);
+    if (kw) out.kw = kw;
+    if (kOpen) out.kOpen = kOpen;
     try { setSetting(KEY, out); } catch { /* 무시 */ }
   }, []);
 
@@ -208,11 +217,14 @@ export function usePromptBoard(isAdmin = false): PromptBoard {
   const setPassword = useCallback(async (pw: string | null) => {
     const c = cur.current;
     if (c.lock && !keyRef.current) throw new Error('먼저 잠금을 풀어 주세요');
+    // 비밀번호 글 키 — 지금 비밀번호로 풀어 두었다가 새 비밀번호로 다시 잠근다 (같은 비밀번호를 쓰므로)
+    const content = await contentKeyFrom(readStored(), keyRef.current);
     if (pw === null) {
       keyRef.current = null;
       try { sessionStorage.removeItem(SESSION_KEY); localStorage.removeItem(ADMIN_KEY); } catch { /* 무시 */ }
       setLock(null);
-      write({ notice: c.notice, posts: c.posts, lock: null, ordered: true });
+      write({ notice: c.notice, posts: c.posts, lock: null, ordered: true },
+        { kOpen: content ? await rawB64(content) : undefined });
       return;
     }
     const saltB = crypto.getRandomValues(new Uint8Array(16));
@@ -223,7 +235,8 @@ export function usePromptBoard(isAdmin = false): PromptBoard {
     await rememberKey(key, salt, adminRef.current);
     setLock(lk);
     // 직접 바꾼 달은 그 달의 비밀번호로 친다 — 다음 자동 변경은 다음 달 1일
-    write({ notice: c.notice, posts: c.posts, lock: lk, ordered: true, rotated: monthKst() });
+    write({ notice: c.notice, posts: c.posts, lock: lk, ordered: true, rotated: monthKst() },
+      { kw: content ? await wrapKey(key, content) : undefined });
   }, [write]);
 
   return { loaded, notice, setNotice, locked: !!lock, sealed, posts, savePosts, unlock, setPassword };
@@ -267,8 +280,77 @@ export async function rotatePromptPasswordIfDue(): Promise<string | null> {
   const salt = toB64(saltB);
   const nk = await deriveKey(pw, saltB);
   const nlk = await seal(nk, salt, posts);
+  // 비밀번호 글 키도 새 비밀번호로 (못 풀면 그대로 두지 않고 빼서, 옛 비밀번호로 열리는 일이 없게)
+  const content = await contentKeyFrom(st, key);
   await rememberKey(nk, salt, true);
-  setSetting(KEY, { ...st, lock: nlk, rotated: m });
+  const next: Stored = { ...st, lock: nlk, rotated: m };
+  delete next.kw;
+  if (content) next.kw = await wrapKey(nk, content);
+  setSetting(KEY, next);
   try { window.dispatchEvent(new Event(ROTATED_EVT)); } catch { /* 무시 */ }
   return pw;
+}
+
+/* ---------- 비밀번호 글 (사용자 요청) — 게시판 비밀번호와 같은 비밀번호·같은 방식 ----------
+   글 본문은 콘텐츠 키 하나(K)로 암호화하고, K는 프롬프트 게시판 키로 잠가 프롬프트 설정에 둔다(kw).
+   그래서 프롬프트 비밀번호 하나로 게시판과 비밀번호 글이 같이 열리고, 비밀번호가 바뀌어도 K만 다시 잠그면 된다. */
+export interface SealedBody { iv: string; data: string }
+
+function readStored(): Stored {
+  try { const raw = getRawSetting(KEY); return (raw ? JSON.parse(raw) : {}) ?? {}; } catch { return {}; }
+}
+const importContent = (raw: Uint8Array) => crypto.subtle.importKey('raw', raw as BufferSource, 'AES-GCM', true, ['encrypt', 'decrypt']);
+async function rawB64(k: CryptoKey) { return toB64(await crypto.subtle.exportKey('raw', k)); }
+async function wrapKey(boardKey: CryptoKey, k: CryptoKey): Promise<Wrapped> {
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const data = await crypto.subtle.encrypt({ name: 'AES-GCM', iv: iv as BufferSource }, boardKey, await crypto.subtle.exportKey('raw', k));
+  return { iv: toB64(iv), data: toB64(data) };
+}
+/** 저장본에서 콘텐츠 키 꺼내기 — 게시판 키(boardKey)로 kw를 풀거나, 비밀번호가 풀린 게시판이면 kOpen */
+async function contentKeyFrom(st: Stored, boardKey: CryptoKey | null): Promise<CryptoKey | null> {
+  try {
+    if (st.kOpen && !st.lock) return await importContent(fromB64(st.kOpen));
+    if (!st.kw || !boardKey) return null;
+    const raw = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: fromB64(st.kw.iv) as BufferSource }, boardKey, fromB64(st.kw.data) as BufferSource);
+    return await importContent(new Uint8Array(raw));
+  } catch { return null; }
+}
+
+/** 비밀번호 글을 걸 수 있는가 — 프롬프트 게시판에 비밀번호가 걸려 있어야 한다 */
+export function postLockAvailable(): boolean { return !!readStored().lock?.data; }
+
+/** 글을 여는 키 — pw가 있으면 그 비밀번호로, 없으면 이 탭·관리자 기기에 기억된 키로.
+ *  비밀번호로 열면 이 탭에서는 프롬프트 게시판도 같이 열린다 (같은 비밀번호) */
+export async function postContentKey(admin: boolean, pw?: string): Promise<CryptoKey | null> {
+  const st = readStored();
+  if (!st.lock) return contentKeyFrom(st, null);
+  try {
+    const boardKey = pw ? await deriveKey(pw, fromB64(st.lock.salt)) : await recallKey(st.lock.salt, admin);
+    const k = await contentKeyFrom(st, boardKey);
+    if (k && pw && boardKey) await rememberKey(boardKey, st.lock.salt, admin);
+    return k;
+  } catch { return null; }
+}
+
+/** 글을 잠글 키 (관리자) — 아직 없으면 새로 만들어 게시판 키로 잠가 둔다. 못 하면 null */
+export async function ensurePostContentKey(): Promise<CryptoKey | null> {
+  const st = readStored();
+  if (!st.lock?.data) return null;
+  const boardKey = await recallKey(st.lock.salt, true);
+  if (!boardKey) return null;
+  const have = await contentKeyFrom(st, boardKey);
+  if (have) return have;
+  const k = await importContent(crypto.getRandomValues(new Uint8Array(32)));
+  setSetting(KEY, { ...readStored(), kw: await wrapKey(boardKey, k) });
+  return k;
+}
+
+export async function sealBody(k: CryptoKey, value: unknown): Promise<SealedBody> {
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const data = await crypto.subtle.encrypt({ name: 'AES-GCM', iv: iv as BufferSource }, k, enc.encode(JSON.stringify(value)));
+  return { iv: toB64(iv), data: toB64(data) };
+}
+export async function openBody<T>(k: CryptoKey, s: SealedBody): Promise<T> {
+  const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: fromB64(s.iv) as BufferSource }, k, fromB64(s.data) as BufferSource);
+  return JSON.parse(dec.decode(plain)) as T;
 }
