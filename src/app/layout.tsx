@@ -13,6 +13,7 @@ import { BgTone } from '@/components/shell/BgTone';
 import { ImageCropHost } from '@/components/shell/ImageCropper';
 import { TipLayer } from '@/components/ui/TipLayer';
 import { CursorLayer } from '@/components/shell/CursorLayer';
+import { PromptRotator } from '@/components/shell/PromptRotator';
 import { ImgProtect } from '@/components/shell/ImgProtect';
 import { SetupGate } from '@/components/shell/SetupGate';
 import { DocTitle } from '@/components/shell/DocTitle';
@@ -127,6 +128,8 @@ if(navigator.userAgent.indexOf('Whale/')>-1){document.documentElement.style.colo
                   <TipLayer />
                   {/* 커스텀 마우스 커서 (5.1) */}
                   <CursorLayer />
+                  {/* 프롬프트 비밀번호 매달 자동 변경 — 관리자 기기에서 (사용자 요청) */}
+                  <PromptRotator />
                   {/* 이미지 저장 방지 — 메뉴 관리 > 권한에서 영역별 지정 (v1.9) */}
                   <ImgProtect />
                   {/* 브라우저 탭 제목 — 디자인 탭에서 지정 (v1.9) */}

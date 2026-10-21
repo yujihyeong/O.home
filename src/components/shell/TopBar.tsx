@@ -317,7 +317,7 @@ export function TopBar() {
             {mySet && (
               <div className="nset">
                 {(Object.keys(NOTIF_TYPE_LABEL) as NotifType[])
-                  .filter(k => k !== 'guest' || isAdmin) // 방명록 알림은 관리자 항목
+                  .filter(k => (k !== 'guest' && k !== 'prompt') || isAdmin) // 방명록·프롬프트 알림은 관리자 항목
                   .map(k => (
                     <label key={k} className="row">
                       <span>{NOTIF_TYPE_LABEL[k]}</span>

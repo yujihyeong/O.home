@@ -236,6 +236,9 @@ function PasswordModal({ open, locked, onClose, onSet }: {
           비밀번호를 걸면 글 내용이 이 비밀번호로 <b>암호화</b>돼 저장돼요. 관리자는 이 기기에서 바로 들어가지고, 다른 기기에서는 한 번만 넣으면 돼요.
           <b> 잊어버리면 되찾을 방법이 없어요.</b> 공지는 잠금 화면에도 보여요.
         </p>
+        <p className="hint" style={{ margin: 0, lineHeight: 1.7 }}>
+          🔁 매달 1일 이후 관리자가 홈에 처음 들어오면 <b>랜덤 4글자</b>로 자동으로 바뀌고, 새 비밀번호는 🔔 알림으로 알려 드려요.
+        </p>
       </div>
     </Modal>
   );
