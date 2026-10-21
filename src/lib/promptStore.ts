@@ -14,6 +14,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getRawSetting, setSetting } from './settingStore';
 import { newId } from './postStore';
+import { backend } from './backend';
 
 const KEY = 'ohome.prompt.v1';
 
@@ -28,7 +29,8 @@ const str = (v: unknown) => (typeof v === 'string' ? v : '');
 export const DEFAULT_PROMPT_NOTICE = '모든 프롬프트 타인에게 전달 금지\n가중치 및 의상 수정 가능';
 
 interface Lock { salt: string; iv: string; data: string; imgs: string[] }
-interface Stored { notice?: string; posts?: unknown; lock?: Lock; ordered?: boolean }
+/** rotated — 비밀번호를 마지막으로 정한 달(한국 시간 'YYYY-MM'). 매달 1일 자동 변경의 기준 (사용자 요청) */
+interface Stored { notice?: string; posts?: unknown; lock?: Lock; ordered?: boolean; rotated?: string }
 
 /** 처음 한 번 맞춰 둘 글 순서 (사용자 요청) — 관리자가 순서를 한 번이라도 저장하면(ordered) 그 순서를 따른다 */
 const PREFERRED_ORDER = ['도브', '시오', '지선우', '춘열망'];
@@ -102,6 +104,8 @@ export interface PromptBoard {
   setPassword: (pw: string | null) => Promise<void>;
 }
 
+interface Cur { notice: string; posts: PromptPost[]; lock: Lock | null; ordered: boolean; rotated?: string }
+
 export function usePromptBoard(isAdmin = false): PromptBoard {
   const [loaded, setLoaded] = useState(false);
   const [notice, setNoticeS] = useState(DEFAULT_PROMPT_NOTICE);
@@ -110,19 +114,20 @@ export function usePromptBoard(isAdmin = false): PromptBoard {
   const [sealed, setSealed] = useState(false);
   const keyRef = useRef<CryptoKey | null>(null);
   // 저장은 항상 최신 값을 모아서 — 공지·글·잠금을 한 칸에 같이 쓴다
-  const cur = useRef<{ notice: string; posts: PromptPost[]; lock: Lock | null; ordered: boolean }>({ notice: DEFAULT_PROMPT_NOTICE, posts: [], lock: null, ordered: false });
+  const cur = useRef<Cur>({ notice: DEFAULT_PROMPT_NOTICE, posts: [], lock: null, ordered: false });
   const adminRef = useRef(isAdmin);
   adminRef.current = isAdmin;
   const arrange = (list: PromptPost[]) => (cur.current.ordered ? list : preferredSort(list));
 
   useEffect(() => {
     let alive = true;
-    (async () => {
+    const load = async () => {
       let st: Stored = {};
       try { const raw = getRawSetting(KEY); if (raw) st = JSON.parse(raw) ?? {}; } catch { /* 기본값 */ }
       const n = typeof st.notice === 'string' ? st.notice : DEFAULT_PROMPT_NOTICE;
       const lk = st.lock && typeof st.lock.data === 'string' ? st.lock : null;
       cur.current.ordered = st.ordered === true;
+      cur.current.rotated = typeof st.rotated === 'string' ? st.rotated : undefined;
       let list: PromptPost[] = [], isSealed = false;
       if (lk) {
         const key = await recallKey(lk.salt, adminRef.current);
@@ -133,9 +138,14 @@ export function usePromptBoard(isAdmin = false): PromptBoard {
       if (!alive) return;
       list = arrange(list);
       cur.current = { ...cur.current, notice: n, posts: list, lock: lk };
+      if (!lk) keyRef.current = null;
       setNoticeS(n); setLock(lk); setPosts(list); setSealed(isSealed); setLoaded(true);
-    })();
-    return () => { alive = false; };
+    };
+    void load();
+    // 매달 자동 변경이 일어나면 새 잠금·새 키로 다시 읽는다 — 옛 키로 저장해 되돌리지 않게
+    const onRot = () => { keyRef.current = null; void load(); };
+    window.addEventListener(ROTATED_EVT, onRot);
+    return () => { alive = false; window.removeEventListener(ROTATED_EVT, onRot); };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // 로그인 확인이 늦게 끝나 관리자로 판정되면, 이 기기에 남겨 둔 키로 바로 연다
@@ -158,10 +168,11 @@ export function usePromptBoard(isAdmin = false): PromptBoard {
     return () => { alive = false; };
   }, [isAdmin, loaded, sealed]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const write = useCallback((c: { notice: string; posts: PromptPost[]; lock: Lock | null; ordered: boolean }) => {
+  const write = useCallback((c: Cur) => {
     cur.current = c;
     const out: Stored = c.lock ? { notice: c.notice, lock: c.lock } : { notice: c.notice, posts: c.posts };
     if (c.ordered) out.ordered = true;
+    if (c.lock && c.rotated) out.rotated = c.rotated;
     try { setSetting(KEY, out); } catch { /* 무시 */ }
   }, []);
 
@@ -211,8 +222,53 @@ export function usePromptBoard(isAdmin = false): PromptBoard {
     keyRef.current = key;
     await rememberKey(key, salt, adminRef.current);
     setLock(lk);
-    write({ notice: c.notice, posts: c.posts, lock: lk, ordered: true });
+    // 직접 바꾼 달은 그 달의 비밀번호로 친다 — 다음 자동 변경은 다음 달 1일
+    write({ notice: c.notice, posts: c.posts, lock: lk, ordered: true, rotated: monthKst() });
   }, [write]);
 
   return { loaded, notice, setNotice, locked: !!lock, sealed, posts, savePosts, unlock, setPassword };
+}
+
+/* ---------- 매달 1일 자동 변경 (사용자 요청) ----------
+   비밀번호로 잠근 글은 비밀번호 없이는 다시 잠글 수 없으므로, 서버가 아니라 **관리자 기기**가 한다:
+   관리자가 이 기기에서 한 번 연 키(ohome.prompt.adminkey)로 열어 새 4글자로 다시 잠근다.
+   달이 바뀐 뒤 관리자가 홈에 처음 들어올 때 한 번 — 그 전에는 지난달 비밀번호가 그대로 통한다. */
+export const ROTATED_EVT = 'ohome-prompt-rotated';
+const ROTATE_CHARS = 'abcdefghjkmnpqrstuvwxyz23456789';   // 헷갈리는 0·o·1·l·i 빼고
+export const monthKst = () => new Date(Date.now() + 9 * 3600_000).toISOString().slice(0, 7);
+function randomPassword(n = 4): string {
+  const b = crypto.getRandomValues(new Uint8Array(n));
+  return Array.from(b, x => ROTATE_CHARS[x % ROTATE_CHARS.length]).join('');
+}
+
+/** 이번 달 변경이 남았으면 바꾸고 새 비밀번호를 돌려준다 (할 일이 없거나 못 하면 null) */
+export async function rotatePromptPasswordIfDue(): Promise<string | null> {
+  const read = (raw: string | null): Stored => { try { return (raw ? JSON.parse(raw) : {}) ?? {}; } catch { return {}; } };
+  let st = read(getRawSetting(KEY));
+  if (!st.lock?.data) return null;
+  const m = monthKst();
+  if (st.rotated && st.rotated >= m) return null;
+  // 서버 모드면 바꾸기 직전에 최신 값을 다시 받는다 — 다른 기기에서 고친 글을 옛 사본으로 덮지 않게
+  const be = backend();
+  if (be) {
+    try { const all = await be.fetchAllSettings(); const v = all[KEY]; st = typeof v === 'string' ? read(v) : ((v ?? {}) as Stored); }
+    catch { return null; }
+    if (!st.lock?.data || (st.rotated && st.rotated >= m)) return null;
+  }
+  const lk = st.lock as Lock;
+  // 기능이 생기기 전에 걸어 둔 비밀번호 — 이번 달은 그대로 두고 다음 달부터 바꾼다
+  if (!st.rotated) { setSetting(KEY, { ...st, rotated: m }); return null; }
+  const key = await recallKey(lk.salt, true);
+  if (!key) return null;   // 이 기기엔 키가 없다 — 비밀번호로 한 번 연 기기에서 바뀐다
+  let posts: PromptPost[];
+  try { posts = await open(key, lk); } catch { return null; }
+  const pw = randomPassword();
+  const saltB = crypto.getRandomValues(new Uint8Array(16));
+  const salt = toB64(saltB);
+  const nk = await deriveKey(pw, saltB);
+  const nlk = await seal(nk, salt, posts);
+  await rememberKey(nk, salt, true);
+  setSetting(KEY, { ...st, lock: nlk, rotated: m });
+  try { window.dispatchEvent(new Event(ROTATED_EVT)); } catch { /* 무시 */ }
+  return pw;
 }
