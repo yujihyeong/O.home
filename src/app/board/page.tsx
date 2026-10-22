@@ -1,6 +1,7 @@
 'use client';
 // 일반 게시판 목록 (4.2 / 5.2 다중 게시판) — 형태(로그 목록 / 갤러리 격자) · 검색 · 비밀글 마스킹 · 접기 표시 · 페이지네이션
 // ?b=<게시판 id> 로 게시판 구분 (없으면 기본 게시판) · 리스트 스킨: 기본형 / 티켓형 (5.2 v1.9)
+import { PostHead } from '@/components/ui/PostHead';
 import React, { Suspense, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useRouteSearch } from '@/lib/routeParams';
@@ -57,6 +58,7 @@ function BoardInner() {
       list = list.filter(p =>
         p.title.toLowerCase().includes(k) ||
         p.author.toLowerCase().includes(k) ||
+        (p.category ?? '').toLowerCase().includes(k) ||   // 머리말 검색
         (p.tags ?? []).some(t => t.toLowerCase().includes(k)) ||   // 태그 검색 (v2.0 사용자 요청)
         (!p.secret && p.body.toLowerCase().includes(k)));
     }
@@ -103,7 +105,7 @@ function BoardInner() {
                   {canRead(p) && (p.images?.length ?? 0) > 1 && <span className="gal-n">{p.images!.length}</span>}
                 </div>
                 <div className="gal-cap">
-                  <b>{canRead(p) ? <>{(p.secret || p.locked) && '🔒 '}{p.title}</> : '비밀글입니다'}</b>
+                  <b>{canRead(p) ? <>{(p.secret || p.locked) && '🔒 '}<PostHead cat={p.category} />{p.title}</> : '비밀글입니다'}</b>
                   <small>{p.author} · {fmtDate(p.date)}</small>
                 </div>
               </div>
@@ -133,7 +135,7 @@ function BoardInner() {
                     </div>
                   )}
                   <div className="bt-title">
-                    {canRead(p) ? <>{(p.secret || p.locked) && '🔒 '}{p.title}</> : '🔒 비밀글입니다'}
+                    {canRead(p) ? <>{(p.secret || p.locked) && '🔒 '}<PostHead cat={p.category} />{p.title}</> : '🔒 비밀글입니다'}
                     {canRead(p) && cmtCount(p) > 0 && <span className="cmt">{cmtCount(p)}</span>}
                   </div>
                   <div className="bt-meta">{p.author} · {fmtDate(p.date)}</div>
@@ -155,7 +157,7 @@ function BoardInner() {
               <div className="tcell">
                 {canRead(p) ? (
                   <b>
-                    {(p.secret || p.locked) && '🔒 '}{p.title}
+                    {(p.secret || p.locked) && '🔒 '}<PostHead cat={p.category} />{p.title}
                     {cmtCount(p) > 0 && <span className="cmt">{cmtCount(p)}</span>}
                     {p.fold && <span style={{ ...boardBadgeStyle(boardSet.system[2]), marginLeft: 6 }}>{boardSet.system[2].label}</span>}
                   </b>
