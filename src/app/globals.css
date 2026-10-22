@@ -3222,3 +3222,6 @@ textarea.ib-lines-in{width:100%;min-height:84px;resize:vertical;border:1px dashe
 .ph-chip i:hover{opacity:1}
 .ph-add{width:120px;padding:4px 10px;border-radius:999px;border:1px dashed var(--line);background:transparent;color:inherit;font-size:calc(12px*var(--fs,1));font-family:inherit;outline:none}
 .ph-add:focus{border-color:var(--accent)}
+
+/* 고정한 글 (사용자 요청) — 목록 맨 위, 살짝 구분 */
+.brow.pinned{background:color-mix(in srgb,var(--accent) 6%,transparent)}
