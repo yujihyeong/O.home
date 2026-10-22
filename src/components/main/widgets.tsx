@@ -1,5 +1,6 @@
 'use client';
 // 메인 위젯 렌더러 (4.0) — DIARY/LATEST/UPCOMING 등은 해당 기능(2·3차) 전까지 데모 데이터
+import { PostHead } from '@/components/ui/PostHead';
 import React, { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { WidgetConf, useMainStore, WIDGET_META, decoSlides } from '@/lib/mainStore';
@@ -385,7 +386,7 @@ export function RecentPostsWidget({ conf }: { conf: WidgetConf }) {
           <li key={p.id} onClick={() => { if (!editOn) router.push(`/board/${p.id}`); }}>
             {/* 제목 위에 작게 게시판 이름 (사용자 요청) */}
             {boardName(p) && <small className="rp-board">{boardName(p)}</small>}
-            <span className="rp-title">{p.title}</span>
+            <span className="rp-title"><PostHead cat={p.category} />{p.title}</span>
           </li>
         ))}
       </ul>

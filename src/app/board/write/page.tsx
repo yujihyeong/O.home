@@ -54,8 +54,11 @@ function WriteInner() {
   const shared = !editPid && (params.get('share') === '1' || !!params.get('text') || !!params.get('url'));
   const [pickB, setPickB] = useState<string | null>(null);
   const bid = pickB ?? editing?.boardId ?? params.get('b') ?? MAIN_BOARD_ID;
-  const { boards } = useBoards();
+  const { boards, patchBoard } = useBoards();
   const board = boards.find(b => b.id === bid) ?? boards[0];
+  /** 머리말 (사용자 요청) — 제목 앞 [머리말]. 종류는 게시판마다 직접 써서 추가 */
+  const [cat, setCat] = useState('');
+  const [catNew, setCatNew] = useState('');
   const [title, setTitle] = useState('');
   // 에디터가 기본 · log = 로그 정리 모드 (마크다운 + 앞뒤에 마크다운이 없는 문장을 ""로) — 저장은 마크다운으로
   const [writeMode, setWriteMode] = useState<'editor' | 'md' | 'html' | 'log'>('log');
@@ -128,6 +131,7 @@ function WriteInner() {
     setWhole({ fontId: p.fontId, fontSize: p.fontSize });
     setFoldType(p.fold?.type ?? 'none'); setFoldLabel(p.fold?.label ?? '');
     setTagsText((p.tags ?? []).join(', '));
+    setCat(p.category ?? '');
     setThumbSrc(p.thumbSrc); setThumbCrop(p.thumbCrop);
     if (p.locked) {
       // 잠긴 글 — 이 기기에 기억된 비밀번호 키로 풀어 폼을 채운다
@@ -207,7 +211,7 @@ function WriteInner() {
       if (editing.authorId !== user.id) { toast('수정은 작성자 본인만 할 수 있습니다'); return; }
       setPosts(posts.map(p => (p.id === editing.id ? {
         ...p,
-        title: title.trim(), ...content, kind,
+        title: title.trim(), ...content, kind, category: cat,
         fontId: whole.fontId, fontSize: whole.fontSize,
         secret,
         tags: parseTags(tagsText),
@@ -220,7 +224,7 @@ function WriteInner() {
       return;
     }
     const p: Post = {
-      id: newId(), title: title.trim(), ...content, kind, category: '', fontId: whole.fontId, fontSize: whole.fontSize,
+      id: newId(), title: title.trim(), ...content, kind, category: cat, fontId: whole.fontId, fontSize: whole.fontSize,
       author: user.nickname, authorId: user.id, date: new Date().toISOString(),
       secret, notice: false,
       tags: parseTags(tagsText),
@@ -257,6 +261,42 @@ function WriteInner() {
               <label className="k-label" style={{ width: 60 }}>게시판</label>
               <KSelect value={board.id} onChange={setPickB} minWidth={180}
                 options={boards.filter(b => editing ? (b.kind ?? 'log') === kind : !shared || (b.kind ?? 'log') === 'log').map(b => ({ value: b.id, label: b.name }))} />
+            </div>
+          )}
+          {(isAdmin || (board.cats ?? []).length > 0) && (
+            <div className="form-row">
+              <label className="k-label" style={{ width: 60 }}>머리말</label>
+              <div className="ph-pick">
+                <button type="button" className={`ph-chip ${!cat ? 'on' : ''}`} onClick={() => setCat('')}>없음</button>
+                {(board.cats ?? []).map(c => (
+                  <button type="button" key={c.id} className={`ph-chip ${cat === c.label ? 'on' : ''}`} onClick={() => setCat(c.label)}>
+                    {c.label}
+                    {isAdmin && (
+                      <i role="button" aria-label="머리말 지우기" onClick={e => {
+                        e.stopPropagation();
+                        patchBoard(board.id, { cats: board.cats.filter(x => x.id !== c.id) });
+                        if (cat === c.label) setCat('');
+                      }}>✕</i>
+                    )}
+                  </button>
+                ))}
+                {/* 이 게시판에 없는 머리말로 쓴 옛 글 — 고를 수 있게 그대로 보인다 */}
+                {cat && !(board.cats ?? []).some(c => c.label === cat) && <button type="button" className="ph-chip on">{cat}</button>}
+                {isAdmin && (
+                  <input className="ph-add" value={catNew} maxLength={12} placeholder="＋ 새 머리말"
+                    onChange={e => setCatNew(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key !== 'Enter' || e.nativeEvent.isComposing) return;
+                      e.preventDefault();
+                      const v = catNew.trim().replace(/^\[|\]$/g, '');
+                      if (!v) return;
+                      if (!(board.cats ?? []).some(c => c.label === v)) {
+                        patchBoard(board.id, { cats: [...(board.cats ?? []), { id: newId(), label: v, bg: '#eef0f2', border: '#d7dae0', fg: '#5d636d' }] });
+                      }
+                      setCat(v); setCatNew('');
+                    }} />
+                )}
+              </div>
             </div>
           )}
           <div className="form-row">
