@@ -62,8 +62,8 @@ function BoardInner() {
         (p.tags ?? []).some(t => t.toLowerCase().includes(k)) ||   // 태그 검색 (v2.0 사용자 요청)
         (!p.secret && p.body.toLowerCase().includes(k)));
     }
-    // 최신순 (공지·말머리는 쓰지 않는다 — 게시판 자체로 나눈다)
-    return list.sort((a, b) => b.date.localeCompare(a.date));
+    // 최신순 — 고정한 글(notice, 사용자 요청)은 공지처럼 맨 위에
+    return list.sort((a, b) => Number(!!b.notice) - Number(!!a.notice) || b.date.localeCompare(a.date));
   }, [posts, board.id, q]);
 
   const totalPages = Math.max(1, Math.ceil(visible.length / PER_PAGE));
@@ -105,7 +105,7 @@ function BoardInner() {
                   {canRead(p) && (p.images?.length ?? 0) > 1 && <span className="gal-n">{p.images!.length}</span>}
                 </div>
                 <div className="gal-cap">
-                  <b>{canRead(p) ? <>{(p.secret || p.locked) && '🔒 '}<PostHead cat={p.category} />{p.title}</> : '비밀글입니다'}</b>
+                  <b>{canRead(p) ? <>{p.notice && <span style={{ ...boardBadgeStyle(boardSet.system[0]), marginRight: 6 }}>{boardSet.system[0].label}</span>}{(p.secret || p.locked) && '🔒 '}<PostHead cat={p.category} />{p.title}</> : '비밀글입니다'}</b>
                   <small>{p.author} · {fmtDate(p.date)}</small>
                 </div>
               </div>
@@ -135,7 +135,7 @@ function BoardInner() {
                     </div>
                   )}
                   <div className="bt-title">
-                    {canRead(p) ? <>{(p.secret || p.locked) && '🔒 '}<PostHead cat={p.category} />{p.title}</> : '🔒 비밀글입니다'}
+                    {canRead(p) ? <>{p.notice && <span style={{ ...boardBadgeStyle(boardSet.system[0]), marginRight: 6 }}>{boardSet.system[0].label}</span>}{(p.secret || p.locked) && '🔒 '}<PostHead cat={p.category} />{p.title}</> : '🔒 비밀글입니다'}
                     {canRead(p) && cmtCount(p) > 0 && <span className="cmt">{cmtCount(p)}</span>}
                   </div>
                   <div className="bt-meta">{p.author} · {fmtDate(p.date)}</div>
@@ -151,13 +151,13 @@ function BoardInner() {
         /* 기본형 스킨 — 리스트 행 (글씨색은 게시판 관리에서 지정 가능, v1.9) */
         <div className="panel board-list flush" style={board.fg ? { color: board.fg } : undefined}>
           {pageList.map(p => (
-            <div className="brow nocat" key={p.id} onClick={() => { if (canRead(p)) router.push(`/board/${p.id}`); }}>
+            <div className={`brow nocat ${p.notice ? 'pinned' : ''}`} key={p.id} onClick={() => { if (canRead(p)) router.push(`/board/${p.id}`); }}>
               {/* 제목 칸 안에서 태그를 오른쪽 끝(=작성자 바로 왼쪽)에 정렬 (v2.0 사용자 요청) —
                   칸을 따로 만들면 행마다 그리드가 독립이라 작성자 열이 태그 길이만큼 어긋난다 */}
               <div className="tcell">
                 {canRead(p) ? (
                   <b>
-                    {(p.secret || p.locked) && '🔒 '}<PostHead cat={p.category} />{p.title}
+                    {p.notice && <span style={{ ...boardBadgeStyle(boardSet.system[0]), marginRight: 6 }}>{boardSet.system[0].label}</span>}{(p.secret || p.locked) && '🔒 '}<PostHead cat={p.category} />{p.title}
                     {cmtCount(p) > 0 && <span className="cmt">{cmtCount(p)}</span>}
                     {p.fold && <span style={{ ...boardBadgeStyle(boardSet.system[2]), marginLeft: 6 }}>{boardSet.system[2].label}</span>}
                   </b>

@@ -74,6 +74,7 @@ function WriteInner() {
   const [htmlView, setHtmlView] = useState<'code' | 'preview'>('code');
   const [askRich, setAskRich] = useState<null | (() => void)>(null);   // 정리 경고 후 실행할 전환
   const [secret, setSecret] = useState(false);
+  const [pinned, setPinned] = useState(false);   // 목록 맨 위 고정 (관리자)
   /** 비밀번호 글 (사용자 요청) — 프롬프트 게시판과 같은 비밀번호로 본문을 암호화한다 (관리자) */
   const [lockOn, setLockOn] = useState(false);
   // 글 전체 글씨체·크기 — 드래그 없이 고르면 여기에 (드래그한 부분은 본문 안에 직접)
@@ -127,7 +128,7 @@ function WriteInner() {
     // 에디터로 쓴 글은 에디터로 다시 연다 — 예전에는 무조건 HTML 소스가 떠서
     // 에디터로 쓴 글을 수정하면 갑자기 태그가 보였다 (authored 없는 옛 글은 지금까지대로 HTML)
     setWriteMode(p.mode === 'md' ? (p.authored === 'log' ? 'log' : 'md') : (p.authored === 'editor' ? 'editor' : 'html'));
-    setSecret(p.secret);
+    setSecret(p.secret); setPinned(!!p.notice);
     setWhole({ fontId: p.fontId, fontSize: p.fontSize });
     setFoldType(p.fold?.type ?? 'none'); setFoldLabel(p.fold?.label ?? '');
     setTagsText((p.tags ?? []).join(', '));
@@ -213,7 +214,7 @@ function WriteInner() {
         ...p,
         title: title.trim(), ...content, kind, category: cat,
         fontId: whole.fontId, fontSize: whole.fontSize,
-        secret,
+        secret, notice: isAdmin ? pinned : p.notice,
         tags: parseTags(tagsText),
         fold: foldType === 'none' ? null : { type: foldType, label: foldType === 'custom' ? foldLabel : undefined },
         ...thumb, ...lockPart,
@@ -226,7 +227,7 @@ function WriteInner() {
     const p: Post = {
       id: newId(), title: title.trim(), ...content, kind, category: cat, fontId: whole.fontId, fontSize: whole.fontSize,
       author: user.nickname, authorId: user.id, date: new Date().toISOString(),
-      secret, notice: false,
+      secret, notice: isAdmin && pinned,
       tags: parseTags(tagsText),
       fold: foldType === 'none' ? null : { type: foldType, label: foldType === 'custom' ? foldLabel : undefined },
       comments: [],
@@ -420,6 +421,7 @@ function WriteInner() {
             </div>
             <div style={{ display: 'grid', gap: 9 }}>
               <KCheck label="비밀글 (관리자와 나만 열람)" checked={secret} onChange={setSecret} />
+              {isAdmin && <KCheck label="📌 목록 맨 위에 고정 (공지처럼)" checked={pinned} onChange={setPinned} />}
               {isAdmin && <KCheck label="🔒 비밀번호 걸기 (프롬프트 게시판과 같은 비밀번호 · 매달 함께 바뀜)" checked={lockOn} onChange={setLockOn} />}
             </div>
           </div>

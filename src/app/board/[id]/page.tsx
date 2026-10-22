@@ -207,6 +207,13 @@ export default function BoardDetailPage() {
           {isAuthor && (
             <button className="btn btn-dark" onClick={() => router.push(`/board/write?edit=${post.id}`)}>EDIT</button>
           )}
+          {/* 목록 맨 위 고정 (사용자 요청) — 관리자 */}
+          {isAdmin && (
+            <button className={`btn ${post.notice ? 'btn-dark' : 'btn-ghost'}`}
+              onClick={() => { update({ notice: !post.notice }); toast(post.notice ? '고정을 풀었습니다' : '목록 맨 위에 고정했습니다'); }}>
+              {post.notice ? '📌 고정 해제' : '📌 고정'}
+            </button>
+          )}
           {canManage && (
             <button className="btn btn-dark" onClick={() => setDelAsk(true)}>DELETE</button>
           )}
