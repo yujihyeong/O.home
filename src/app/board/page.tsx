@@ -34,7 +34,7 @@ function BoardInner() {
   const bid = params.get('b') ?? MAIN_BOARD_ID;
   const { boards, loaded: boardsLoaded } = useBoards();
   const board = boards.find(b => b.id === bid) ?? boards[0];
-  const [posts] = useLocalList<Post>('ohome.board.v1', BOARD_SEED);
+  const [posts, setPosts] = useLocalList<Post>('ohome.board.v1', BOARD_SEED);
   // 댓글 수 — 댓글은 글과 따로 저장된다 (v2.0). 옛 글 안에 남아 있던 것도 함께 센다
   const [cmtRows] = useLocalList<CommentRow>(COMMENT_KEY, COMMENT_SEED);
   const cmtCount = (p: Post) => commentsFor(cmtRows, 'post', p.id, p.comments).length;
@@ -62,9 +62,30 @@ function BoardInner() {
         (p.tags ?? []).some(t => t.toLowerCase().includes(k)) ||   // 태그 검색 (v2.0 사용자 요청)
         (!p.secret && p.body.toLowerCase().includes(k)));
     }
-    // 최신순 — 고정한 글(notice, 사용자 요청)은 공지처럼 맨 위에
-    return list.sort((a, b) => Number(!!b.notice) - Number(!!a.notice) || b.date.localeCompare(a.date));
+    // 최신순 — 고정한 글(notice, 사용자 요청)은 맨 위에, 고정 글끼리는 정한 순서(pinOrder)대로
+    return list.sort((a, b) => Number(!!b.notice) - Number(!!a.notice) || pinCmp(a, b) || b.date.localeCompare(a.date));
   }, [posts, board.id, q]);
+
+  /* 고정 글 순서 바꾸기 (관리자) — 지금 보이는 순서대로 번호를 다시 매겨 저장 */
+  const pinnedList = visible.filter(p => p.notice);
+  const movePin = (id: string, d: number) => {
+    const ids = pinnedList.map(p => p.id);
+    const i = ids.indexOf(id), j = i + d;
+    if (i < 0 || j < 0 || j >= ids.length) return;
+    [ids[i], ids[j]] = [ids[j], ids[i]];
+    setPosts(posts.map(p => (ids.includes(p.id) ? { ...p, pinOrder: ids.indexOf(p.id) } : p)));
+  };
+  const pinCtl = (p: Post) => {
+    if (!isAdmin || !p.notice || q || pinnedList.length < 2) return null;
+    const i = pinnedList.findIndex(x => x.id === p.id);
+    return (
+      <span className="pin-ctl" onClick={e => e.stopPropagation()}>
+        <button type="button" aria-label="위로" disabled={i === 0} onClick={() => movePin(p.id, -1)}>▲</button>
+        <button type="button" aria-label="아래로" disabled={i === pinnedList.length - 1} onClick={() => movePin(p.id, 1)}>▼</button>
+      </span>
+    );
+  };
+  const pinMark = (p: Post) => (p.notice ? <span className="pin-mark" aria-label="고정">♡</span> : null);
 
   const totalPages = Math.max(1, Math.ceil(visible.length / PER_PAGE));
   const pageList = visible.slice((page - 1) * PER_PAGE, page * PER_PAGE);
@@ -105,8 +126,8 @@ function BoardInner() {
                   {canRead(p) && (p.images?.length ?? 0) > 1 && <span className="gal-n">{p.images!.length}</span>}
                 </div>
                 <div className="gal-cap">
-                  <b>{canRead(p) ? <>{p.notice && <span style={{ ...boardBadgeStyle(boardSet.system[0]), marginRight: 6 }}>{boardSet.system[0].label}</span>}{(p.secret || p.locked) && '🔒 '}<PostHead cat={p.category} />{p.title}</> : '비밀글입니다'}</b>
-                  <small>{p.author} · {fmtDate(p.date)}</small>
+                  <b>{canRead(p) ? <>{pinMark(p)}{(p.secret || p.locked) && '🔒 '}<PostHead cat={p.category} />{p.title}</> : '비밀글입니다'}</b>
+                  <small>{p.author} · {fmtDate(p.date)}{pinCtl(p)}</small>
                 </div>
               </div>
             );
@@ -135,10 +156,10 @@ function BoardInner() {
                     </div>
                   )}
                   <div className="bt-title">
-                    {canRead(p) ? <>{p.notice && <span style={{ ...boardBadgeStyle(boardSet.system[0]), marginRight: 6 }}>{boardSet.system[0].label}</span>}{(p.secret || p.locked) && '🔒 '}<PostHead cat={p.category} />{p.title}</> : '🔒 비밀글입니다'}
+                    {canRead(p) ? <>{pinMark(p)}{(p.secret || p.locked) && '🔒 '}<PostHead cat={p.category} />{p.title}</> : '🔒 비밀글입니다'}
                     {canRead(p) && cmtCount(p) > 0 && <span className="cmt">{cmtCount(p)}</span>}
                   </div>
-                  <div className="bt-meta">{p.author} · {fmtDate(p.date)}</div>
+                  <div className="bt-meta">{p.author} · {fmtDate(p.date)}{pinCtl(p)}</div>
                 </div>
               </div>
             );
@@ -157,13 +178,14 @@ function BoardInner() {
               <div className="tcell">
                 {canRead(p) ? (
                   <b>
-                    {p.notice && <span style={{ ...boardBadgeStyle(boardSet.system[0]), marginRight: 6 }}>{boardSet.system[0].label}</span>}{(p.secret || p.locked) && '🔒 '}<PostHead cat={p.category} />{p.title}
+                    {pinMark(p)}{(p.secret || p.locked) && '🔒 '}<PostHead cat={p.category} />{p.title}
                     {cmtCount(p) > 0 && <span className="cmt">{cmtCount(p)}</span>}
                     {p.fold && <span style={{ ...boardBadgeStyle(boardSet.system[2]), marginLeft: 6 }}>{boardSet.system[2].label}</span>}
                   </b>
                 ) : (
                   <b style={{ color: 'var(--faint)' }}>🔒 비밀글입니다</b>
                 )}
+                {pinCtl(p)}
                 {canRead(p) && (p.tags ?? []).length > 0 && (
                   <span className="tags">{(p.tags ?? []).map(t => <i key={t}>#{t}</i>)}</span>
                 )}
@@ -181,6 +203,16 @@ function BoardInner() {
     </section>
   );
 }
+
+/** 고정 글끼리 순서 — 순서를 정한 글은 번호순, 아직 안 정한(새로 고정한) 글은 그 위에 */
+const pinCmp = (a: Post, b: Post) => {
+  if (!a.notice || !b.notice) return 0;
+  const x = a.pinOrder, y = b.pinOrder;
+  if (x == null && y == null) return 0;
+  if (x == null) return -1;
+  if (y == null) return 1;
+  return x - y;
+};
 
 export default function BoardPage() {
   // useSearchParams는 Suspense 경계 필요 (Next App Router)

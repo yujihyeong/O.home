@@ -421,7 +421,7 @@ function WriteInner() {
             </div>
             <div style={{ display: 'grid', gap: 9 }}>
               <KCheck label="비밀글 (관리자와 나만 열람)" checked={secret} onChange={setSecret} />
-              {isAdmin && <KCheck label="📌 목록 맨 위에 고정 (공지처럼)" checked={pinned} onChange={setPinned} />}
+              {isAdmin && <KCheck label="♡ 목록 맨 위에 고정" checked={pinned} onChange={setPinned} />}
               {isAdmin && <KCheck label="🔒 비밀번호 걸기 (프롬프트 게시판과 같은 비밀번호 · 매달 함께 바뀜)" checked={lockOn} onChange={setLockOn} />}
             </div>
           </div>

@@ -70,7 +70,8 @@ export interface Post {
   authorId: string;
   date: string;          // ISO
   secret: boolean;       // 비밀글
-  notice: boolean;       // 공지 고정
+  notice: boolean;       // 목록 맨 위 고정 (♡)
+  pinOrder?: number;     // 고정 글끼리의 순서 (작을수록 위) — 게시판 목록에서 관리자가 ▲▼로 정한다
   fold: { type: FoldType; label?: string } | null; // 스포일러/수위 접기 (6.2)
   comments: Comment[];
   boardId?: string;      // 소속 게시판 (5.2 다중 게시판 — 없으면 기본 'main')

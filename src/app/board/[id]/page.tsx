@@ -210,8 +210,8 @@ export default function BoardDetailPage() {
           {/* 목록 맨 위 고정 (사용자 요청) — 관리자 */}
           {isAdmin && (
             <button className={`btn ${post.notice ? 'btn-dark' : 'btn-ghost'}`}
-              onClick={() => { update({ notice: !post.notice }); toast(post.notice ? '고정을 풀었습니다' : '목록 맨 위에 고정했습니다'); }}>
-              {post.notice ? '📌 고정 해제' : '📌 고정'}
+              onClick={() => { update({ notice: !post.notice, pinOrder: undefined }); toast(post.notice ? '고정을 풀었습니다' : '목록 맨 위에 고정했습니다'); }}>
+              {post.notice ? '♡ 고정 해제' : '♡ 고정'}
             </button>
           )}
           {canManage && (
