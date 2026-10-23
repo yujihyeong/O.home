@@ -3230,3 +3230,32 @@ textarea.ib-lines-in{width:100%;min-height:84px;resize:vertical;border:1px dashe
 .pin-ctl button{border:1px solid var(--line);background:transparent;color:inherit;border-radius:5px;font-size:calc(9px*var(--fs,1));line-height:1;padding:3px 5px;cursor:var(--cur-pointer,pointer);opacity:.7}
 .pin-ctl button:hover:not(:disabled){opacity:1;border-color:var(--accent)}
 .pin-ctl button:disabled{opacity:.25;cursor:default}
+
+/* 캘린더 위젯 (사용자 요청) — 나눔명조 + 기본 글씨체만 (영문 필기체 금지) */
+.cw-widget{--cw-acc:#6e7f56;--cw-soft:rgba(110,127,86,.14);--cw-sun:#b5555f;--cw-sat:#4f6fa8;
+  padding:16px 16px 14px;font-family:var(--sans-base);min-width:260px;box-sizing:border-box}
+.wgt.sized .cw-widget{height:100%;overflow:auto}
+html[data-scene="night"] .cw-widget{--cw-acc:#8b7bd8;--cw-soft:rgba(139,123,216,.18);--cw-sun:#d07a86;--cw-sat:#8aa6dd}
+.cw-head{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:10px}
+.cw-head>button{border:none;background:none;color:var(--wg-fg,var(--ink));opacity:.5;font-size:calc(18px*var(--fs,1));line-height:1;padding:2px 8px;cursor:var(--cur-pointer,pointer);border-radius:6px;font-family:'Nanum Myeongjo',serif}
+.cw-head>button:hover{opacity:1;background:var(--cw-soft)}
+.cw-head>button.cw-title{opacity:1;display:flex;align-items:baseline;gap:7px;background:none;padding:2px 4px;min-width:0;white-space:nowrap}
+.cw-title b{font-family:'Nanum Myeongjo',serif;font-weight:800;font-size:calc(22px*var(--fs,1));color:var(--cw-acc);letter-spacing:.02em}
+.cw-title span{font-family:'Nanum Myeongjo',serif;font-weight:700;font-size:calc(9.5px*var(--fs,1));letter-spacing:.14em;white-space:nowrap;color:var(--wg-fg,var(--ink));opacity:.65}
+.cw-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px 0;text-align:center}
+.cw-w{font-family:'Nanum Myeongjo',serif;font-size:calc(9.5px*var(--fs,1));font-weight:700;letter-spacing:.1em;color:var(--wg-fg,var(--ink));opacity:.45;padding-bottom:4px}
+.cw-w.sun{color:var(--cw-sun);opacity:.8}.cw-w.sat{color:var(--cw-sat);opacity:.8}
+.cw-d{position:relative;border:none;background:none;padding:4px 0 7px;display:flex;flex-direction:column;align-items:center;gap:2px;cursor:var(--cur-pointer,pointer);color:var(--wg-fg,var(--ink));border-radius:8px;font-family:inherit}
+.cw-d.empty{cursor:default}
+.cw-d .n{font-size:calc(12px*var(--fs,1));width:24px;height:24px;line-height:24px;border-radius:50%;font-variant-numeric:tabular-nums}
+.cw-d.sun .n{color:var(--cw-sun)}.cw-d.sat .n{color:var(--cw-sat)}
+.cw-d:hover:not(.empty) .n{background:var(--cw-soft)}
+.cw-d.today .n{background:var(--cw-acc);color:#fff;font-weight:700}
+.cw-d.on .n{box-shadow:0 0 0 1.5px var(--cw-acc)}
+.cw-d .dots{display:flex;gap:2px;height:4px}
+.cw-d .dots i{width:4px;height:4px;border-radius:50%}
+.cw-list{margin-top:8px;padding-top:9px;border-top:1px dashed var(--line);display:grid;gap:5px;animation:trUp .25s ease both}
+.cw-list-h{font-family:'Nanum Myeongjo',serif;font-weight:700;font-size:calc(11px*var(--fs,1));color:var(--cw-acc);letter-spacing:.06em}
+.cw-ev{display:flex;align-items:center;gap:7px;font-size:calc(12px*var(--fs,1));cursor:var(--cur-pointer,pointer);word-break:keep-all}
+.cw-ev i{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.cw-none{font-size:calc(11.5px*var(--fs,1));opacity:.5}
