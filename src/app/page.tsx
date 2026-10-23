@@ -9,7 +9,7 @@ import { Modal, ConfirmModal } from '@/components/ui/Modal';
 import { KRadio } from '@/components/ui/Kit';
 import { useToast } from '@/components/ui/Toast';
 
-const ADDABLE: WidgetType[] = ['banner', 'memo', 'dday', 'todo', 'upcoming', 'freetext', 'deco', 'diary', 'latest', 'apply', 'chat', 'recent', 'quote', 'polaroid', 'search', 'guidewave', 'clock', 'images', 'pildam', 'tarot', 'linkcard'];   // 지뢰찾기는 위젯 대신 화면 왼쪽 아래 팝업 (사용자 요청)   // banner: 여러 개 추가 (v2.0 사용자 요청)
+const ADDABLE: WidgetType[] = ['banner', 'memo', 'dday', 'todo', 'upcoming', 'freetext', 'deco', 'diary', 'latest', 'apply', 'chat', 'recent', 'quote', 'polaroid', 'search', 'guidewave', 'clock', 'images', 'pildam', 'tarot', 'linkcard', 'calendar'];   // 지뢰찾기는 위젯 대신 화면 왼쪽 아래 팝업 (사용자 요청)   // banner: 여러 개 추가 (v2.0 사용자 요청)
 /** 내용 설정 모달이 있는 위젯 — 우클릭 「설정」 노출 대상 (v1.9) */
 const EDITABLE: WidgetType[] = EDITABLE_TYPES;
 
