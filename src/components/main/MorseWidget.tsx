@@ -1,6 +1,6 @@
 'use client';
 // 모스부호 위젯 (사용자 요청) — 관리자가 적은 문장을 모스부호로 바꿔 한 기호씩 실제 리듬(점 1 · 선 3)으로 빛낸다.
-// 낮에는 꽃잎이 흩날리고, 밤에는 별이 반짝이며 흘러간다 (낮/밤 색은 CSS — html[data-scene]).
+// 낮에는 (연두 바탕에) 보랏빛·연둣빛 꽃잎이 흩날리고, 밤에는 별이 반짝이며 흘러간다 (낮/밤 색은 CSS — html[data-scene]).
 // 글씨는 나눔명조 + 기본 글씨체만 (영문 필기체 금지 — 사용자 요청)
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { WidgetConf, useMainStore } from '@/lib/mainStore';
@@ -19,7 +19,7 @@ function Deco() {
     let r = 7;
     const rnd = () => { r = (r * 9301 + 49297) % 233280; return r / 233280; };
     const st = Array.from({ length: 30 }, () => ({ x: rnd() * 100, y: rnd() * 100, big: rnd() < 0.18, d: -rnd() * 3 }));
-    const pt = Array.from({ length: 14 }, () => ({ x: 10 + rnd() * 95, d: -rnd() * 11, t: 8 + rnd() * 6, s: rnd() < 0.4 }));
+    const pt = Array.from({ length: 14 }, () => ({ x: 10 + rnd() * 95, d: -rnd() * 11, t: 8 + rnd() * 6, s: rnd() < 0.4, g: rnd() < 0.3 }));
     return { stars: st, petals: pt };
   }, []);
   // 별은 두 벌을 나란히 두고 왼쪽으로 천천히 흘려 끊김 없이 이어지게
@@ -37,7 +37,7 @@ function Deco() {
       <i className="mw-shoot" />
       <i className="mw-moon" />
       {petals.map((p, i) => (
-        <i key={i} className={`mw-petal ${p.s ? 's' : ''}`} style={{ left: `${p.x}%`, animationDelay: `${p.d}s`, animationDuration: `${p.t}s` }} />
+        <i key={i} className={`mw-petal ${p.s ? 's' : ''} ${p.g ? 'g' : ''}`} style={{ left: `${p.x}%`, animationDelay: `${p.d}s`, animationDuration: `${p.t}s` }} />
       ))}
     </div>
   );

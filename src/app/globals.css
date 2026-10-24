@@ -3264,9 +3264,11 @@ html[data-scene="night"] .cw-widget{--cw-acc:#8b7bd8;--cw-soft:rgba(139,123,216,
 .btn.post-share{padding:6px 9px;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;line-height:1}
 
 /* 모스부호 위젯 (사용자 요청) — 낮: 꽃잎이 흩날리는 분홍 / 밤: 별이 흐르는 밤하늘. 나눔명조 + 기본 글씨체만 */
-.mw-widget{--mw-ink:#5b4049;--mw-mute:#c4a3ad;--mw-line:rgba(201,123,138,.22);--mw-acc:#d0798b;
+.mw-widget{--mw-ink:#4c4566;--mw-mute:#aaa3c8;--mw-line:rgba(139,123,216,.22);--mw-acc:#8b7bd8;
   position:relative;overflow:hidden;isolation:isolate;box-sizing:border-box;min-width:340px;padding:16px 18px 14px;
-  background:linear-gradient(165deg,#fff8f6 0%,#fbeef0 55%,#f6e6ea 100%);color:var(--mw-ink);font-family:var(--sans-base)}
+  /* 낮 — 연두(사이트 낮 배경 #f6f3e7→#d6e2c6) 위에 보랏빛이 살짝 번진다 */
+  background:radial-gradient(90% 80% at 100% 0%,rgba(196,184,240,.32) 0%,transparent 60%),linear-gradient(170deg,#fbfaf1 0%,#eef2e0 50%,#dfe8cd 100%);
+  color:var(--mw-ink);font-family:var(--sans-base)}
 html[data-scene="night"] .mw-widget{--mw-ink:#eeeaff;--mw-mute:#7c78a6;--mw-line:rgba(180,170,240,.18);--mw-acc:#f3e7b5;
   background:radial-gradient(120% 90% at 80% 0%,#2c2a52 0%,#191733 45%,#0e0d1f 100%)}
 .wgt.sized .mw-widget{height:100%}
@@ -3281,8 +3283,9 @@ html[data-scene="night"] .mw-widget{--mw-ink:#eeeaff;--mw-mute:#7c78a6;--mw-line
 @keyframes mwShoot{0%{opacity:0;transform:translate(0,0) rotate(-24deg)}3%{opacity:1}9%{opacity:0;transform:translate(-120px,54px) rotate(-24deg)}100%{opacity:0}}
 .mw-moon{position:absolute;right:80px;top:9px;width:18px;height:18px;border-radius:50%;box-shadow:-5px 3px 0 0 #f3e7b5;transform:rotate(-20deg);filter:drop-shadow(0 0 6px rgba(243,231,181,.5));animation:mwMoon 6s ease-in-out infinite}
 @keyframes mwMoon{50%{filter:drop-shadow(0 0 10px rgba(243,231,181,.75))}}
-.mw-petal{position:absolute;top:-14px;width:14px;height:10px;border-radius:12px 0 12px 0;background:linear-gradient(135deg,#f9d3da,#efa9b7);opacity:.75;animation:mwFall 10s linear infinite}
-.mw-petal.s{width:9px;height:7px;opacity:.55}
+.mw-petal{position:absolute;top:-14px;width:14px;height:10px;border-radius:12px 0 12px 0;background:linear-gradient(135deg,#ebe5fd,#b8a9ee);opacity:.8;animation:mwFall 10s linear infinite}
+.mw-petal.s{width:9px;height:7px;opacity:.6}
+.mw-petal.g{background:linear-gradient(135deg,#e6efd3,#b3c98f);opacity:.7}
 @keyframes mwFall{0%{transform:translate(0,0) rotate(0)}25%{transform:translate(-14px,25%) rotate(80deg)}50%{transform:translate(4px,60px) rotate(170deg)}100%{transform:translate(-46px,230px) rotate(340deg)}}
 html:not([data-scene="night"]) .mw-star,html:not([data-scene="night"]) .mw-moon,html:not([data-scene="night"]) .mw-shoot{display:none}
 html[data-scene="night"] .mw-petal{display:none}
@@ -3295,7 +3298,7 @@ html[data-scene="night"] .mw-petal{display:none}
 .mw-bits i{display:block;height:4px;border-radius:2px;background:var(--mw-mute);opacity:.45;transition:background .08s,box-shadow .08s,opacity .08s}
 .mw-bits i.d{width:4px}.mw-bits i.s{width:13px}
 .mw-bits i.done{background:var(--mw-ink);opacity:.8}
-.mw-bits i.now{background:var(--mw-acc);opacity:1;box-shadow:0 0 0 3px rgba(208,121,139,.15),0 0 8px var(--mw-acc)}
+.mw-bits i.now{background:var(--mw-acc);opacity:1;box-shadow:0 0 0 3px rgba(139,123,216,.16),0 0 8px var(--mw-acc)}
 html[data-scene="night"] .mw-bits i.done{background:#e9e4ff;box-shadow:0 0 4px rgba(233,228,255,.6)}
 html[data-scene="night"] .mw-bits i.now{box-shadow:0 0 10px var(--mw-acc)}
 .mw-ch b{font:700 calc(11px*var(--fs,1)) 'Nanum Myeongjo',serif;color:var(--mw-mute);min-height:1em}
