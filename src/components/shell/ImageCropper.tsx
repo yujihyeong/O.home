@@ -10,6 +10,7 @@
 //    (프로필 사진 = 1:1 등). 모르면 사진 원래 비율로 열고, 비율 버튼으로 바꿀 수 있다.
 //  · 「자르지 않고 그대로」로 원본을 올릴 수도 있다. 움짤(GIF)·SVG는 자르면 망가지므로 건너뛴다.
 //  · data-nocrop이 붙은 input(마우스 커서 등)은 건드리지 않는다.
+import { stripImageMetaInfo, markHadMeta } from '@/lib/imageMeta';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
@@ -82,8 +83,13 @@ export function ImageCropHost() {
       if (!files.some(canCrop)) return;
       // 원래 업로드 코드가 이 신호를 받기 전에 멈추고, 자른 뒤 다시 보낸다
       e.stopImmediatePropagation();
-      void cropFiles(files, el.dataset.crop).then(out => {
+      void cropFiles(files, el.dataset.crop).then(async out => {
         if (!out) { el.value = ''; return; }             // 취소 — 올리지 않는다
+        // 다시 그린 사진은 메타데이터가 없다 — 원본에 있었으면 표시해 「지웠어요」 알림이 뜨게 (사용자 요청)
+        await Promise.all(out.map(async (f, i) => {
+          const src = files[i];
+          if (src && f !== src && (await stripImageMetaInfo(src)).removed) markHadMeta(f);
+        }));
         try {
           const dt = new DataTransfer();
           out.forEach(f => dt.items.add(f));

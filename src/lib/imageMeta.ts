@@ -157,18 +157,32 @@ function stripGif(b: Uint8Array): Uint8Array | null {
 
 /** 메타데이터를 지운 이미지 — 이미지가 아니거나 모르는 형식이면 그대로 */
 export async function stripImageMeta<T extends Blob>(blob: T): Promise<T | Blob> {
-  if (!/^image\/(jpeg|jpg|png|webp|gif)$/i.test(blob.type)) return blob;
+  return (await stripImageMetaInfo(blob)).blob;
+}
+
+/* 자르기 창(ImageCropper)을 거친 사진은 그림을 다시 그려 저장하므로 메타데이터가 이미 사라진 채로 온다.
+   그래도 「지웠어요」 알림을 띄울 수 있게, 원본에 메타데이터가 있었던 결과물을 표시해 둔다 */
+const hadMeta = new WeakSet<Blob>();
+export function markHadMeta(b: Blob) { hadMeta.add(b); }
+
+/** 지우고, 실제로 지운 게 있었는지도 알려 준다 — 글쓰기에서 「메타데이터를 지웠어요」 알림용 (사용자 요청) */
+export async function stripImageMetaInfo<T extends Blob>(blob: T): Promise<{ blob: T | Blob; removed: boolean }> {
+  if (hadMeta.has(blob)) return { blob, removed: true };
+  if (!/^image\/(jpeg|jpg|png|webp|gif)$/i.test(blob.type)) return { blob, removed: false };
   try {
     const b = new Uint8Array(await blob.arrayBuffer());
     const t = blob.type.toLowerCase();
     const out = t.includes('png') ? stripPng(b) : t.includes('webp') ? stripWebp(b) : t.includes('gif') ? stripGif(b) : stripJpeg(b);
-    if (!out || out.length === b.length) return blob;
+    if (!out || out.length === b.length) return { blob, removed: false };
     const clean = new Blob([out as BlobPart], { type: blob.type });
     // 파일이면 이름을 지킨다 (원본 파일명 표시 등)
-    return typeof File !== 'undefined' && blob instanceof File
-      ? new File([clean], blob.name, { type: blob.type, lastModified: 0 })
-      : clean;
+    return {
+      blob: typeof File !== 'undefined' && blob instanceof File
+        ? new File([clean], blob.name, { type: blob.type, lastModified: 0 })
+        : clean,
+      removed: true,
+    };
   } catch {
-    return blob;
+    return { blob, removed: false };
   }
 }

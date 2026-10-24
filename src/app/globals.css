@@ -3310,3 +3310,8 @@ html[data-scene="night"] .mw-bits i.now{box-shadow:0 0 10px var(--mw-acc)}
 .mw-msg.hid{color:var(--mw-mute);letter-spacing:.3em}
 .mw-ft button{flex-shrink:0;border:1px solid var(--mw-line);background:transparent;color:var(--mw-mute);border-radius:999px;font:600 calc(10px*var(--fs,1)) var(--sans-base);padding:4px 10px;cursor:var(--cur-pointer,pointer)}
 .mw-ft button:hover{color:var(--mw-ink);border-color:var(--mw-acc)}
+
+/* 위쪽 짧은 알림 (사용자 요청 — 이미지 메타데이터를 지웠어요) */
+.toast-box.top{bottom:auto;top:72px}
+.toast.top{padding:7px 15px;font-size:calc(11.5px*var(--fs,1));animation:toastTop 1.8s ease both}
+@keyframes toastTop{0%{opacity:0;transform:translateY(-8px)}12%,82%{opacity:1;transform:none}100%{opacity:0;transform:translateY(-6px)}}

@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
 import { useLocalList, BOARD_SEED, Post, newId, FoldType, PostKind, kindOf, nextPostNo, postHref } from '@/lib/postStore';
 import { putBlob } from '@/lib/blobStore';
-import { stripImageMeta } from '@/lib/imageMeta';
+import { stripImageMetaInfo } from '@/lib/imageMeta';
 import { useBoards, boardHref, MAIN_BOARD_ID } from '@/lib/boardStore';
 import { renderBody } from '@/lib/sanitize';
 import { KInput, KTextarea, KCheck, KSelect } from '@/components/ui/Kit';
@@ -163,11 +163,15 @@ function WriteInner() {
   /** 이미지 올리기 — 서버가 있으면 주소, 없으면(로컬) 본문에 심을 data URL */
   const uploadImages = async (files: File[]) => {
     const added: string[] = [];
+    let removed = 0;
     for (const f of files) {
-      const clean = await stripImageMeta(f);   // 메타데이터 없이 (보안 강화)
+      const { blob: clean, removed: rm } = await stripImageMetaInfo(f);   // 메타데이터 없이 (보안 강화)
+      if (rm) removed += 1;
       const ref = await putBlob(clean);
       added.push(/^https?:/.test(ref) ? ref : await toDataUrl(clean));
     }
+    // 지운 게 있으면 위쪽에 짧게 알린다 (사용자 요청)
+    if (removed) toast(`이미지 메타데이터를 지웠어요${files.length > 1 ? ` (${removed}장)` : ''}`, { top: true });
     return added;
   };
   const addImages = async (files: FileList | null) => {
