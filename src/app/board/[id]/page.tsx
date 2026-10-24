@@ -27,7 +27,9 @@ import { LockScreen } from '@/components/ui/LockScreen';
 const FOLD_LABEL = { spoiler: '스포일러 주의', adult: '수위 주의' };
 
 export default function BoardDetailPage() {
-  const { id } = useParams<{ id: string }>();
+  // /board/12 로 와도, 짧은 주소 /LOG/12 로 와도(없는 주소 화면이 이 화면을 그린다 — slug[1]) 같은 글
+  const params = useParams<{ id?: string; slug?: string[] }>();
+  const id = params.id ?? (params.slug?.[1] ? decodeURIComponent(params.slug[1]) : '');
   const router = useRouter();
   const { user, isAdmin } = useAuth();
   const { familyOf } = useFonts();
@@ -44,6 +46,12 @@ export default function BoardDetailPage() {
   const [gName, setGName] = useState('');                       // 게스트 닉네임 (방문자 댓글 허용 시)
 
   const post = findPost(posts, id);   // 주소 끝은 글 번호(/board/12) — 예전 id 주소도 열린다
+  // 주소창을 「/게시판/번호」로 맞춘다 (사용자 요청) — 예전 id 주소나 /board/12 로 들어와도 공유하기 좋은 주소로
+  const canon = post ? postHref(post) : '';
+  useEffect(() => {
+    if (!canon || !loaded) return;
+    try { if (decodeURIComponent(location.pathname) !== decodeURIComponent(canon)) window.history.replaceState(window.history.state, '', canon); } catch { /* 무시 */ }
+  }, [canon, loaded]);
   /* 이 글이 속한 곳이 비공개면 주소로 들어와도 열리지 않게 (v2.0 사용자 요청).
      글 주소에는 섹션이 없어 MenuGuard가 못 막는다 — 글을 읽어 소속을 알아낸 여기서 판정한다.
      **다른 early return보다 먼저 불러야 한다**(훅이므로 렌더마다 개수가 같아야 한다) */
