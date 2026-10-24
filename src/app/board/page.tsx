@@ -2,12 +2,12 @@
 // 일반 게시판 목록 (4.2 / 5.2 다중 게시판) — 형태(로그 목록 / 갤러리 격자) · 검색 · 비밀글 마스킹 · 접기 표시 · 페이지네이션
 // ?b=<게시판 id> 로 게시판 구분 (없으면 기본 게시판) · 리스트 스킨: 기본형 / 티켓형 (5.2 v1.9)
 import { PostHead } from '@/components/ui/PostHead';
-import React, { Suspense, useMemo, useState } from 'react';
+import React, { Suspense, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useRouteSearch } from '@/lib/routeParams';
 import { useAuth } from '@/lib/auth';
 import {
-  useLocalList, BOARD_SEED, Post, fmtDate,
+  useLocalList, BOARD_SEED, Post, fmtDate, postHref, postNumbers,
   CommentRow, COMMENT_KEY, COMMENT_SEED, commentsFor,
 } from '@/lib/postStore';
 import {
@@ -34,7 +34,15 @@ function BoardInner() {
   const bid = params.get('b') ?? MAIN_BOARD_ID;
   const { boards, loaded: boardsLoaded } = useBoards();
   const board = boards.find(b => b.id === bid) ?? boards[0];
-  const [posts, setPosts] = useLocalList<Post>('ohome.board.v1', BOARD_SEED);
+  const [posts, setPosts, postsLoaded] = useLocalList<Post>('ohome.board.v1', BOARD_SEED);
+  /* 글 번호 (사용자 요청) — 번호 없는 옛 글에 발행 순서대로 번호를 저장해 둔다 (관리자가 목록을 열 때 한 번).
+     관리자는 비밀글까지 모두 보므로 번호가 빠짐없이 매겨진다 */
+  useEffect(() => {
+    if (!isAdmin || !postsLoaded || !posts.some(p => p.no == null)) return;
+    const nums = postNumbers(posts);
+    setPosts(posts.map(p => (p.no == null ? { ...p, no: nums.get(p.id) } : p)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAdmin, postsLoaded, posts]);
   // 댓글 수 — 댓글은 글과 따로 저장된다 (v2.0). 옛 글 안에 남아 있던 것도 함께 센다
   const [cmtRows] = useLocalList<CommentRow>(COMMENT_KEY, COMMENT_SEED);
   const cmtCount = (p: Post) => commentsFor(cmtRows, 'post', p.id, p.comments).length;
@@ -118,7 +126,7 @@ function BoardInner() {
           {pageList.map(p => {
             const thumb = canRead(p) ? (p.thumbSrc ?? firstImage(p.body)) : null;
             return (
-              <div className="gal-card" key={p.id} onClick={() => { if (canRead(p)) router.push(`/board/${p.id}`); }}>
+              <div className="gal-card" key={p.id} onClick={() => { if (canRead(p)) router.push(postHref(p)); }}>
                 <div className="gal-thumb">
                   {thumb
                     ? <CropImg src={thumb} crop={p.thumbSrc ? p.thumbCrop : undefined} />
@@ -143,7 +151,7 @@ function BoardInner() {
             // 대표 이미지(직접 선택 + 크롭) 우선, 없으면 본문 첫 이미지 (v1.9)
             const thumb = canRead(p) ? (p.thumbSrc ?? firstImage(p.body)) : null;
             return (
-              <div className="bticket" key={p.id} onClick={() => { if (canRead(p)) router.push(`/board/${p.id}`); }}>
+              <div className="bticket" key={p.id} onClick={() => { if (canRead(p)) router.push(postHref(p)); }}>
                 <div className="bt-thumb">
                   {thumb
                     ? <CropImg src={thumb} crop={p.thumbSrc ? p.thumbCrop : undefined} />
@@ -172,7 +180,7 @@ function BoardInner() {
         /* 기본형 스킨 — 리스트 행 (글씨색은 게시판 관리에서 지정 가능, v1.9) */
         <div className="panel board-list flush" style={board.fg ? { color: board.fg } : undefined}>
           {pageList.map(p => (
-            <div className={`brow nocat ${p.notice ? 'pinned' : ''}`} key={p.id} onClick={() => { if (canRead(p)) router.push(`/board/${p.id}`); }}>
+            <div className={`brow nocat ${p.notice ? 'pinned' : ''}`} key={p.id} onClick={() => { if (canRead(p)) router.push(postHref(p)); }}>
               {/* 제목 칸 안에서 태그를 오른쪽 끝(=작성자 바로 왼쪽)에 정렬 (v2.0 사용자 요청) —
                   칸을 따로 만들면 행마다 그리드가 독립이라 작성자 열이 태그 길이만큼 어긋난다 */}
               <div className="tcell">

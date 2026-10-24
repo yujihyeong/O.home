@@ -31,7 +31,7 @@ import { PolaroidWidget } from '@/components/main/PolaroidWidget';
 import { SearchWidget } from '@/components/main/SearchWidget';
 import { BannerEditor, BannerSlide, DEMO_SLIDES, DdayEditor, DdayLook, DecoEditor, TodoEditor, TodoSetItem } from '@/components/main/widgetEditors';
 import { CroppedBlobImg, CropValue } from '@/components/ui/CropEditor';
-import { useLocalList, Post, BOARD_SEED } from '@/lib/postStore';
+import { useLocalList, Post, BOARD_SEED, postHref } from '@/lib/postStore';
 import { RoadItem, ROAD_SEED, BackupPost, BACKUP_SEED } from '@/lib/galleryStore';
 import { DiaryPost, DIARY_SEED, Mood, MOOD_SEED, moodTint } from '@/lib/diaryStore';
 import { useSched, eventColor } from '@/lib/schedStore';
@@ -384,7 +384,7 @@ export function RecentPostsWidget({ conf }: { conf: WidgetConf }) {
       <h4>NEW POSTS {isAdmin && <span className="more" onClick={e => { e.stopPropagation(); if (!editOn) setOpen(true); }}>설정 ›</span>}</h4>
       <ul className="rp-list">
         {list.map(p => (
-          <li key={p.id} onClick={() => { if (!editOn) router.push(`/board/${p.id}`); }}>
+          <li key={p.id} onClick={() => { if (!editOn) router.push(postHref(p)); }}>
             {/* 제목 위에 작게 게시판 이름 (사용자 요청) */}
             {boardName(p) && <small className="rp-board">{boardName(p)}</small>}
             <span className="rp-title"><PostHead cat={p.category} />{p.title}</span>

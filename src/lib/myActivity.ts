@@ -1,5 +1,5 @@
 // 내가 쓴 글/댓글 수집 (마이페이지, v1.9) — 게시판 글·댓글 / 로드뷰 그림·댓글 / 방명록
-import { Post, GuestEntry, CommentRow } from './postStore';
+import { Post, GuestEntry, CommentRow, postHref } from './postStore';
 import { RoadItem } from './galleryStore';
 import { Board, MAIN_BOARD_ID } from './boardStore';
 
@@ -17,12 +17,12 @@ export function collectMyItems(
   };
   return [
     ...posts.filter(p => p.authorId === userId)
-      .map(p => ({ kind: `${boardName(p)} 글`, text: p.title, date: p.date, href: `/board/${p.id}` })),
+      .map(p => ({ kind: `${boardName(p)} 글`, text: p.title, date: p.date, href: postHref(p) })),
     ...posts.flatMap(p => [
       ...p.comments,
       ...cmtRows.filter(c => c.target === 'post' && c.targetId === p.id),
     ].filter(c => c.authorId === userId)
-      .map(c => ({ kind: `${boardName(p)} 댓글`, text: c.text, date: c.date, href: `/board/${p.id}` }))),
+      .map(c => ({ kind: `${boardName(p)} 댓글`, text: c.text, date: c.date, href: postHref(p) }))),
     ...roads.filter(it => it.authorId === userId)
       .map(it => ({ kind: '로드비 그림', text: it.title, date: it.date, href: '/loadb' })),
     ...roads.flatMap(it => [

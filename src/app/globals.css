@@ -3259,3 +3259,6 @@ html[data-scene="night"] .cw-widget{--cw-acc:#8b7bd8;--cw-soft:rgba(139,123,216,
 .cw-ev{display:flex;align-items:center;gap:7px;font-size:calc(12px*var(--fs,1));cursor:var(--cur-pointer,pointer);word-break:keep-all}
 .cw-ev i{width:6px;height:6px;border-radius:50%;flex-shrink:0}
 .cw-none{font-size:calc(11.5px*var(--fs,1));opacity:.5}
+
+/* 글 공유 버튼 (사용자 요청) — 발췌하기 옆 아이콘 */
+.btn.post-share{padding:6px 9px;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;line-height:1}

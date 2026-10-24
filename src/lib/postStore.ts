@@ -71,6 +71,8 @@ export interface Post {
   date: string;          // ISO
   secret: boolean;       // 비밀글
   notice: boolean;       // 목록 맨 위 고정 (♡)
+  /** 글 번호 (사용자 요청) — 발행 순서대로 1, 2, 3… 글 주소 맨 뒤에 붙는다 (/board/12) */
+  no?: number;
   pinOrder?: number;     // 고정 글끼리의 순서 (작을수록 위) — 게시판 목록에서 관리자가 ▲▼로 정한다
   fold: { type: FoldType; label?: string } | null; // 스포일러/수위 접기 (6.2)
   comments: Comment[];
@@ -92,6 +94,24 @@ export interface Post {
 }
 
 export type PostKind = 'gallery' | 'log';
+
+/** 글 번호 정하기 (사용자 요청) — 번호가 있는 글은 그대로, 번호 없는 옛 글은 발행(작성일) 순서대로
+ *  1부터 매긴다. 새 글은 그 다음 번호. 관리자가 게시판 목록을 열면 옛 글에도 이 번호를 저장해 고정한다 */
+export function postNumbers(posts: Pick<Post, 'id' | 'date' | 'no'>[]): Map<string, number> {
+  const m = new Map<string, number>();
+  posts.filter(p => p.no == null)
+    .sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id))
+    .forEach((p, i) => m.set(p.id, i + 1));
+  posts.forEach(p => { if (p.no != null) m.set(p.id, p.no); });
+  return m;
+}
+export const nextPostNo = (posts: Pick<Post, 'id' | 'date' | 'no'>[]) =>
+  Math.max(0, ...postNumbers(posts).values()) + 1;
+/** 글 주소 — 번호가 있으면 /board/번호, 아직 없으면(옛 글) /board/글id */
+export const postHref = (p: Pick<Post, 'id' | 'no'>) => `/board/${p.no ?? p.id}`;
+/** 주소 끝(번호 또는 id)으로 글 찾기 — 예전 id 주소도 그대로 열린다 */
+export const findPost = <T extends Pick<Post, 'id' | 'no'>>(posts: T[], key: string): T | undefined =>
+  posts.find(p => p.id === key) ?? (/^\d+$/.test(key) ? posts.find(p => p.no === Number(key)) : undefined);
 export const kindOf = (p: Pick<Post, 'kind'>): PostKind => p.kind ?? 'log';
 
 export interface GuestEntry {

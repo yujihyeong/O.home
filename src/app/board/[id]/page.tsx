@@ -8,7 +8,7 @@ import { extraBoardHref } from '@/lib/menuStore';
 import { useAuth } from '@/lib/auth';
 import {
   useLocalList, BOARD_SEED, Post, Comment, newId, fmtDate,
-  CommentRow, COMMENT_KEY, COMMENT_SEED, commentsFor,
+  CommentRow, COMMENT_KEY, COMMENT_SEED, commentsFor, postHref, findPost,
 } from '@/lib/postStore';
 import { useBoards, boardHref, MAIN_BOARD_ID, BoardPerm } from '@/lib/boardStore';
 import { renderBody } from '@/lib/sanitize';
@@ -43,7 +43,7 @@ export default function BoardDetailPage() {
   const [delAsk, setDelAsk] = useState(false);
   const [gName, setGName] = useState('');                       // 게스트 닉네임 (방문자 댓글 허용 시)
 
-  const post = posts.find(p => p.id === id);
+  const post = findPost(posts, id);   // 주소 끝은 글 번호(/board/12) — 예전 id 주소도 열린다
   /* 이 글이 속한 곳이 비공개면 주소로 들어와도 열리지 않게 (v2.0 사용자 요청).
      글 주소에는 섹션이 없어 MenuGuard가 못 막는다 — 글을 읽어 소속을 알아낸 여기서 판정한다.
      **다른 early return보다 먼저 불러야 한다**(훅이므로 렌더마다 개수가 같아야 한다) */
@@ -144,7 +144,7 @@ export default function BoardDetailPage() {
     const me = user?.id ?? '';
     if (post.authorId && post.authorId !== me) {
       pushNotif({
-        type: 'comment', toUserId: post.authorId, href: `/board/${post.id}`,
+        type: 'comment', toUserId: post.authorId, href: postHref(post),
         title: `「${post.title}」에 새 댓글`, body: `${c.author} — ${c.text.slice(0, 50)}`,
       });
     }
@@ -159,7 +159,7 @@ export default function BoardDetailPage() {
         if (!to || to === me || to === post.authorId || seen.has(to)) continue;
         seen.add(to);
         pushNotif({
-          type: 'comment', toUserId: to, href: `/board/${post.id}`,
+          type: 'comment', toUserId: to, href: postHref(post),
           title: to === rootAuthor ? '내 댓글에 답글이 달렸습니다' : '참여한 댓글에 새 답글이 달렸습니다',
           body: `${c.author} — ${c.text.slice(0, 50)}`,
         });
@@ -230,6 +230,21 @@ export default function BoardDetailPage() {
             <button className={`btn ${exOn ? 'btn-dark' : 'btn-ghost'}`} style={{ padding: '6px 13px', fontSize: 11.5, flexShrink: 0 }}
               onClick={() => setExOn(v => !v)}>발췌하기</button>
           )}
+          {/* 공유 (사용자 요청) — 휴대폰은 공유 창, 컴퓨터는 주소 복사 */}
+          <button type="button" className="btn btn-ghost post-share" aria-label="공유" data-tip="공유"
+            onClick={async () => {
+              const url = `${location.origin}${postHref(post)}`;
+              if (navigator.share) {
+                try { await navigator.share({ title: post.title, url }); } catch { /* 닫음 */ }
+                return;
+              }
+              try { await navigator.clipboard.writeText(url); toast('글 주소를 복사했어요'); }
+              catch { window.prompt('글 주소', url); }
+            }}>
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <path d="M12 3v12" /><path d="M7.5 7.5 12 3l4.5 4.5" /><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7" />
+            </svg>
+          </button>
         </div>
         <p style={{ fontSize: 11, color: 'var(--faint)', marginBottom: 18 }}>
           {post.author} · {fmtDate(post.date)} · {post.kind === 'gallery' ? '갤러리' : '로그'}

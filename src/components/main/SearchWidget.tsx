@@ -8,7 +8,7 @@ import { WidgetConf, useMainStore } from '@/lib/mainStore';
 import { useAuth } from '@/lib/auth';
 import { useMenuSettings, canViewHref } from '@/lib/menuStore';
 import { useBoards, MAIN_BOARD_ID } from '@/lib/boardStore';
-import { useLocalList, Post, BOARD_SEED } from '@/lib/postStore';
+import { useLocalList, Post, BOARD_SEED, postHref } from '@/lib/postStore';
 
 const MAX = 30;
 
@@ -133,7 +133,7 @@ export function SearchWidget(_: { conf: WidgetConf }) {
   }, [open]);
   useEffect(() => { if (editOn) setOpen(false); }, [editOn]);
 
-  const go = (p: Post) => { setOpen(false); router.push(`/board/${p.id}`); };
+  const go = (p: Post) => { setOpen(false); router.push(postHref(p)); };
   const date = (iso: string) => iso.slice(0, 10).replace(/-/g, '.');
 
   return (
