@@ -3283,8 +3283,8 @@ html[data-scene="night"] .mw-widget{--mw-ink:#eeeaff;--mw-mute:#7c78a6;--mw-line
 @keyframes mwShoot{0%{opacity:0;transform:translate(0,0) rotate(-24deg)}3%{opacity:1}9%{opacity:0;transform:translate(-120px,54px) rotate(-24deg)}100%{opacity:0}}
 .mw-moon{position:absolute;right:80px;top:9px;width:18px;height:18px;border-radius:50%;box-shadow:-5px 3px 0 0 #f3e7b5;transform:rotate(-20deg);filter:drop-shadow(0 0 6px rgba(243,231,181,.5));animation:mwMoon 6s ease-in-out infinite}
 @keyframes mwMoon{50%{filter:drop-shadow(0 0 10px rgba(243,231,181,.75))}}
-.mw-petal{position:absolute;top:-14px;width:14px;height:10px;border-radius:12px 0 12px 0;background:linear-gradient(135deg,#ebe5fd,#b8a9ee);opacity:.8;animation:mwFall 10s linear infinite}
-.mw-petal.s{width:9px;height:7px;opacity:.6}
+.mw-petal{position:absolute;top:-10px;width:9px;height:6px;border-radius:8px 0 8px 0;background:linear-gradient(135deg,#ebe5fd,#b8a9ee);opacity:.8;animation:mwFall 10s linear infinite}
+.mw-petal.s{width:6px;height:4px;opacity:.6}
 .mw-petal.g{background:linear-gradient(135deg,#e6efd3,#b3c98f);opacity:.7}
 @keyframes mwFall{0%{transform:translate(0,0) rotate(0)}25%{transform:translate(-14px,25%) rotate(80deg)}50%{transform:translate(4px,60px) rotate(170deg)}100%{transform:translate(-46px,230px) rotate(340deg)}}
 html:not([data-scene="night"]) .mw-star,html:not([data-scene="night"]) .mw-moon,html:not([data-scene="night"]) .mw-shoot{display:none}
