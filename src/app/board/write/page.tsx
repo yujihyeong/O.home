@@ -4,7 +4,7 @@
 import React, { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
-import { useLocalList, BOARD_SEED, Post, newId, FoldType, PostKind, kindOf } from '@/lib/postStore';
+import { useLocalList, BOARD_SEED, Post, newId, FoldType, PostKind, kindOf, nextPostNo, postHref } from '@/lib/postStore';
 import { putBlob } from '@/lib/blobStore';
 import { stripImageMeta } from '@/lib/imageMeta';
 import { useBoards, boardHref, MAIN_BOARD_ID } from '@/lib/boardStore';
@@ -221,11 +221,11 @@ function WriteInner() {
         boardId: board.id,
       } : p)));
       toast('수정되었습니다');
-      router.push(`/board/${editing.id}`);
+      router.push(postHref(editing));
       return;
     }
     const p: Post = {
-      id: newId(), title: title.trim(), ...content, kind, category: cat, fontId: whole.fontId, fontSize: whole.fontSize,
+      id: newId(), no: nextPostNo(posts), title: title.trim(), ...content, kind, category: cat, fontId: whole.fontId, fontSize: whole.fontSize,
       author: user.nickname, authorId: user.id, date: new Date().toISOString(),
       secret, notice: isAdmin && pinned,
       tags: parseTags(tagsText),
@@ -236,7 +236,7 @@ function WriteInner() {
     };
     setPosts([p, ...posts]);
     toast('등록되었습니다');
-    router.push(`/board/${p.id}`);
+    router.push(postHref(p));
   };
 
   return (
@@ -248,7 +248,7 @@ function WriteInner() {
       <div className="write-actions">
         <div className="form-actions">
           <button className="btn btn-onbk"
-            onClick={() => router.push(editing ? `/board/${editing.id}` : boardHref(board.id))}>CANCEL</button>
+            onClick={() => router.push(editing ? postHref(editing) : boardHref(board.id))}>CANCEL</button>
           <button className="btn btn-accent" onClick={post}>{editing ? 'SAVE' : 'POST'}</button>
         </div>
       </div>
