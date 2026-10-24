@@ -6,7 +6,7 @@ import { useEditor, EditorContent, Mark } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Image from '@tiptap/extension-image';
 import { putBlob } from '@/lib/blobStore';
-import { stripImageMeta } from '@/lib/imageMeta';
+import { stripImageMetaInfo } from '@/lib/imageMeta';
 import { useToast } from '@/components/ui/Toast';
 import {
   SpellPanel, SpellSession, shiftAfter, FontControls, FontPick, WholeFont, wholeFontStyle,
@@ -96,7 +96,8 @@ export function RichEditor({ value, onChange, placeholder, font }: {
     if (!f) return;
     setBusy(true);
     try {
-      const clean = await stripImageMeta(f);   // 본문에 바로 심는 로컬 모드도 메타데이터 없이
+      const { blob: clean, removed } = await stripImageMetaInfo(f);   // 본문에 바로 심는 로컬 모드도 메타데이터 없이
+      if (removed) toast('이미지 메타데이터를 지웠어요', { top: true });   // 위쪽에 짧게 (사용자 요청)
       const ref = await putBlob(clean);
       const src = /^https?:/.test(ref) ? ref : await toDataUrl(clean);
       editor.chain().focus().setImage({ src }).run();
