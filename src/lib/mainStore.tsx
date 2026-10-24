@@ -21,6 +21,7 @@ export type WidgetType =
   | 'images'     // 이미지 — 1~3장 나란히, 위젯 크기에 맞춰 늘어남 (사용자 요청)
   | 'clock'      // 시계 — 지금 시간 (사용자 요청)
   | 'linkcard'   // 링크 카드 — 캐릭터 이미지 | 플랫폼별 링크 (사용자 요청)
+  | 'morse'      // 모스부호 — 문장을 모스부호로 바꿔 한 기호씩 빛낸다 (사용자 요청)
   | 'calendar'   // 캘린더 — 이번 달 달력 + 스케줄러 일정 점 (사용자 요청)
   | 'tarot'      // 오늘의 타로 — 하루 한 번 카드 뒤집기 운세 (사용자 요청)
   | 'pildam'     // 필담노트 — 지선우·춘열망이 번갈아 적은 손글씨 노트 (사용자 요청)
@@ -78,6 +79,7 @@ export const WIDGET_META: Record<WidgetType, { title: string; desc: string }> = 
   images: { title: 'IMAGES', desc: '이미지 — 1·2·3장을 나란히, 위젯 크기에 맞춰 길이가 바뀜' },
   clock: { title: 'CLOCK', desc: '시계 — 지금 시간 (디지털·아날로그, 배경 없이 쓰기 좋게)' },
   linkcard: { title: 'LINK CARD', desc: '링크 카드 — 캐릭터 이미지 하나 옆에 플랫폼별 링크(약자)를 여러 개' },
+  morse: { title: 'MORSE', desc: '모스부호 — 적은 문장을 모스부호로 바꿔 한 기호씩 빛내요 (낮엔 꽃잎, 밤엔 별)' },
   calendar: { title: 'CALENDAR', desc: '캘린더 — 이번 달 달력, 스케줄러 일정이 점으로 찍히고 날짜를 누르면 그날 일정' },
   tarot: { title: "TODAY'S CARD", desc: '오늘의 타로 — 방문자마다 하루 한 번 카드를 뒤집어 짧은 운세 한 문장' },
   pildam: { title: '필담노트', desc: '지선우·춘열망 필담 — 줄노트에 손글씨로 번갈아 적은 대화' },
@@ -88,10 +90,10 @@ export const WIDGET_META: Record<WidgetType, { title: string; desc: string }> = 
 
 /** 같은 종류를 여러 개 추가할 수 있는 위젯 (v1.9 사용자 확정 — 나머지는 하나만) */
 /** 설정 창이 있는 위젯 — 편집 모드 ✎ · 제목 숨김 때의 ⚙ 버튼이 'ohome-widget-edit'로 연다 */
-export const EDITABLE_TYPES: WidgetType[] = ['banner', 'memo', 'dday', 'todo', 'freetext', 'deco', 'apply', 'chat', 'recent', 'quote', 'polaroid', 'guidewave', 'clock', 'images', 'pildam', 'linkcard'];
+export const EDITABLE_TYPES: WidgetType[] = ['banner', 'memo', 'dday', 'todo', 'freetext', 'deco', 'apply', 'chat', 'recent', 'quote', 'polaroid', 'guidewave', 'clock', 'images', 'pildam', 'linkcard', 'morse'];
 /** 처음부터 제목 줄이 없는 위젯 — 설정 버튼(⚙)을 따로 띄운다 */
-export const TITLELESS_TYPES: WidgetType[] = ['clock', 'images', 'pildam', 'tarot', 'linkcard', 'calendar'];
-export const MULTI_TYPES: WidgetType[] = ['freetext', 'deco', 'banner', 'chat', 'quote', 'polaroid', 'guidewave', 'clock', 'images', 'pildam', 'linkcard'];   // banner: v2.0 사용자 요청 — 슬라이드 배너 여러 개
+export const TITLELESS_TYPES: WidgetType[] = ['clock', 'images', 'pildam', 'tarot', 'linkcard', 'calendar', 'morse'];
+export const MULTI_TYPES: WidgetType[] = ['freetext', 'deco', 'banner', 'chat', 'quote', 'polaroid', 'guidewave', 'clock', 'images', 'pildam', 'linkcard', 'morse'];   // banner: v2.0 사용자 요청 — 슬라이드 배너 여러 개
 
 /** 위젯 표시 이름 — 중복 추가 가능한 위젯이 2개 이상이면 번호를 붙여 구분 (v1.9) */
 export function widgetLabel(widgets: WidgetConf[], w: WidgetConf): string {

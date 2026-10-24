@@ -26,6 +26,7 @@ import { PildamWidget } from '@/components/main/PildamWidget';
 import { TarotWidget } from './TarotWidget';
 import { LinkCardWidget } from './LinkCardWidget';
 import { CalendarWidget } from './CalendarWidget';
+import { MorseWidget } from './MorseWidget';
 import { ImagesWidget } from '@/components/main/ImagesWidget';
 import { PolaroidWidget } from '@/components/main/PolaroidWidget';
 import { SearchWidget } from '@/components/main/SearchWidget';
@@ -810,6 +811,7 @@ export function renderWidget(conf: WidgetConf) {
     case 'tarot': return <TarotWidget />;
     case 'linkcard': return <LinkCardWidget conf={conf} />;
     case 'calendar': return <CalendarWidget />;
+    case 'morse': return <MorseWidget conf={conf} />;
     default: return <div className="panel widget"><h4>{WIDGET_META[conf.type]?.title ?? conf.type}</h4></div>;
   }
 }
