@@ -6,6 +6,7 @@ import type { PostMode } from './sanitize';
 import { isServerMode } from './supabase';
 import { TABLE_OF, fetchList, syncList, subscribeTable } from './db';
 import { currentUserId } from './currentUser';
+import { boardHref, MAIN_BOARD_ID } from './boardStore';
 
 /** 목록 저장 실패 알림 (v2.0) — 조용히 되돌리면 "쓴 게 바로 지워진다"로만 보여 원인을 알 수 없다.
  *  ListSync가 받아 화면에 띄운다 (설정 저장 실패 알림과 같은 방식) */
@@ -107,8 +108,17 @@ export function postNumbers(posts: Pick<Post, 'id' | 'date' | 'no'>[]): Map<stri
 }
 export const nextPostNo = (posts: Pick<Post, 'id' | 'date' | 'no'>[]) =>
   Math.max(0, ...postNumbers(posts).values()) + 1;
-/** 글 주소 — 번호가 있으면 /board/번호, 아직 없으면(옛 글) /board/글id */
-export const postHref = (p: Pick<Post, 'id' | 'no'>) => `/board/${p.no ?? p.id}`;
+/** 게시판 주소 부분 (사용자 요청 — 「주소/게시판/발행번호」) — 짧은 주소(/LOG)를 정해 둔 게시판은 그 이름,
+ *  기본 게시판은 /board, 짧은 주소가 없는 추가 게시판은 게시판 id (없는 주소 화면이 id로 게시판을 찾아 연다) */
+export function boardBase(boardId?: string): string {
+  const id = boardId ?? MAIN_BOARD_ID;
+  const h = boardHref(id);
+  if (!h.includes('?')) return h.replace(/\/+$/, '') || '/board';
+  return id === MAIN_BOARD_ID ? '/board' : `/${encodeURIComponent(id)}`;
+}
+/** 글 주소 — /게시판/번호 (아직 번호가 없는 옛 글은 /board/글id) */
+export const postHref = (p: Pick<Post, 'id' | 'no' | 'boardId'>) =>
+  (p.no != null ? `${boardBase(p.boardId)}/${p.no}` : `/board/${p.id}`);
 /** 주소 끝(번호 또는 id)으로 글 찾기 — 예전 id 주소도 그대로 열린다 */
 export const findPost = <T extends Pick<Post, 'id' | 'no'>>(posts: T[], key: string): T | undefined =>
   posts.find(p => p.id === key) ?? (/^\d+$/.test(key) ? posts.find(p => p.no === Number(key)) : undefined);

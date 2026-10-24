@@ -43,6 +43,8 @@ const PAGES: Record<string, React.ComponentType> = {
   '/info': dynamic(() => import('../info/page'), { loading: blank }),
   '/prompt': dynamic(() => import('../prompt/page'), { loading: blank }),
 };
+/** 짧은 주소 뒤 글 번호 — /LOG/12 → 그 게시판의 12번 글 (사용자 요청) */
+const PostPage = dynamic(() => import('../board/[id]/page'), { loading: blank });
 
 const norm = aliasKey;
 
@@ -57,11 +59,14 @@ export default function NotFoundPage() {
   const [aliases, setAlias] = useAliases();
   const [pick, setPick] = useState('');
 
-  // 한 단어 주소만 (예: /LOG2) — 더 깊은 주소는 진짜로 없는 페이지다
-  const raw = useMemo(() => {
+  // 한 단어 주소만 (예: /LOG2) — 더 깊은 주소는 진짜로 없는 페이지다.
+  // 단, /LOG2/12 처럼 뒤에 숫자 하나가 붙으면 그 게시판의 글 번호 (사용자 요청)
+  const { raw, postNo } = useMemo(() => {
     const parts = pathname.split('/').filter(Boolean);
-    if (parts.length !== 1) return null;
-    try { return decodeURIComponent(parts[0]); } catch { return parts[0]; }
+    const dec = (v: string) => { try { return decodeURIComponent(v); } catch { return v; } };
+    if (parts.length === 2 && /^\d+$/.test(parts[1])) return { raw: dec(parts[0]), postNo: parts[1] };
+    if (parts.length !== 1) return { raw: null, postNo: null };
+    return { raw: dec(parts[0]), postNo: null };
   }, [pathname]);
   const word = raw === null ? null : norm(raw);
 
@@ -135,14 +140,23 @@ export default function NotFoundPage() {
   const tSearch = target && target.includes('?') ? target.slice(target.indexOf('?') + 1).split('#')[0] : '';
   const Page = target ? PAGES[tPath] : undefined;
   // 연결된 곳이 비공개 메뉴면 짧은 주소로도 열리지 않게 — 원래 주소와 같은 기준 (훅이라 항상 부른다)
-  const blocked = useHrefBlock(ready && Page ? target ?? undefined : undefined);
+  const blocked = useHrefBlock(ready && Page && !postNo ? target ?? undefined : undefined);
   // 그 자리에 그릴 수 없는 곳(상세 페이지 등)은 예전처럼 옮겨 간다
   useEffect(() => {
-    if (ready && target && !PAGES[target.split(/[?#]/)[0]]) router.replace(target);
-  }, [ready, target, router]);
+    if (ready && target && !postNo && !PAGES[target.split(/[?#]/)[0]]) router.replace(target);
+  }, [ready, target, router, postNo]);
 
   // 찾는 중에는 빈 화면 — 안내가 번쩍이지 않게
   if (!ready) return <section className="page" />;
+  // 게시판 글 (/LOG/12) — 글 화면이 번호로 글을 찾고, 비공개 게시판이면 거기서 막는다
+  if (postNo) {
+    if (tPath === '/board') return <PostPage />;
+    return (
+      <section className="page">
+        <div className="page-head"><PageTitle href="/">NOT FOUND</PageTitle><p>주소가 잘못되었거나 삭제된 페이지입니다</p></div>
+      </section>
+    );
+  }
   if (target && Page) {
     if (blocked) return blocked;
     return <RouteSearchProvider search={tSearch}><Page /></RouteSearchProvider>;
