@@ -25,6 +25,7 @@ import { LockIcon, ShareIcon } from '@/components/ui/Icons';
 import { BodyEditor, WriteMode, saveModeOf, modeOf } from '@/components/ui/BodyEditor';
 import { wholeFontStyle, WholeFont } from '@/components/ui/WriteTools';
 import { renderBody } from '@/lib/sanitize';
+import { ExcerptBody } from '@/components/ui/Excerpt';
 import { useRouteSearch } from '@/lib/routeParams';
 import { LockScreen } from '@/components/ui/LockScreen';
 import { LockModal } from '@/components/ui/LockModal';
@@ -51,6 +52,10 @@ const PhotoIcon = () => (
 );
 
 /** 수정 모달의 기존 첨부 이미지 썸네일 (IndexedDB) */
+/** 편집기 없이 쓴 옛 글(그냥 글) — 줄마다 문단으로 나눠 발췌할 수 있게 */
+const escHtml = (t: string) => t.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]!));
+const plainHtml = (t: string) => t.split(/\n+/).filter(l => l.trim()).map(l => `<p>${escHtml(l)}</p>`).join('');
+
 function KeepThumb({ id, onRemove }: { id: string; onRemove: () => void }) {
   const url = useBlobUrl(id);
   return (
@@ -81,6 +86,7 @@ function PostImgs({ p, onOpen }: { p: ThreadPost; onOpen: (ids: string[], idx: n
 function ThreadsPageInner() {
   const router = useRouter();
   const { user, isAdmin } = useAuth();
+  const [exPid, setExPid] = useState<string | null>(null);   // 발췌 중인 글 (사용자 요청)
   const toast = useToast();
   const del = useConfirmDelete();
   const { familyOf } = useFonts();
@@ -531,7 +537,12 @@ function ThreadsPageInner() {
                           </div>
                         ) : (
                           <>
-                            {p.text && (p.mode
+                            {p.text && exPid === p.id ? (
+                              /* 발췌 (사용자 요청) — 출처는 「타래 이름 • 분류」 */
+                              <ExcerptBody html={p.mode ? renderBody(p.mode, p.text) : plainHtml(p.text)} active
+                                onExit={() => setExPid(null)} title={sel.title} author={sel.author}
+                                source={`${sel.title} • ${catLabel(cats, sel.catId)}`} style={wholeFontStyle(familyOf, p)} />
+                            ) : p.text && (p.mode
                               /* 글쓰기와 같은 편집기로 쓴 글 — 마크다운·HTML 그대로 (사용자 요청) */
                               ? <div className="post-body thr-pbody" style={wholeFontStyle(familyOf, p)}
                                   dangerouslySetInnerHTML={{ __html: renderBody(p.mode, p.text) }} />
@@ -548,6 +559,11 @@ function ThreadsPageInner() {
                           {/* 이 글 공유 (사용자 요청) */}
                           <button type="button" className="thr-pshare" aria-label="이 글 공유" data-tip="이 글 공유"
                             onClick={() => { void shareWork(sel, p); }}><ShareIcon size={11} /></button>
+                          {/* 발췌 — 로그인한 사람만 (게시판과 같게) */}
+                          {!!user && !!p.text && !folded && (
+                            <button type="button" className={`thr-pex ${exPid === p.id ? 'on' : ''}`}
+                              onClick={() => setExPid(v => (v === p.id ? null : p.id))}>발췌</button>
+                          )}
                         </div>
                         {isAdmin && (
                           <div className="hv-actions">
