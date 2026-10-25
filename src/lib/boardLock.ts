@@ -2,7 +2,7 @@
 // 게시판 비밀번호 (사용자 요청) — 잠긴 게시판의 글 본문·이미지·대표 사진을 프롬프트 게시판 비밀번호의 콘텐츠 키로 봉한다.
 // 게시판 잠금을 풀면 그 잠금으로 봉했던 글(boardSealed)만 다시 푼다 — 글마다 직접 건 잠금은 그대로 둔다.
 import type { Post } from './postStore';
-import type { Board } from './boardStore';
+import type { ThreadWork, ThreadPost } from './threadStore';
 import { sealBody, openBody, postContentKey } from './promptStore';
 
 export interface SealedPost {
@@ -37,6 +37,8 @@ export async function unsealPost(k: CryptoKey, p: Post): Promise<Post> {
    직접 정하면 그 게시판만의 콘텐츠 키(Kb)를 만들어 글을 봉하고, Kb는 그 비밀번호(PBKDF2)로 잠가 게시판 설정에 둔다.
    비밀번호를 바꿔도 Kb만 다시 잠그면 되므로 글은 다시 봉하지 않는다. 매달 자동 변경과는 무관하다 */
 export interface BoardOwnLock { salt: string; iv: string; data: string }
+/** 잠글 곳 — 게시판(Board) 또는 감상타래 섹션 등. id는 기기에 키를 기억하는 이름표로도 쓴다 */
+export interface LockTarget { id: string; lockOwn?: BoardOwnLock }
 
 const enc = new TextEncoder();
 const b64 = (u: ArrayBuffer | Uint8Array) => btoa(String.fromCharCode(...new Uint8Array(u)));
@@ -57,14 +59,14 @@ async function wrap(pw: string, k: CryptoKey, salt = crypto.getRandomValues(new 
 // 이 탭에서 한 번 열면 다시 묻지 않게 · 관리자 기기에는 남겨 두기 (프롬프트 게시판과 같은 방식)
 const sKey = (id: string) => `ohome.board.unlock.${id}`;
 const aKey = (id: string) => `ohome.board.adminkey.${id}`;
-async function remember(b: Board, k: CryptoKey, admin: boolean) {
+async function remember(b: LockTarget, k: CryptoKey, admin: boolean) {
   try {
     const v = JSON.stringify({ salt: b.lockOwn?.salt, k: b64(await crypto.subtle.exportKey('raw', k)) });
     sessionStorage.setItem(sKey(b.id), v);
     if (admin) localStorage.setItem(aKey(b.id), v);
   } catch { /* 무시 */ }
 }
-async function recall(b: Board, admin: boolean): Promise<CryptoKey | null> {
+async function recall(b: LockTarget, admin: boolean): Promise<CryptoKey | null> {
   try {
     const r = JSON.parse(sessionStorage.getItem(sKey(b.id)) ?? (admin ? localStorage.getItem(aKey(b.id)) : null) ?? 'null');
     if (!r || r.salt !== b.lockOwn?.salt) return null;
@@ -82,7 +84,7 @@ export const rewrapOwnLock = (pw: string, key: CryptoKey) => wrap(pw, key);
 
 /** 그 게시판 글을 여는 키 — 자동 비밀번호면 프롬프트 게시판 키, 직접 정했으면 그 게시판 키.
  *  pw가 있으면 그 비밀번호로 열고(맞으면 기억), 없으면 이 탭·관리자 기기에 기억된 키로 */
-export async function boardKey(b: Board, admin: boolean, pw?: string): Promise<CryptoKey | null> {
+export async function boardKey(b: LockTarget, admin: boolean, pw?: string): Promise<CryptoKey | null> {
   if (!b.lockOwn) return postContentKey(admin, pw);
   if (!pw) return recall(b, admin);
   try {
@@ -95,4 +97,13 @@ export async function boardKey(b: Board, admin: boolean, pw?: string): Promise<C
   } catch { return null; }
 }
 /** 방금 만든·바꾼 키를 이 기기에 기억 (관리자) */
-export const rememberBoardKey = (b: Board, k: CryptoKey) => remember(b, k, true);
+export const rememberBoardKey = (b: LockTarget, k: CryptoKey) => remember(b, k, true);
+
+/* ---------- 감상타래 잠금 (사용자 요청) — 작품(타래)마다 글 목록을 봉한다. 작품명·포스터는 목록용으로 남는다 ---------- */
+export async function sealWork(k: CryptoKey, w: ThreadWork): Promise<ThreadWork> {
+  return { ...w, posts: [], locked: await sealBody(k, { posts: w.posts }), sealedSec: true };
+}
+export async function openWork(k: CryptoKey, w: ThreadWork): Promise<ThreadPost[] | null> {
+  if (!w.locked) return w.posts;
+  try { return (await openBody<{ posts: ThreadPost[] }>(k, w.locked)).posts ?? []; } catch { return null; }
+}
