@@ -1,5 +1,6 @@
 'use client';
 // 방명록 (4.7) — 게스트 작성(닉네임) · 비밀글 · 답글(모두, v2.0)
+import { LockIcon } from '@/components/ui/Icons';
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth';
 import {
@@ -156,8 +157,8 @@ export default function GuestbookPage() {
           <div className="gb-item" key={e.id}>
             <div className="hd">
               {canRead(e)
-                ? <b>{e.secret && '🔒 '}{e.author}</b>
-                : <b style={{ color: 'var(--faint)' }}>🔒 비밀글</b>}
+                ? <b>{e.secret && <LockIcon className="ic-gap" />}{e.author}</b>
+                : <b style={{ color: 'var(--faint)' }}><LockIcon className="ic-gap" />비밀글</b>}
               <small>
                 {fmtDate(e.date)}
                 {/* 답글은 모두 가능 (v2.0 포크 제보) — 비밀글은 읽을 수 있는 사람만 */}

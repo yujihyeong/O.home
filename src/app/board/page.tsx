@@ -1,6 +1,11 @@
 'use client';
 // 일반 게시판 목록 (4.2 / 5.2 다중 게시판) — 형태(로그 목록 / 갤러리 격자) · 검색 · 비밀글 마스킹 · 접기 표시 · 페이지네이션
 // ?b=<게시판 id> 로 게시판 구분 (없으면 기본 게시판) · 리스트 스킨: 기본형 / 티켓형 (5.2 v1.9)
+import { LockIcon, ImageIcon } from '@/components/ui/Icons';
+import { LockScreen } from '@/components/ui/LockScreen';
+import { useToast } from '@/components/ui/Toast';
+import { postContentKey, ensurePostContentKey, postLockAvailable, openBody } from '@/lib/promptStore';
+import { sealPost, unsealPost, SealedPost } from '@/lib/boardLock';
 import { PostHead } from '@/components/ui/PostHead';
 import React, { Suspense, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -32,7 +37,8 @@ function BoardInner() {
   const { user, isAdmin } = useAuth();
   const params = useRouteSearch();   // 짧은 주소(/LOG 등) 안에서는 연결된 게시판의 ?b=
   const bid = params.get('b') ?? MAIN_BOARD_ID;
-  const { boards, loaded: boardsLoaded } = useBoards();
+  const { boards, loaded: boardsLoaded, patchBoard } = useBoards();
+  const toast = useToast();
   const board = boards.find(b => b.id === bid) ?? boards[0];
   const [posts, setPosts, postsLoaded] = useLocalList<Post>('ohome.board.v1', BOARD_SEED);
   /* 글 번호 (사용자 요청) — 번호 없는 옛 글에 발행 순서대로 번호를 저장해 둔다 (관리자가 목록을 열 때 한 번).
@@ -101,7 +107,82 @@ function BoardInner() {
      둘 다 undefined라 `undefined === undefined`가 참이었기 때문 */
   const canRead = (p: Post) => !p.secret || isAdmin || (!!p.authorId && p.authorId === user?.id);
 
+  /* 게시판 비밀번호 (사용자 요청) — 프롬프트 게시판과 같은 비밀번호. 이 탭에서 연 적 있거나 관리자 기기면 바로 열린다 */
+  const locked = !!board?.locked;
+  const [gate, setGate] = useState<'checking' | 'open' | 'closed'>('checking');
+  const [ck, setCk] = useState<CryptoKey | null>(null);
+  useEffect(() => {
+    if (!locked) { setGate('open'); return; }
+    let alive = true;
+    setGate('checking');
+    postContentKey(isAdmin).then(k => { if (!alive) return; setCk(k); setGate(k ? 'open' : 'closed'); });
+    return () => { alive = false; };
+  }, [locked, isAdmin, board?.id]);
+  // 봉한 글의 대표 사진 — 열린 뒤에만 이 화면 안에서 풀어 쓴다
+  const [thumbs, setThumbs] = useState<Record<string, { src?: string; crop?: Post['thumbCrop'] }>>({});
+  useEffect(() => {
+    if (!ck) return;
+    const need = pageList.filter(p => p.locked && !thumbs[p.id]);
+    if (!need.length) return;
+    let alive = true;
+    void Promise.all(need.map(async p => {
+      try {
+        const o = await openBody<SealedPost>(ck, p.locked!);
+        return [p.id, { src: o.thumbSrc ?? o.images?.[0] ?? firstImage(o.body ?? '') ?? undefined, crop: o.thumbSrc ? o.thumbCrop : undefined }] as const;
+      } catch { return [p.id, {}] as const; }
+    })).then(rows => { if (alive) setThumbs(t => ({ ...t, ...Object.fromEntries(rows) })); });
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ck, pageList.map(p => p.id).join()]);
+  const thumbOf = (p: Post) => (canRead(p) ? (p.thumbSrc ?? firstImage(p.body) ?? thumbs[p.id]?.src ?? null) : null);
+  const cropOf = (p: Post) => (p.thumbSrc ? p.thumbCrop : thumbs[p.id]?.crop);
+
+  /** 잠그기·풀기 (관리자) — 잠그면 이 게시판 글을 모두 봉하고, 풀면 게시판 잠금으로 봉했던 글만 푼다 */
+  const [lockBusy, setLockBusy] = useState(false);
+  const toggleLock = async () => {
+    if (lockBusy || !board) return;
+    setLockBusy(true);
+    try {
+      const mine = (p: Post) => (p.boardId ?? MAIN_BOARD_ID) === board.id;
+      if (!locked) {
+        if (!postLockAvailable()) { toast('먼저 프롬프트 게시판에 비밀번호를 걸어 주세요'); return; }
+        const k = await ensurePostContentKey();
+        if (!k) { toast('이 기기에서 프롬프트 게시판을 한 번 열어 주세요 (비밀번호 입력)'); return; }
+        const next = await Promise.all(posts.map(p => (mine(p) && !p.locked ? sealPost(k, p, true) : Promise.resolve(p))));
+        setPosts(next);
+        patchBoard(board.id, { locked: true });
+        setCk(k); setGate('open');
+        toast('게시판에 비밀번호를 걸었어요 — 프롬프트 게시판과 같은 비밀번호');
+      } else {
+        const k = ck ?? await postContentKey(true);
+        if (!k) { toast('이 기기에서 프롬프트 게시판을 한 번 열어 주세요 (비밀번호 입력)'); return; }
+        const next = await Promise.all(posts.map(p => (mine(p) && p.boardSealed ? unsealPost(k, p) : Promise.resolve(p))));
+        setPosts(next);
+        patchBoard(board.id, { locked: false });
+        toast('게시판 비밀번호를 풀었어요');
+      }
+    } finally { setLockBusy(false); }
+  };
+
   if (!boardsLoaded) return <section className="page post-read" />;
+  if (locked && gate !== 'open') {
+    return (
+      <section className="page post-read">
+        <div className="page-head">
+          <PageTitle href={boardHref(board.id)}>{board.id === MAIN_BOARD_ID ? 'BOARD' : board.name}</PageTitle>
+          <EditableDesc k={board.id === MAIN_BOARD_ID ? 'board-desc' : `board-desc-${board.id}`} def={board.desc} />
+        </div>
+        {gate === 'closed' && (
+          <LockScreen onUnlock={async pw => {
+            const k = await postContentKey(isAdmin, pw);
+            if (!k) return false;
+            setCk(k); setGate('open');
+            return true;
+          }} />
+        )}
+      </section>
+    );
+  }
 
 
   return (
@@ -113,6 +194,12 @@ function BoardInner() {
       <div className="toolrow" style={{ justifyContent: 'flex-end' }}>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <SearchBar onSearch={v => { setQ(v); setPage(1); }} />
+          {isAdmin && (
+            <button className={`btn ${locked ? 'btn-dark' : 'btn-ghost'}`} disabled={lockBusy} onClick={() => void toggleLock()}
+              data-tip={locked ? '게시판 비밀번호 풀기' : '게시판에 비밀번호 걸기 (프롬프트 게시판과 같은 비밀번호)'}>
+              <LockIcon open={!locked} className="ic-gap" />{lockBusy ? '…' : locked ? '잠금 중' : '잠금'}
+            </button>
+          )}
           {allow(board.permWrite) && !!user && (
             <button className="btn btn-dark"
               onClick={() => router.push(`/board/write?b=${board.id}`)}>✎ WRITE</button>
@@ -124,17 +211,17 @@ function BoardInner() {
         /* 갤러리 게시판 — 이미지 격자 (대표 이미지 > 첫 이미지) */
         <div className="gal-grid">
           {pageList.map(p => {
-            const thumb = canRead(p) ? (p.thumbSrc ?? firstImage(p.body)) : null;
+            const thumb = thumbOf(p);
             return (
               <div className="gal-card" key={p.id} onClick={() => { if (canRead(p)) router.push(postHref(p)); }}>
                 <div className="gal-thumb">
                   {thumb
-                    ? <CropImg src={thumb} crop={p.thumbSrc ? p.thumbCrop : undefined} />
-                    : <div className="bt-ph">{canRead(p) ? '🖼' : '🔒'}</div>}
+                    ? <CropImg src={thumb} crop={cropOf(p)} />
+                    : <div className="bt-ph">{canRead(p) ? <ImageIcon size={22} /> : <LockIcon size={22} />}</div>}
                   {canRead(p) && (p.images?.length ?? 0) > 1 && <span className="gal-n">{p.images!.length}</span>}
                 </div>
                 <div className="gal-cap">
-                  <b>{canRead(p) ? <>{pinMark(p)}{(p.secret || p.locked) && '🔒 '}<PostHead cat={p.category} />{p.title}</> : '비밀글입니다'}</b>
+                  <b>{canRead(p) ? <>{pinMark(p)}{(p.secret || (p.locked && !p.boardSealed)) && <LockIcon className="ic-gap" />}<PostHead cat={p.category} />{p.title}</> : '비밀글입니다'}</b>
                   <small>{p.author} · {fmtDate(p.date)}{pinCtl(p)}</small>
                 </div>
               </div>
@@ -149,12 +236,12 @@ function BoardInner() {
         <div style={board.fg ? { color: board.fg } : undefined}>
           {pageList.map(p => {
             // 대표 이미지(직접 선택 + 크롭) 우선, 없으면 본문 첫 이미지 (v1.9)
-            const thumb = canRead(p) ? (p.thumbSrc ?? firstImage(p.body)) : null;
+            const thumb = thumbOf(p);
             return (
               <div className="bticket" key={p.id} onClick={() => { if (canRead(p)) router.push(postHref(p)); }}>
                 <div className="bt-thumb">
                   {thumb
-                    ? <CropImg src={thumb} crop={p.thumbSrc ? p.thumbCrop : undefined} />
+                    ? <CropImg src={thumb} crop={cropOf(p)} />
                     : <div className="bt-ph">{(canRead(p) ? p.title : 'SECRET').slice(0, 1).toUpperCase()}</div>}
                 </div>
                 <div className="bt-body">
@@ -164,7 +251,7 @@ function BoardInner() {
                     </div>
                   )}
                   <div className="bt-title">
-                    {canRead(p) ? <>{pinMark(p)}{(p.secret || p.locked) && '🔒 '}<PostHead cat={p.category} />{p.title}</> : '🔒 비밀글입니다'}
+                    {canRead(p) ? <>{pinMark(p)}{(p.secret || (p.locked && !p.boardSealed)) && <LockIcon className="ic-gap" />}<PostHead cat={p.category} />{p.title}</> : <><LockIcon className="ic-gap" />비밀글입니다</>}
                     {canRead(p) && cmtCount(p) > 0 && <span className="cmt">{cmtCount(p)}</span>}
                   </div>
                   <div className="bt-meta">{p.author} · {fmtDate(p.date)}{pinCtl(p)}</div>
@@ -186,12 +273,12 @@ function BoardInner() {
               <div className="tcell">
                 {canRead(p) ? (
                   <b>
-                    {pinMark(p)}{(p.secret || p.locked) && '🔒 '}<PostHead cat={p.category} />{p.title}
+                    {pinMark(p)}{(p.secret || (p.locked && !p.boardSealed)) && <LockIcon className="ic-gap" />}<PostHead cat={p.category} />{p.title}
                     {cmtCount(p) > 0 && <span className="cmt">{cmtCount(p)}</span>}
                     {p.fold && <span style={{ ...boardBadgeStyle(boardSet.system[2]), marginLeft: 6 }}>{boardSet.system[2].label}</span>}
                   </b>
                 ) : (
-                  <b style={{ color: 'var(--faint)' }}>🔒 비밀글입니다</b>
+                  <b style={{ color: 'var(--faint)' }}><LockIcon className="ic-gap" />비밀글입니다</b>
                 )}
                 {pinCtl(p)}
                 {canRead(p) && (p.tags ?? []).length > 0 && (

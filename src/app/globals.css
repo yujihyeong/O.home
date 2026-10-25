@@ -3315,3 +3315,8 @@ html[data-scene="night"] .mw-bits i.now{box-shadow:0 0 10px var(--mw-acc)}
 .toast-box.top{bottom:auto;top:72px}
 .toast.top{padding:7px 15px;font-size:calc(11.5px*var(--fs,1));animation:toastTop 1.8s ease both}
 @keyframes toastTop{0%{opacity:0;transform:translateY(-8px)}12%,82%{opacity:1;transform:none}100%{opacity:0;transform:translateY(-6px)}}
+
+/* 선 아이콘 (사용자 요청 — 이모지 대신) */
+.ic-line{display:inline-block;vertical-align:-2px;flex-shrink:0}
+.ic-gap{margin-right:4px}
+.pr-lock-ic .ic-line{vertical-align:middle}

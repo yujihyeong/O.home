@@ -1,6 +1,7 @@
 'use client';
 // 검색 위젯 (사용자 요청) — 내 홈 게시글(모든 게시판)에서 검색어가 들어간 글을 찾아 아래로 펼쳐 보여 준다.
 // 제목·태그·본문(비밀글은 읽을 수 있는 사람만)에서 찾고, 누르면 그 글로 이동. 메뉴에서 비공개로 둔 게시판은 빠진다.
+import { LockIcon } from '@/components/ui/Icons';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
@@ -161,7 +162,7 @@ export function SearchWidget(_: { conf: WidgetConf }) {
                     <b><Hl text={h.p.title} k={k} /></b>
                     {h.snip && <span className="sw-snip"><Hl text={h.snip} k={k} /></span>}
                     {h.tag && <span className="sw-snip">#<Hl text={h.tag} k={k} /></span>}
-                    <small>{h.board && <>{h.board} · </>}{date(h.p.date)}{h.p.secret ? ' · 🔒' : ''}</small>
+                    <small>{h.board && <>{h.board} · </>}{date(h.p.date)}{h.p.secret || h.p.locked ? <> · <LockIcon size={11} /></> : ''}</small>
                   </li>
                 ))}
               </ul>
