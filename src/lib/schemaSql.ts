@@ -47,6 +47,15 @@ create table if not exists public.private_settings (
   updated_at timestamptz not null default now()
 );
 
+-- ── 3c. 회원 전용 비밀값 (사용자 요청) — 매달 바뀌는 자동 비밀번호의 열쇠.
+-- 로그인한(승인된) 회원은 자동 비밀번호 글·게시판을 비밀번호 없이 연다. 방문자는 못 읽고, 관리자만 쓴다.
+-- (관리자가 직접 정한 비밀번호의 열쇠는 여기 두지 않는다 — 그건 비밀번호를 아는 사람만)
+create table if not exists public.member_secrets (
+  key text primary key,
+  value text not null,
+  updated_at timestamptz not null default now()
+);
+
 -- ── 4. 관리자 판별 함수 ──────────────────────────────────────
 create or replace function public.is_admin()
 returns boolean language sql stable security definer set search_path = public as $$
@@ -237,6 +246,14 @@ alter table public.profiles enable row level security;
 alter table public.invite_codes enable row level security;
 alter table public.site_settings enable row level security;
 alter table public.private_settings enable row level security;
+
+alter table public.member_secrets enable row level security;
+drop policy if exists "member_secrets_read" on public.member_secrets;
+create policy "member_secrets_read" on public.member_secrets for select to authenticated
+  using (public.is_member() or public.is_admin());
+drop policy if exists "member_secrets_write" on public.member_secrets;
+create policy "member_secrets_write" on public.member_secrets for all to authenticated
+  using (public.is_admin()) with check (public.is_admin());
 
 drop policy if exists "private_admin" on public.private_settings;
 create policy "private_admin" on public.private_settings for all to authenticated

@@ -79,7 +79,7 @@ export default function BoardDetailPage() {
   useEffect(() => {
     if (sealed && loaded) void openWith();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sealed?.data, loaded, isAdmin, boards]);
+  }, [sealed?.data, loaded, isAdmin, user?.id, boards]);   // 로그인한 회원은 자동 비밀번호 글을 바로 연다
   const unlocked = post?.locked ? (opened?.id === post.id ? opened : null) : null;
   const html = useMemo(() => (post && loaded ? renderBody(post.mode, post.locked ? unlocked?.body ?? '' : post.body) : ''), [post, loaded, unlocked]);
 

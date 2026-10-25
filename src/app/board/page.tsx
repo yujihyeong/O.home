@@ -120,7 +120,7 @@ function BoardInner() {
     boardKey(board, isAdmin).then(k => { if (!alive) return; setCk(k); setGate(k ? 'open' : 'closed'); });
     return () => { alive = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [locked, isAdmin, board?.id, board?.lockOwn?.salt]);
+  }, [locked, isAdmin, user?.id, board?.id, board?.lockOwn?.salt]);   // 로그인한 회원은 자동 비밀번호로 잠긴 곳을 바로 연다
   // 봉한 글의 대표 사진 — 열린 뒤에만 이 화면 안에서 풀어 쓴다
   const [thumbs, setThumbs] = useState<Record<string, { src?: string; crop?: Post['thumbCrop'] }>>({});
   useEffect(() => {

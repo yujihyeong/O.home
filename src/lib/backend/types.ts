@@ -55,6 +55,9 @@ export interface Backend {
   /** 가입코드 — 관리자만 읽고 쓴다 (공개 설정이 아니라 비공개 저장소에) */
   getInvite(): Promise<string | null>;
   setInvite(code: string): Promise<{ ok: boolean; error?: string }>;
+  /** 회원 전용 비밀값 (사용자 요청 — 자동 비밀번호 열쇠) — 승인된 회원만 읽고, 관리자만 쓴다 */
+  getMemberSecret(key: string): Promise<string | null>;
+  setMemberSecret(key: string, value: string): Promise<void>;
   signOut(): Promise<void>;
   resetPassword(email: string): Promise<{ ok: boolean; error?: string }>;
   updateProfile(patch: { nickname?: string; avatarUrl?: string | null; avatarColor?: string | null; currentPassword?: string; newPassword?: string }): Promise<{ ok: boolean; error?: string }>;
