@@ -15,6 +15,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { getRawSetting, setSetting } from './settingStore';
 import { newId } from './postStore';
 import { backend } from './backend';
+import { currentUserId } from './currentUser';
 
 const KEY = 'ohome.prompt.v1';
 
@@ -77,19 +78,61 @@ async function open(key: CryptoKey, lock: Lock): Promise<PromptPost[]> {
   const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: fromB64(lock.iv) as BufferSource }, key, fromB64(lock.data) as BufferSource);
   return normPosts(JSON.parse(dec.decode(plain)));
 }
+/* 로그인한 회원은 자동 비밀번호를 몰라도 연다 (사용자 요청) — 관리자 기기가 이달의 키를
+   회원 전용 저장소(승인된 회원만 읽음)에 올려 두고, 회원은 그걸로 연다.
+   관리자가 직접 정한 비밀번호(게시판·타래의 개별 비밀번호)의 키는 올리지 않는다 */
+const MEMBER_SECRET = 'promptkey';
+const MOCK_SECRET_KEY = 'ohome.membersecret.v1';   // 서버 없이 쓸 때
+const PUB_KEY = 'ohome.prompt.pubkey';             // 관리자 기기 — 마지막으로 올린 값 (같은 값을 또 올리지 않게)
+let memberKeyP: { uid: string; p: Promise<string | null> } | null = null;
+async function fetchMemberSecret(): Promise<string | null> {
+  const be = backend();
+  if (be) return be.getMemberSecret(MEMBER_SECRET).catch(() => null);
+  try { return (JSON.parse(localStorage.getItem(MOCK_SECRET_KEY) ?? '{}') as Record<string, string>)[MEMBER_SECRET] ?? null; } catch { return null; }
+}
+function memberSecret(): Promise<string | null> {
+  const uid = currentUserId();
+  if (!uid) return Promise.resolve(null);
+  if (!memberKeyP || memberKeyP.uid !== uid) memberKeyP = { uid, p: fetchMemberSecret() };
+  return memberKeyP.p;
+}
+async function publishMemberKey(v: string) {
+  try {
+    if (localStorage.getItem(PUB_KEY) === v) return;
+    const be = backend();
+    if (be) await be.setMemberSecret(MEMBER_SECRET, v);
+    else {
+      const all = JSON.parse(localStorage.getItem(MOCK_SECRET_KEY) ?? '{}') as Record<string, string>;
+      all[MEMBER_SECRET] = v;
+      localStorage.setItem(MOCK_SECRET_KEY, JSON.stringify(all));
+    }
+    localStorage.setItem(PUB_KEY, v);
+    memberKeyP = null;
+  } catch { /* 스키마가 아직 없거나 권한 문제 — 다음에 다시 */ }
+}
 async function rememberKey(key: CryptoKey, salt: string, admin: boolean) {
   try {
     const v = JSON.stringify({ salt, k: toB64(await crypto.subtle.exportKey('raw', key)) });
     sessionStorage.setItem(SESSION_KEY, v);
-    if (admin) localStorage.setItem(ADMIN_KEY, v);
+    if (admin) { localStorage.setItem(ADMIN_KEY, v); void publishMemberKey(v); }
   } catch { /* 무시 */ }
 }
 async function recallKey(salt: string, admin: boolean): Promise<CryptoKey | null> {
+  const imp = (k: string) => crypto.subtle.importKey('raw', fromB64(k) as BufferSource, 'AES-GCM', true, ['encrypt', 'decrypt']);
   try {
-    const r = JSON.parse(sessionStorage.getItem(SESSION_KEY) ?? (admin ? localStorage.getItem(ADMIN_KEY) : null) ?? 'null');
-    if (!r || r.salt !== salt) return null;
-    return await crypto.subtle.importKey('raw', fromB64(r.k) as BufferSource, 'AES-GCM', true, ['encrypt', 'decrypt']);
-  } catch { return null; }
+    const raw = sessionStorage.getItem(SESSION_KEY) ?? (admin ? localStorage.getItem(ADMIN_KEY) : null);
+    const r = JSON.parse(raw ?? 'null');
+    if (r && r.salt === salt) {
+      if (admin && raw) void publishMemberKey(raw);   // 예전부터 열어 둔 관리자 기기도 회원용 키를 올려 둔다
+      return await imp(r.k);
+    }
+  } catch { /* 아래로 */ }
+  // 로그인한 회원 — 회원 전용 저장소의 이달 키
+  try {
+    const m = JSON.parse((await memberSecret()) ?? 'null');
+    if (m && m.salt === salt) return await imp(m.k);
+  } catch { /* 없음 */ }
+  return null;
 }
 
 export interface PromptBoard {
@@ -109,7 +152,7 @@ export interface PromptBoard {
 
 interface Cur { notice: string; posts: PromptPost[]; lock: Lock | null; ordered: boolean; rotated?: string }
 
-export function usePromptBoard(isAdmin = false): PromptBoard {
+export function usePromptBoard(isAdmin = false, member = false): PromptBoard {
   const [loaded, setLoaded] = useState(false);
   const [notice, setNoticeS] = useState(DEFAULT_PROMPT_NOTICE);
   const [lock, setLock] = useState<Lock | null>(null);
@@ -151,14 +194,14 @@ export function usePromptBoard(isAdmin = false): PromptBoard {
     return () => { alive = false; window.removeEventListener(ROTATED_EVT, onRot); };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // 로그인 확인이 늦게 끝나 관리자로 판정되면, 이 기기에 남겨 둔 키로 바로 연다
+  // 로그인 확인이 늦게 끝나 관리자·회원으로 판정되면, 기억된 키(회원은 회원 전용 키)로 바로 연다
   useEffect(() => {
-    if (!isAdmin || !loaded || !sealed) return;
+    if (!(isAdmin || member) || !loaded || !sealed) return;
     const lk = cur.current.lock;
     if (!lk) return;
     let alive = true;
     (async () => {
-      const key = await recallKey(lk.salt, true);
+      const key = await recallKey(lk.salt, isAdmin);
       if (!key) return;
       try {
         const list = arrange(await open(key, lk));
@@ -169,7 +212,7 @@ export function usePromptBoard(isAdmin = false): PromptBoard {
       } catch { /* 옛 키 — 비밀번호를 넣어야 한다 */ }
     })();
     return () => { alive = false; };
-  }, [isAdmin, loaded, sealed]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isAdmin, member, loaded, sealed]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const write = useCallback((c: Cur, keys?: Pick<Stored, 'kw' | 'kOpen'>) => {
     cur.current = c;

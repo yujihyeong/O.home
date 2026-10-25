@@ -120,6 +120,18 @@ export async function createSupabaseBackend(
         : { ok: true };
     },
 
+    async getMemberSecret(key) {
+      const { data, error } = await sb.from('member_secrets').select('value').eq('key', key).maybeSingle();
+      if (error) return null;
+      return (data as { value?: string } | null)?.value ?? null;
+    },
+
+    async setMemberSecret(key, value) {
+      const { error } = await sb.from('member_secrets')
+        .upsert({ key, value, updated_at: new Date().toISOString() }, { onConflict: 'key' });
+      if (error) throw error;
+    },
+
     async signOut() { await sb.auth.signOut(); },
 
     async resetPassword(email) {

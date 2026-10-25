@@ -112,7 +112,7 @@ function ThreadsPageInner() {
     setGate('checking');
     boardKey(target, isAdmin).then(k => { if (!alive) return; setCk(k); setGate(k ? 'open' : 'closed'); });
     return () => { alive = false; };
-  }, [setLoaded, locked, isAdmin, target]);
+  }, [setLoaded, locked, isAdmin, user?.id, target]);   // 로그인한 회원은 자동 비밀번호로 잠긴 곳을 바로 연다
   const [plain, setPlain] = useState<Record<string, ThreadPost[]>>({});
   const pk = (w: ThreadWork) => `${w.id}:${w.locked?.iv}`;
   useEffect(() => {

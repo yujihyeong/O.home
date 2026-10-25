@@ -222,12 +222,12 @@ function PasswordModal({ open, locked, onClose, onSet }: {
 }
 
 function PromptInner() {
-  const { isAdmin } = useAuth();
+  const { user, isAdmin } = useAuth();
   const toast = useToast();
   const router = useRouter();
   const params = useRouteSearch();
   const pid = params.get('p');
-  const board = usePromptBoard(isAdmin);
+  const board = usePromptBoard(isAdmin, !!user);   // 로그인한 회원은 자동 비밀번호를 몰라도 연다 (사용자 요청)
   const { posts, loaded } = board;
   const save = board.savePosts;
   const [pwOpen, setPwOpen] = useState(false);

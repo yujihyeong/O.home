@@ -449,6 +449,10 @@ export async function createFirebaseBackend(cfg: FirebaseCfg): Promise<Backend> 
       await stMod.deleteObject(stMod.ref(storage, ref));
     },
 
+    // 회원 전용 비밀값은 Supabase에서만 — Firebase는 예전처럼 비밀번호로 연다
+    async getMemberSecret() { return null; },
+    async setMemberSecret() { /* 없음 */ },
+
     // 가입 승인은 Supabase에서만 — Firebase는 가입 즉시 회원 (승인 단계 없음)
     async approveMember() { /* 없음 */ },
 

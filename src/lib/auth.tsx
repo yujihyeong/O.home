@@ -263,6 +263,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try { localStorage.removeItem(MOCK_KEY); } catch { /* 무시 */ }
   }, [server, be]);
 
+  // 저장 계층의 현재 사용자 id는 그리는 즉시 맞춘다 — 자식 화면의 효과가 이 컴포넌트 효과보다 먼저 돌아서,
+  // 로그인 직후 자식이 회원 전용 키를 찾을 때 아직 비로그인으로 보이던 문제
+  setCurrentUserId(user?.id ?? null);
+
   // 관리자면 body.admin — 페이지 설명 편집 연필 등
   // 저장 계층이 훅 밖에서 작성자 id를 알 수 있게 함께 기록
   useEffect(() => {
