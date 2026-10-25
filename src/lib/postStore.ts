@@ -229,7 +229,8 @@ export const BOARD_SEED: Post[] = [];
 
 export const GUEST_SEED: GuestEntry[] = [];
 
+/** 글 날짜 — 연도까지 (사용자 요청: 모든 게시글) */
 export const fmtDate = (iso: string) => {
   const d = new Date(iso);
-  return `${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`;
+  return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`;
 };

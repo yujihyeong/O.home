@@ -123,9 +123,10 @@ export function threadBadgeStyle(cat?: ThreadCat): CSSProperties {
 export const lastDate = (w: ThreadWork) =>
   w.posts.length ? w.posts[w.posts.length - 1].date : w.created;
 
+/** 글 날짜 — 연도까지 (사용자 요청: 모든 게시글) */
 export const fmtMD = (iso: string) => {
   const d = new Date(iso);
-  return `${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`;
+  return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`;
 };
 export const fmtMDHM = (iso: string) => {
   const d = new Date(iso);
