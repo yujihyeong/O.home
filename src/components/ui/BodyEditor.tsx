@@ -37,16 +37,41 @@ function toDataUrl(f: Blob): Promise<string> {
   });
 }
 
-export function BodyEditor({ value, onChange, mode, onMode, whole, onWhole, minHeight = 160, preview = true }: {
+/** 단어 바꾸기 — 글자만 바꾸고 HTML 태그(<…>) 안은 건드리지 않는다. [바뀐 글, 바꾼 수] */
+export function replaceWord(text: string, from: string, to: string): [string, number] {
+  if (!from) return [text, 0];
+  let n = 0;
+  const out = text.split(/(<[^>]*>)/).map((part, i) => {
+    if (i % 2 === 1) return part;
+    const c = part.split(from).length - 1;
+    n += c;
+    return c ? part.split(from).join(to) : part;
+  }).join('');
+  return [out, n];
+}
+
+export function BodyEditor({ value, onChange, mode, onMode, whole, onWhole, minHeight = 160, preview = true, replace = false }: {
   value: string; onChange: (v: string) => void;
   mode: WriteMode; onMode: (m: WriteMode) => void;
   whole: WholeFont; onWhole: (w: WholeFont) => void;
   minHeight?: number; preview?: boolean;
+  /** 단어 바꾸기 칸 (사용자 요청 — 감상타래 글쓰기) */
+  replace?: boolean;
 }) {
   const toast = useToast();
   const { familyOf } = useFonts();
   const [htmlView, setHtmlView] = useState<'code' | 'preview'>('code');
   const [askRich, setAskRich] = useState<null | (() => void)>(null);
+  const [rFrom, setRFrom] = useState('');
+  const [rTo, setRTo] = useState('');
+  const doReplace = () => {
+    const from = rFrom.trim();
+    if (!from) { toast('바꿀 단어를 적어 주세요'); return; }
+    const [next, n] = replaceWord(value, from, rTo);
+    if (!n) { toast(`본문에 「${from}」이(가) 없어요`); return; }
+    onChange(next);
+    toast(`「${from}」 ${n}곳을 「${rTo}」(으)로 바꿨어요`);
+  };
   const font = { whole, setWhole: onWhole };
   const isMd = mode === 'md' || mode === 'log';
   const html = useMemo(() => (preview ? renderBody(isMd ? 'md' : 'html', value) : ''), [preview, isMd, value]);
@@ -98,6 +123,18 @@ export function BodyEditor({ value, onChange, mode, onMode, whole, onWhole, minH
           </div>
         )}
       </div>
+      {replace && (
+        /* 단어 바꾸기 (사용자 요청) — 예: 체리 → 그녀, 본문의 그 단어를 전부 */
+        <div className="body-ed-rep">
+          <span>단어 바꾸기</span>
+          <input className="k-input" value={rFrom} placeholder="바꿀 단어" onChange={e => setRFrom(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) { e.preventDefault(); doReplace(); } }} />
+          <b aria-hidden>→</b>
+          <input className="k-input" value={rTo} placeholder="새 단어" onChange={e => setRTo(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) { e.preventDefault(); doReplace(); } }} />
+          <button type="button" className="btn btn-ghost" onClick={doReplace}>모두 바꾸기</button>
+        </div>
+      )}
       {mode === 'editor' || (mode === 'html' && htmlView === 'preview') ? (
         <RichEditor value={value} onChange={onChange} font={font} placeholder="내용을 작성하세요 — 이미지 삽입 가능" />
       ) : (
