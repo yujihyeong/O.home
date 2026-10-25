@@ -33,6 +33,9 @@ export interface ThreadWork {
   visibility: Visibility;
   created: string;           // 타래 시작 ISO
   posts: ThreadPost[];
+  /** 섹션 비밀번호로 봉한 글 목록 (사용자 요청) — 있으면 posts는 비어 있다 */
+  locked?: { iv: string; data: string };
+  sealedSec?: boolean;
 }
 
 /* ---------- 분류 + 기본 보기 설정 (4.17 — 환경설정에서 관리) ---------- */
@@ -50,6 +53,8 @@ export interface ThreadSettings {
    *  글부터 못 쓴다. 손대는 순간 그 섹션만의 목록이 생긴다. */
   secCats?: Record<string, ThreadCat[]>;
   defaultView: 'thread' | 'list'; // 메뉴 진입 시 먼저 보일 보기 (v1.8 확정)
+  /** 섹션별 비밀번호 (사용자 요청) — 있으면 잠김. own이 있으면 직접 정한 비밀번호, 없으면 자동(프롬프트 게시판과 같음) */
+  locks?: Record<string, { own?: import('./boardLock').BoardOwnLock }>;
 }
 
 /** 그 섹션에서 쓸 분류 (v2.0) — 따로 정한 적이 없으면 기본 섹션 것 */

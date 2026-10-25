@@ -23,6 +23,11 @@ import { EditableDesc, PageTitle } from '@/components/ui/PageText';
 import { Lightbox } from '@/components/ui/Lightbox';
 import { useToast } from '@/components/ui/Toast';
 import { pushNotif, notifyAdmins } from '@/lib/notifStore';
+import { LockIcon } from '@/components/ui/Icons';
+import { LockScreen } from '@/components/ui/LockScreen';
+import { LockModal } from '@/components/ui/LockModal';
+import { ensurePostContentKey, postLockAvailable } from '@/lib/promptStore';
+import { boardKey, createOwnLock, rewrapOwnLock, rememberBoardKey, sealWork, openWork, type BoardOwnLock } from '@/lib/boardLock';
 
 // 접기 문구 (게시판 6.2와 동일)
 const FOLD_LABEL = { spoiler: '스포일러 주의', adult: '수위 주의' };
@@ -80,10 +85,102 @@ function ThreadsPageInner() {
   const [worksAll, setWorksAll, loaded] = useLocalList<ThreadWork>('ohome.threads.v1', THREAD_SEED);
   // 여러 개로 만든 섹션 (v2.0) — 주소의 ?s= 가 가리키는 것만 보여 준다
   const sec = useSectionParam('threads');
-  const works = filterSection(worksAll, sec.id);
+  const worksRaw = filterSection(worksAll, sec.id);
   // 저장은 이 섹션 자리만 교체 — 걸러진 목록을 그대로 넘겨도 다른 섹션이 지워지지 않는다
-  const setWorks = sectionSetter(worksAll, sec.id, setWorksAll);
-  const [settings, , setLoaded] = useThreadSettings();
+  const setWorksRaw = sectionSetter(worksAll, sec.id, setWorksAll);
+  const [settings, patchSettings, setLoaded] = useThreadSettings();
+
+  /* 비밀번호 (사용자 요청) — 게시판과 같은 방식. 잠긴 섹션은 작품마다 글 목록을 봉해 두고,
+     연 뒤에는 이 화면 안에서만 풀어 보여 준다. 아래 코드는 풀린 목록(works)만 다룬다 */
+  const lockInfo = settings.locks?.[sec.id];
+  const locked = !!lockInfo;
+  const target = useMemo(() => ({ id: `threads-${sec.id}`, lockOwn: lockInfo?.own }), [sec.id, lockInfo?.own]);
+  const [gate, setGate] = useState<'checking' | 'open' | 'closed'>('checking');
+  const [ck, setCk] = useState<CryptoKey | null>(null);
+  useEffect(() => {
+    if (!setLoaded) return;
+    if (!locked) { setGate('open'); return; }
+    let alive = true;
+    setGate('checking');
+    boardKey(target, isAdmin).then(k => { if (!alive) return; setCk(k); setGate(k ? 'open' : 'closed'); });
+    return () => { alive = false; };
+  }, [setLoaded, locked, isAdmin, target]);
+  const [plain, setPlain] = useState<Record<string, ThreadPost[]>>({});
+  const pk = (w: ThreadWork) => `${w.id}:${w.locked?.iv}`;
+  useEffect(() => {
+    if (!ck) return;
+    const need = worksRaw.filter(w => w.locked && !plain[pk(w)]);
+    if (!need.length) return;
+    let alive = true;
+    void Promise.all(need.map(async w => [pk(w), (await openWork(ck, w)) ?? []] as const))
+      .then(rows => { if (alive) setPlain(p => ({ ...p, ...Object.fromEntries(rows) })); });
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ck, worksRaw.map(w => w.locked?.iv ?? '').join()]);
+  const works = useMemo(() => worksRaw.map(w => (w.locked ? { ...w, posts: plain[pk(w)] ?? [] } : w)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [worksRaw, plain]);
+  /** 저장 — 잠긴 섹션이면 글 목록이 바뀐 작품만 다시 봉한다 (안 바뀐 작품은 봉한 그대로) */
+  const setWorks = (list: ThreadWork[]) => {
+    if (!locked || !ck) { setWorksRaw(list); return; }
+    const raw = new Map(worksRaw.map(w => [w.id, w]));
+    const view = new Map(works.map(w => [w.id, w]));
+    void Promise.all(list.map(async w => {
+      const r = raw.get(w.id), v = view.get(w.id);
+      if (r?.locked && v && v.posts === w.posts) return { ...w, posts: [], locked: r.locked, sealedSec: r.sealedSec };
+      const sealed = await sealWork(ck, w);
+      setPlain(p => ({ ...p, [pk(sealed)]: w.posts }));
+      return sealed;
+    })).then(setWorksRaw);
+  };
+  const [lockAsk, setLockAsk] = useState(false);
+  const [lockBusy, setLockBusy] = useState(false);
+  const runLock = async (fn: () => Promise<boolean>) => {
+    if (lockBusy) return;
+    setLockBusy(true);
+    try { if (await fn()) setLockAsk(false); } finally { setLockBusy(false); }
+  };
+  const lockSec = async (own: string | null) => {
+    let k: CryptoKey | null, lockOwn: BoardOwnLock | undefined;
+    if (own) { const made = await createOwnLock(own); k = made.key; lockOwn = made.lock; }
+    else {
+      if (!postLockAvailable()) { toast('먼저 프롬프트 게시판에 비밀번호를 걸어 주세요'); return false; }
+      k = await ensurePostContentKey();
+      if (!k) { toast('이 기기에서 프롬프트 게시판을 한 번 열어 주세요 (비밀번호 입력)'); return false; }
+    }
+    setWorksRaw(await Promise.all(works.map(w => sealWork(k!, w))));
+    patchSettings({ locks: { ...settings.locks, [sec.id]: lockOwn ? { own: lockOwn } : {} } });
+    if (own) await rememberBoardKey({ id: target.id, lockOwn }, k);
+    setCk(k); setGate('open');
+    toast(own ? '감상타래에 비밀번호를 걸었어요' : '감상타래에 비밀번호를 걸었어요 — 프롬프트 게시판과 같이 매달 바뀌어요');
+    return true;
+  };
+  const unlockSec = async () => {
+    const k = ck ?? await boardKey(target, true);
+    if (!k) { toast('비밀번호를 먼저 입력해 주세요'); return false; }
+    const out = await Promise.all(worksRaw.map(async w => {
+      if (!w.locked) return w;
+      const posts = await openWork(k, w);
+      if (!posts) return w;
+      const rest = { ...w };
+      delete rest.locked; delete rest.sealedSec;
+      return { ...rest, posts };
+    }));
+    setWorksRaw(out);
+    const next = { ...settings.locks };
+    delete next[sec.id];
+    patchSettings({ locks: next });
+    toast('감상타래 비밀번호를 풀었어요');
+    return true;
+  };
+  const changeOwn = async (pw: string) => {
+    if (!ck) { toast('비밀번호를 먼저 입력해 주세요'); return false; }
+    const lockOwn = await rewrapOwnLock(pw, ck);
+    patchSettings({ locks: { ...settings.locks, [sec.id]: { own: lockOwn } } });
+    await rememberBoardKey({ id: target.id, lockOwn }, ck);
+    toast('감상타래 비밀번호를 바꿨어요');
+    return true;
+  };
   // 분류는 섹션마다 따로 (v2.0 사용자 요청) — 정한 적 없으면 기본 섹션 것
   const cats = threadCats(settings, sec.id);
 
@@ -260,6 +357,24 @@ function ThreadsPageInner() {
   const cmtChildren = (pid: string) => comments.filter(c => c.parentId === pid);
 
   if (!loaded) return <section className="page" />;
+  if (locked && gate !== 'open') {
+    return (
+      <section className="page">
+        <div className="page-head">
+          <PageTitle>{sec.id === 'main' ? 'THREADS' : sec.name}</PageTitle>
+          <EditableDesc k="threads-desc" def="본 것, 읽은 것의 감상을 타래로" />
+        </div>
+        {gate === 'closed' && (
+          <LockScreen onUnlock={async pw => {
+            const k = await boardKey(target, isAdmin, pw);
+            if (!k) return false;
+            setCk(k); setGate('open');
+            return true;
+          }} />
+        )}
+      </section>
+    );
+  }
 
   return (
     <section className="page">
@@ -282,6 +397,13 @@ function ThreadsPageInner() {
             <button className={view === 'list' ? 'on' : ''} onClick={() => setView('list')}>리스트</button>
           </div>
           <SearchBar onSearch={setQ} />
+          {isAdmin && (
+            <button className={`btn btn-lockic ${locked ? 'btn-dark' : 'btn-ghost'}`} disabled={lockBusy} onClick={() => setLockAsk(true)}
+              aria-label={locked ? '감상타래 비밀번호 (잠금 중)' : '감상타래에 비밀번호 걸기'}
+              data-tip={locked ? '잠금 중 — 비밀번호 바꾸기·풀기' : '감상타래에 비밀번호 걸기'}>
+              <LockIcon open={!locked} size={15} />
+            </button>
+          )}
           {isAdmin && (
             <button className="btn btn-dark" style={{ whiteSpace: 'nowrap' }}
               onClick={() => router.push('/threads/new' + secQuery('threads', sec.id))}>＋ NEW THREAD</button>
@@ -541,6 +663,8 @@ function ThreadsPageInner() {
       )}
       {lb && <Lightbox srcs={lb.srcs} index={lb.idx} onClose={() => setLb(null)} />}
       {del.element}
+      <LockModal what="감상타래" open={lockAsk} locked={locked} own={!!lockInfo?.own} busy={lockBusy} onClose={() => setLockAsk(false)}
+        onLock={own => runLock(() => lockSec(own))} onUnlock={() => runLock(unlockSec)} onChange={pw => runLock(() => changeOwn(pw))} />
     </section>
   );
 }
