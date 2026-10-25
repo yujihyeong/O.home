@@ -46,31 +46,44 @@ export function PolaroidWidget({ conf }: { conf: WidgetConf }) {
   const tape = conf.settings.tape !== false;
   const capFont = familyOf((conf.settings.fontId as string) || 'dancing');
   const [cur, setCur] = useState(0);
-  const [leaving, setLeaving] = useState(false);
+  const [out, setOut] = useState<string | null>(null);   // 지금 날아가는 장
   const n = photos.length;
   useEffect(() => { if (cur >= n && n) setCur(0); }, [cur, n]);
 
-  // 앞에서부터 최대 3장 — 뒤 장은 살짝 비켜서 기울어진다
-  const cards = n
-    ? Array.from({ length: Math.min(3, n) }, (_, d) => ({ d, p: photos[(cur + d) % n] as PolaroidPhoto | undefined }))
-    : EMPTY.map((bg, d) => ({ d, p: undefined, bg }));
+  /* 부드럽게 넘기기 (사용자 요청 — 버벅임) — 예전엔 앞의 3장만 그리고 순서를 뒤집어 그려서,
+     넘길 때마다 카드가 DOM에서 자리를 옮겨 다니며 움직임이 끊기고, 새 장은 그때서야 사진을 불러 깜빡였다.
+     이제 모든 장을 늘 같은 순서로 그려 두고(사진도 미리 불러 둠) 깊이 클래스만 바꾼다 — 겹침은 z-index가.
+     맨 앞 장이 날아가는 것과 뒷장이 앞으로 오는 것도 동시에 */
+  const depth = (i: number) => (i - cur + n) % n;
   const next = (e: React.MouseEvent) => {
     if ((e.target as HTMLElement).closest('.modal-ov')) return;
-    if (editOn || n < 2 || leaving) return;
-    setLeaving(true);
-    setTimeout(() => { setCur(c => (c + 1) % n); setLeaving(false); }, 380);
+    if (editOn || n < 2 || out) return;
+    setOut(photos[cur % n].id);
+    setCur(c => (c + 1) % n);
+    setTimeout(() => setOut(null), 460);
   };
 
   return (
     <div className="pl-wrap" onClick={next} style={{ cursor: !editOn && n > 1 ? 'var(--cur-pointer,pointer)' : undefined }}>
-      {[...cards].reverse().map(c => (
-        <div key={c.p?.id ?? `e${c.d}`}
-          className={`pl-card d${c.d} ${c.d === 0 && leaving ? 'out' : ''}`}>
-          <Shot img={c.p?.img} bg={'bg' in c ? (c.bg as string) : undefined} />
-          <span className="pl-cap" style={{ fontFamily: capFont }}>{c.p?.cap ?? ''}</span>
-          {tape && c.d === 0 && <i className="pl-tape" />}
-        </div>
-      ))}
+      {n
+        ? photos.map((p, i) => {
+          const d = depth(i);
+          const cls = p.id === out ? 'out' : d < 3 ? `d${d}` : 'dh';
+          return (
+            <div key={p.id} className={`pl-card ${cls}`} aria-hidden={d !== 0 || undefined}>
+              <Shot img={p.img} />
+              <span className="pl-cap" style={{ fontFamily: capFont }}>{p.cap ?? ''}</span>
+              {tape && <i className="pl-tape" />}
+            </div>
+          );
+        })
+        : EMPTY.map((bg, d) => (
+          <div key={`e${d}`} className={`pl-card d${d}`}>
+            <Shot bg={bg} />
+            <span className="pl-cap" style={{ fontFamily: capFont }} />
+            {tape && d === 0 && <i className="pl-tape" />}
+          </div>
+        ))}
       {isAdmin && !editOn && (
         <button type="button" className="pl-set" onClick={e => { e.stopPropagation(); setOpen(true); }}>
           {n ? '설정' : '＋ 사진 넣기'}
