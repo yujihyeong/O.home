@@ -160,7 +160,8 @@ export default function GuestbookPage() {
                 ? <b>{e.secret && <LockIcon className="ic-gap" />}{e.author}</b>
                 : <b style={{ color: 'var(--faint)' }}><LockIcon className="ic-gap" />비밀글</b>}
               <small>
-                {fmtDate(e.date)}
+                {/* 방명록은 연도까지 (사용자 요청) */}
+                {new Date(e.date).getFullYear()}.{fmtDate(e.date)}
                 {/* 답글은 모두 가능 (v2.0 포크 제보) — 비밀글은 읽을 수 있는 사람만 */}
                 {canRead(e) && (
                   <span style={{ cursor: 'var(--cur-pointer,pointer)', marginLeft: 10, color: 'var(--accent)' }}
