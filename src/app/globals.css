@@ -983,7 +983,10 @@ body.edit-on .main-grid.gridlines .wgt{outline-offset:0}
 .dl-row{transition:transform .18s ease}
 .dl-row.lift{transform:scale(1.02) rotate(.4deg);box-shadow:0 14px 34px rgba(0,0,0,.25);cursor:grabbing;position:relative;z-index:10;background:#fff}
 .dl-placeholder{border:1.5px dashed #c3c7cd;border-radius:var(--radius-s);background:rgba(0,0,0,.02)}
-.drag-h{cursor:var(--cur-drag,grab);color:var(--faint);user-select:none;font-size:calc(13px*var(--fs,1))}
+.drag-h{cursor:var(--cur-drag,grab);color:var(--faint);user-select:none;-webkit-user-select:none;font-size:calc(13px*var(--fs,1));
+  touch-action:none}   /* 휴대폰: 핸들을 끌 때 페이지가 스크롤되지 않게 (사용자 제보) */
+/* 손가락으로 잡기 쉽게 핸들 터치 영역을 넓힌다 */
+@media (hover:none){.drag-h{display:inline-grid;place-items:center;min-width:34px;min-height:34px;margin:-8px -6px;font-size:18px}}
 .drag-h:active{cursor:grabbing}
 .mw-no{width:18px;height:18px;border-radius:50%;background:#eef0f2;color:var(--sub);font-size:calc(10px*var(--fs,1));display:grid;place-items:center;flex-shrink:0}
 

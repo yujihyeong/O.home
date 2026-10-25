@@ -28,13 +28,31 @@ export function DragList<T>({ items, keyOf, render, onReorder, disabled }: {
     const me = rows[index], h = heights[index];
     const startY = e.clientY, pid = e.pointerId;
     let to = index, lastY = startY, raf = 0;
+    /* 휴대폰에서 끌면 페이지가 같이 내려가던 문제 (사용자 제보) — 핸들은 CSS(touch-action:none)로 스크롤을 막고,
+       대신 화면 위·아래 끝으로 끌면 목록이 알아서 스크롤된다. 스크롤된 만큼 끄는 행도 따라온다 */
+    const sc = (contRef.current!.closest('#appMain') as HTMLElement | null)
+      ?? (document.scrollingElement as HTMLElement | null) ?? document.documentElement;
+    const st0 = sc.scrollTop;
+    try { (e.target as HTMLElement).setPointerCapture(pid); } catch { /* 무시 */ }
     me.classList.add('lift');
     me.style.transition = 'none';
     me.style.willChange = 'transform';
 
     const paint = () => {
       raf = 0;
-      const dy = lastY - startY;
+      // 가장자리 자동 스크롤
+      const vr = sc === document.scrollingElement || sc === document.documentElement
+        ? { top: 0, bottom: window.innerHeight } : sc.getBoundingClientRect();
+      const edge = 70;
+      let v = 0;
+      if (lastY < vr.top + edge) v = -Math.ceil((vr.top + edge - lastY) / 5);
+      else if (lastY > vr.bottom - edge) v = Math.ceil((lastY - (vr.bottom - edge)) / 5);
+      if (v) {
+        const before = sc.scrollTop;
+        sc.scrollTop = before + Math.max(-18, Math.min(18, v));
+        if (sc.scrollTop !== before) raf = requestAnimationFrame(paint);
+      }
+      const dy = lastY - startY + (sc.scrollTop - st0);
       const centerY = tops[index] + h / 2 + dy;
       let t = index;
       for (let j = 0; j < rows.length; j++) {
