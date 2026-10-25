@@ -237,8 +237,8 @@ export default function BoardDetailPage() {
           <h2 style={{ fontSize: 19, marginBottom: 4, flex: 1 }}>
             {(post.secret || (post.locked && !post.boardSealed)) && <LockIcon className="ic-gap" />}<PostHead cat={post.category} />{post.title}
           </h2>
-          {/* 로그 글 — 원하는 문단을 눌러 골라 발췌 */}
-          {post.kind !== 'gallery' && (!post.fold || open) && (
+          {/* 로그 글 — 원하는 문단을 눌러 골라 발췌 (로그인한 사람만 — 사용자 요청) */}
+          {!!user && post.kind !== 'gallery' && (!post.fold || open) && (
             <button className={`btn ${exOn ? 'btn-dark' : 'btn-ghost'}`} style={{ padding: '6px 13px', fontSize: 11.5, flexShrink: 0 }}
               onClick={() => setExOn(v => !v)}>발췌하기</button>
           )}
