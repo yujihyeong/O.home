@@ -3342,3 +3342,5 @@ html[data-scene="night"] .mw-bits i.now{box-shadow:0 0 10px var(--mw-acc)}
 .exc-side{margin-left:auto;display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
 .exc-side button{border:none;background:transparent;color:var(--faint);padding:3px 9px;font-size:calc(11px*var(--fs,1));cursor:var(--cur-pointer,pointer)}
 .exc-side button.on{background:var(--ink);color:var(--panel-solid,#fff)}
+/* 제목 끈 모스부호 위젯 — 부호 줄이 위로 붙게 */
+.wgt-notitle .mw-code{margin-top:4px}
