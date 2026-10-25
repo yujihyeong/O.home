@@ -3391,5 +3391,7 @@ html[data-scene="night"] .mw-bits i.now{box-shadow:0 0 10px var(--mw-acc)}
 .body-ed-redact span{letter-spacing:-2px;margin-right:4px;font-size:.85em}
 .thr-pshare{border:none;background:none;color:var(--faint);cursor:var(--cur-pointer,pointer);margin-left:6px;padding:2px;vertical-align:-1px;line-height:0}
 .thr-pshare:hover{color:var(--accent)}
+.thr-pex{border:1px solid var(--line);background:none;color:var(--faint);cursor:var(--cur-pointer,pointer);margin-left:6px;padding:1px 8px;border-radius:999px;font-size:calc(10.5px*var(--fs,1));line-height:1.5}
+.thr-pex:hover,.thr-pex.on{color:var(--accent);border-color:var(--accent)}
 /* 이미지 위젯 — 관리자는 눌러서 설정 (사용자 요청) */
 .iw-widget.iw-admin{cursor:var(--cur-pointer,pointer)}

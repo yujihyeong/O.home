@@ -25,14 +25,17 @@ const textOf = (el: HTMLElement) => {
   return t;
 };
 
-export function ExcerptBody({ html, active, onExit, title, author, style }: {
+export function ExcerptBody({ html, active, onExit, title, author, style, source: src }: {
   html: string;
   active: boolean;          // 발췌 모드 — 문단을 눌러 고른다
   onExit: () => void;
   title: string;
   author: string;
   style?: React.CSSProperties;
+  /** 출처 글 — 기본은 「제목」 · 글쓴이 (감상타래는 「타래 이름 • 분류」, 사용자 요청) */
+  source?: string;
 }) {
+  const source = src ?? `— 「${title}」 · ${author}`;
   const toast = useToast();
   const ref = useRef<HTMLDivElement>(null);
   const [picked, setPicked] = useState<number[]>([]);
@@ -77,7 +80,7 @@ export function ExcerptBody({ html, active, onExit, title, author, style }: {
   };
 
   const copy = async () => {
-    const text = `${excerpt().join('\n\n')}\n\n— 「${title}」 · ${author}`;
+    const text = `${excerpt().join('\n\n')}\n\n${source}`;
     try {
       await navigator.clipboard.writeText(text);
       toast('발췌한 문단을 복사했습니다');
@@ -100,7 +103,7 @@ export function ExcerptBody({ html, active, onExit, title, author, style }: {
       )}
       <Modal open={view} onClose={() => setView(false)} title="발췌" desc={`「${title}」에서 고른 ${picked.length}개 문단 — 배경·글씨를 꾸며 이미지로 저장할 수 있어요`}>
         {/* 발췌 카드 — 배경(색·이미지, 밝기·블러)과 글씨체를 골라 이미지로 저장 */}
-        {view && <ExcerptCard paras={snap} source={`— 「${title}」 · ${author}`} fileName={`${title} 발췌`} title={title} />}
+        {view && <ExcerptCard paras={snap} source={source} fileName={`${title} 발췌`} title={title} />}
         <div className="form-actions" style={{ marginTop: 8 }}>
           <button className="btn btn-ghost" onClick={() => setView(false)}>CLOSE</button>
           <button className="btn btn-ghost" onClick={copy}>글로 복사하기</button>
