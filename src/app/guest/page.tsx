@@ -31,6 +31,21 @@ export default function GuestbookPage() {
   const [replyText, setReplyText] = useState('');
   const [replyName, setReplyName] = useState('');   // 손님 답글 닉네임
   const [delFor, setDelFor] = useState<string | null>(null);
+  // 내가 쓴 방명록 고치기 (사용자 요청) — 로그인 회원 본인 글만 (손님 글은 서버가 수정을 못 받는다)
+  const [editFor, setEditFor] = useState<string | null>(null);
+  const [editText, setEditText] = useState('');
+  const [editSecret, setEditSecret] = useState(false);
+  const isMine = (e: GuestEntry) => !!user && !!e.authorId && e.authorId === user.id;
+  const openEdit = (e: GuestEntry) => { setEditFor(e.id); setEditText(e.body); setEditSecret(e.secret); };
+  const saveEdit = () => {
+    const e = entries.find(x => x.id === editFor);
+    if (!e) return;
+    if (!isMine(e)) { toast('수정 권한이 없습니다'); return; }
+    if (!editText.trim()) { toast('내용을 입력해 주세요'); return; }
+    setEntries(entries.map(x => (x.id === e.id ? { ...x, body: editText.trim(), secret: editSecret } : x)));
+    setEditFor(null);
+    toast('수정되었습니다');
+  };
   const del = useConfirmDelete();                   // 답글 삭제 확인
 
   const leave = () => {
@@ -168,6 +183,9 @@ export default function GuestbookPage() {
                     답글
                   </span>
                 )}
+                {isMine(e) && (
+                  <span style={{ cursor: 'var(--cur-pointer,pointer)', marginLeft: 8 }} onClick={() => openEdit(e)}>수정</span>
+                )}
                 {(isAdmin || (!!e.authorId && e.authorId === user?.id)) && (
                   <span style={{ cursor: 'var(--cur-pointer,pointer)', marginLeft: 8 }} onClick={() => setDelFor(e.id)}>삭제</span>
                 )}
@@ -209,6 +227,19 @@ export default function GuestbookPage() {
         </div>
       </Modal>
       {del.element}
+
+      {/* 내가 쓴 방명록 수정 (사용자 요청) */}
+      <Modal open={editFor !== null} onClose={() => setEditFor(null)} small title="방명록 수정"
+        dirty={editFor !== null && editText !== (entries.find(x => x.id === editFor)?.body ?? '')}
+        actions={<>
+          <button className="btn btn-ghost" onClick={() => setEditFor(null)}>CANCEL</button>
+          <button className="btn btn-dark" onClick={saveEdit}>SAVE</button>
+        </>}>
+        <div style={{ display: 'grid', gap: 9 }}>
+          <KTextarea value={editText} onChange={e => setEditText(e.target.value)} placeholder="방명록 내용" />
+          <KCheck label={<span style={{ fontSize: 12 }}>비밀글 (관리자만 열람)</span>} checked={editSecret} onChange={setEditSecret} />
+        </div>
+      </Modal>
 
       {/* 삭제 확인 — 손님 글은 관리자만 지울 수 있어 비밀번호를 묻지 않는다 (v2.0) */}
       <Modal open={delFor !== null} onClose={() => setDelFor(null)} small title="방명록 삭제"
