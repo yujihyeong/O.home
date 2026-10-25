@@ -28,6 +28,36 @@ interface CardStyle {
   hl: string;              // 형광펜 색
   photoDir?: 'none' | 'h' | 'v';   // 따로 넣는 사진 — 없음 / 가로 띠(글 위) / 세로 띠(글 옆)
   photo?: string | null;   // 그 사진 (올린 이미지 data URL)
+  speakers?: Speaker[];    // 대사 말풍선의 발화자 (사용자 요청)
+}
+
+/* ---------- 대사 말풍선 (사용자 요청 — 시안 A: 이름이 말풍선 위) ----------
+   앞뒤가 따옴표인 문단은 발화자를 고르면 그 사람 색의 파스텔 말풍선으로, 왼쪽·오른쪽에 붙여 그린다 */
+export interface Speaker { id: string; name: string; color: string }
+export const DEFAULT_SPEAKERS: Speaker[] = [
+  { id: 'dove', name: '도브', color: '#d9606b' },
+  { id: 'sio', name: '시오', color: '#5b8fd9' },
+  { id: 'jsw', name: '지선우', color: '#55a560' },
+  { id: 'cym', name: '춘열망', color: '#9070d0' },
+];
+export interface Talk { who: string | null; side: 'l' | 'r' }
+const OPEN_Q = /^\s*["“「『'‘]/, CLOSE_Q = /["”」』'’]\s*$/;
+/** 문단 전체가 따옴표로 감싸여 있는가 — 대사 */
+export const isQuote = (t: string) => OPEN_Q.test(t) && CLOSE_Q.test(t) && t.trim().length > 2;
+/** 색 섞기 — 파스텔(흰색과) · 이름 글씨(검정과) */
+function mix(hex: string, to: number, k: number) {
+  const n = parseInt(hex.replace('#', '').padEnd(6, '0').slice(0, 6), 16);
+  const c = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map(v => Math.round(v + (to - v) * k));
+  return `rgb(${c.join(',')})`;
+}
+export const pastelOf = (hex: string) => mix(hex, 255, 0.72);
+export const nameInkOf = (hex: string) => mix(hex, 0, 0.18);
+/** 말풍선 안에는 따옴표 없이 */
+function stripQuotes(runs: Run[]): Run[] {
+  const out = runs.map(r => ({ ...r }));
+  if (out.length) out[0].t = out[0].t.replace(OPEN_Q, '');
+  if (out.length) out[out.length - 1].t = out[out.length - 1].t.replace(CLOSE_Q, '');
+  return out;
 }
 const DEF: CardStyle = { bg: '#f7f3ea', img: null, bright: 70, blur: 0, fontId: '', color: '#2c3037', size: 38, hl: '#ffe066' };
 
@@ -170,7 +200,7 @@ function wrap(ctx: CanvasRenderingContext2D, runs: Run[], max: number, fontOf: (
 
 /** 카드를 캔버스에 그린다 — 높이는 글 길이에 맞추되 정사각형보다 작아지지 않게.
  *  scale: 실제 픽셀 배율 — 미리보기는 1, 저장은 2(고화질, 사용자 요청). 좌표는 전부 1배 기준으로 쓰고 변환으로 키운다 */
-async function draw(canvas: HTMLCanvasElement, paras: Run[][], source: string, st: CardStyle, family: string, scale = 1) {
+async function draw(canvas: HTMLCanvasElement, paras: Run[][], source: string, st: CardStyle, family: string, scale = 1, talk: (Talk | undefined)[] = []) {
   const ctx = canvas.getContext('2d')!;
   const font = `${st.size}px ${family}`;
   const fontOf = (r: Run) => `${r.i ? 'italic ' : ''}${r.b ? 'bold ' : ''}${st.size}px ${family}`;
@@ -188,8 +218,21 @@ async function draw(canvas: HTMLCanvasElement, paras: Run[][], source: string, s
   const vert = !!ph && st.photoDir === 'v';
   const textX = vert ? PM + PW_V + PGAP_V : PAD;
   const textW = vert ? W - textX - PAD : W - PAD * 2;
-  const lines = paras.map(p => wrap(ctx, p, textW, fontOf));
-  const textH = lines.reduce((n, l) => n + l.length * lh, 0) + (paras.length - 1) * st.size * 0.9;
+  // 대사 말풍선 — 발화자를 고른 따옴표 문단만
+  const speakers = st.speakers ?? DEFAULT_SPEAKERS;
+  const bub = paras.map((p, i) => {
+    const t = talk[i];
+    const sp = t?.who ? speakers.find(x => x.id === t.who) : undefined;
+    return sp && isQuote(p.map(r => r.t).join('')) ? { sp, side: t!.side } : null;
+  });
+  const padX = st.size * 0.62, padY = st.size * 0.34;
+  const nameSize = Math.round(st.size * 0.62), nameH = nameSize * 1.5;
+  const bubMax = textW * 0.8;
+  const lines = paras.map((p, i) => (bub[i] ? wrap(ctx, stripQuotes(p), bubMax - padX * 2, fontOf) : wrap(ctx, p, textW, fontOf)));
+  const blockH = (i: number) => (bub[i] ? nameH + lines[i].length * lh + padY * 2 : lines[i].length * lh);
+  // 말풍선끼리는 조금 더 붙여서 대화처럼
+  const gapBefore = (i: number) => (i === 0 ? 0 : bub[i] && bub[i - 1] ? st.size * 0.5 : st.size * 0.9);
+  const textH = lines.reduce((n, _l, i) => n + blockH(i) + gapBefore(i), 0);
   const srcH = st.size * 2.2;
   let H: number, textTop: number, photoRect: { x: number; y: number; w: number; h: number } | null = null;
   if (ph && !vert) {
@@ -268,9 +311,9 @@ async function draw(canvas: HTMLCanvasElement, paras: Run[][], source: string, s
   ctx.textBaseline = 'top';
   if (st.img) { ctx.shadowColor = 'rgba(0,0,0,.28)'; ctx.shadowBlur = 10 * S; }   // 그림자 흐림은 변환을 따르지 않아 배율을 직접 곱한다
   let y = textTop;
-  lines.forEach((ls, i) => {
-    if (i) y += st.size * 0.9;
-    for (const l of ls) {
+  /** 한 줄 그리기 — 형광펜 먼저, 그 위에 글자 */
+  const drawLine = (l: Piece[], textX: number, ink: string) => {
+    {
       // 형광펜 먼저 (글자 아래쪽 2/3쯤만 칠해 손으로 그은 느낌), 그 위에 글자
       // 이어진 형광펜 조각은 한 번에 칠한다 — 조각마다 칠하면 겹친 곳이 진해져 줄무늬가 생긴다
       let x = textX, hs: number | null = null;
@@ -289,7 +332,7 @@ async function draw(canvas: HTMLCanvasElement, paras: Run[][], source: string, s
       }
       if (hs !== null) stroke(hs, x);
       x = textX;
-      ctx.fillStyle = st.color;
+      ctx.fillStyle = ink;
       for (const pc of l) {
         ctx.font = fontOf(pc.r);
         ctx.fillText(pc.t, x, y + (lh - st.size) / 2);
@@ -297,6 +340,32 @@ async function draw(canvas: HTMLCanvasElement, paras: Run[][], source: string, s
       }
       y += lh;
     }
+  };
+  const lineW = (l: Piece[]) => l.reduce((n, pc) => { ctx.font = fontOf(pc.r); return n + ctx.measureText(pc.t).width; }, 0);
+  lines.forEach((ls, i) => {
+    y += gapBefore(i);
+    const b = bub[i];
+    if (!b) { for (const l of ls) drawLine(l, textX, st.color); return; }
+    // 이름(말풍선 위) → 파스텔 말풍선 → 글
+    const bw = Math.max(...ls.map(lineW), st.size) + padX * 2;
+    const bx = b.side === 'r' ? textX + textW - bw : textX;
+    const sh = ctx.shadowBlur;
+    ctx.font = `bold ${nameSize}px ${family}`;
+    ctx.fillStyle = st.img ? '#ffffff' : nameInkOf(b.sp.color);
+    ctx.textAlign = b.side === 'r' ? 'right' : 'left';
+    ctx.fillText(b.sp.name, b.side === 'r' ? bx + bw - st.size * 0.3 : bx + st.size * 0.3, y);
+    ctx.textAlign = 'left';
+    y += nameH;
+    const bh = ls.length * lh + padY * 2;
+    const R = st.size * 0.75, r = st.size * 0.22;
+    ctx.shadowBlur = st.img ? 18 * S : 0; ctx.shadowColor = 'rgba(0,0,0,.18)';
+    ctx.fillStyle = pastelOf(b.sp.color);
+    ctx.beginPath(); ctx.roundRect(bx, y, bw, bh, b.side === 'r' ? [R, r, R, R] : [r, R, R, R]); ctx.fill();
+    ctx.shadowBlur = 0;
+    y += padY;
+    for (const l of ls) drawLine(l, bx + padX, '#2c2a2e');
+    y += padY;
+    ctx.shadowBlur = sh; ctx.shadowColor = 'rgba(0,0,0,.28)';
   });
   ctx.font = small;
   ctx.globalAlpha = 0.75;
@@ -334,6 +403,9 @@ export function ExcerptCard({ paras: plain, source, fileName }: { paras: string[
   const toast = useToast();
   const { fonts, familyOf } = useFonts();
   const [st, setSt] = useState<CardStyle>(DEF);
+  // 대사 말풍선 — 문단 번호 → 발화자·붙는 쪽 (사용자 요청)
+  const [talk, setTalk] = useState<(Talk | undefined)[]>([]);
+  const [spEdit, setSpEdit] = useState(false);
   const [ready, setReady] = useState(false);
   const ref = useRef<HTMLCanvasElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -342,13 +414,15 @@ export function ExcerptCard({ paras: plain, source, fileName }: { paras: string[
 
   useEffect(() => { setSt(loadStyle()); setReady(true); }, []);
   const set = (p: Partial<CardStyle>) => setSt(s => { const n = { ...s, ...p }; saveStyle(n); return n; });
+  const speakers = st.speakers ?? DEFAULT_SPEAKERS;
+  const setSpeakers = (sp: Speaker[]) => set({ speakers: sp });
 
   const family = typeof window === 'undefined' ? '' : canvasFamily(st.fontId ? familyOf(st.fontId) : undefined);
   useEffect(() => {
     if (!ready || !ref.current) return;
     let alive = true;
     const c = document.createElement('canvas');
-    void draw(c, paras, source, st, family).then(() => {
+    void draw(c, paras, source, st, family, 1, talk).then(() => {
       // 다 그린 다음에 한 번에 옮긴다 — 그리는 도중의 빈 화면이 깜빡이지 않게
       const v = ref.current;
       if (!alive || !v) return;
@@ -356,7 +430,7 @@ export function ExcerptCard({ paras: plain, source, fileName }: { paras: string[
       v.getContext('2d')!.drawImage(c, 0, 0);
     });
     return () => { alive = false; };
-  }, [ready, paras, source, st, family]);
+  }, [ready, paras, source, st, family, talk]);
 
   const upload = async (f?: File, to: 'img' | 'photo' = 'img') => {
     if (!f) return;
@@ -382,7 +456,7 @@ export function ExcerptCard({ paras: plain, source, fileName }: { paras: string[
     setBusy(true);
     try {
       const c = document.createElement('canvas');
-      await draw(c, paras, source, st, family, 2);
+      await draw(c, paras, source, st, family, 2, talk);
       const blob = await new Promise<Blob | null>(r => c.toBlob(r, 'image/png'));
       if (!blob) throw new Error('이미지를 만들지 못했습니다');
       const name = `${fileName.replace(/[\\/:*?"<>|]+/g, '').slice(0, 40) || '발췌'}.png`;
@@ -434,6 +508,54 @@ export function ExcerptCard({ paras: plain, source, fileName }: { paras: string[
           </div>
           <small>꾸밀 부분을 드래그하고 버튼을 눌러요 — 다시 누르면 꺼져요</small>
         </div>
+        {/* 대사 말풍선 (사용자 요청) — 앞뒤가 따옴표인 문단마다 발화자와 붙는 쪽을 고른다 */}
+        {paras.some(r => isQuote(r.map(x => x.t).join(''))) && (
+          <div className="exc-talk">
+            <div className="exc-talk-h">
+              <span>대사 · 발화자</span>
+              <button type="button" className="ghost" onClick={() => setSpEdit(v => !v)}>{spEdit ? '닫기' : '발화자 편집'}</button>
+            </div>
+            {spEdit && (
+              <div className="exc-sp-edit">
+                {speakers.map((sp, k) => (
+                  <div key={sp.id} className="exc-sp-row">
+                    <ColorField value={sp.color} onChange={color => setSpeakers(speakers.map((x, j) => (j === k ? { ...x, color } : x)))} />
+                    <input className="k-input" value={sp.name} maxLength={10}
+                      onChange={e => setSpeakers(speakers.map((x, j) => (j === k ? { ...x, name: e.target.value } : x)))} />
+                    <button type="button" className="ghost" aria-label="빼기" onClick={() => setSpeakers(speakers.filter((_, j) => j !== k))}>✕</button>
+                  </div>
+                ))}
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button type="button" className="ghost" onClick={() => setSpeakers([...speakers, { id: `sp${Date.now().toString(36)}`, name: '새 발화자', color: '#c08a4a' }])}>＋ 발화자 추가</button>
+                  <button type="button" className="ghost" onClick={() => setSpeakers(DEFAULT_SPEAKERS)}>기본으로</button>
+                </div>
+              </div>
+            )}
+            {paras.map((runs, i) => {
+              const text = runs.map(x => x.t).join('');
+              if (!isQuote(text)) return null;
+              const t = talk[i] ?? { who: null, side: 'l' as const };
+              const put = (p: Partial<Talk>) => setTalk(ts => { const n = [...ts]; n[i] = { ...t, ...p }; return n; });
+              return (
+                <div key={i} className="exc-q">
+                  <div className="exc-q-t">{text.length > 60 ? `${text.slice(0, 60)}…` : text}</div>
+                  <div className="exc-q-c">
+                    {speakers.map(sp => (
+                      <button key={sp.id} type="button" className={`exc-chip ${t.who === sp.id ? 'on' : ''}`}
+                        style={{ ['--c' as string]: pastelOf(sp.color), ['--d' as string]: nameInkOf(sp.color) }}
+                        onClick={() => put({ who: sp.id })}><i />{sp.name}</button>
+                    ))}
+                    <button type="button" className={`exc-chip ${!t.who ? 'on none' : ''}`} onClick={() => put({ who: null })}>없음</button>
+                    <span className="exc-side">
+                      <button type="button" className={t.side === 'l' ? 'on' : ''} onClick={() => put({ side: 'l' })}>왼쪽</button>
+                      <button type="button" className={t.side === 'r' ? 'on' : ''} onClick={() => put({ side: 'r' })}>오른쪽</button>
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
         <div className="exc-row">
           <label>배경</label>
           <div className="exc-bgs">
