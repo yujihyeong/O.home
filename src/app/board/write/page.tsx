@@ -1,6 +1,8 @@
 'use client';
 // 게시판 글쓰기/수정 (4.2 / 5.2 다중 게시판) — 게시판 형태(갤러리/로그)대로 · MD/HTML 모드 + 실시간 미리보기 + 접기/비밀글
 // ?edit=<글 id> 로 진입하면 수정 모드 (작성자·관리자만)
+import { LockIcon } from '@/components/ui/Icons';
+import type { SealedPost } from '@/lib/boardLock';
 import React, { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
@@ -56,6 +58,7 @@ function WriteInner() {
   const bid = pickB ?? editing?.boardId ?? params.get('b') ?? MAIN_BOARD_ID;
   const { boards, patchBoard } = useBoards();
   const board = boards.find(b => b.id === bid) ?? boards[0];
+  const boardLocked = !!board?.locked;   // 게시판 비밀번호 (사용자 요청)
   /** 머리말 (사용자 요청) — 제목 앞 [머리말]. 종류는 게시판마다 직접 써서 추가 */
   const [cat, setCat] = useState('');
   const [catNew, setCatNew] = useState('');
@@ -136,14 +139,15 @@ function WriteInner() {
     setThumbSrc(p.thumbSrc); setThumbCrop(p.thumbCrop);
     if (p.locked) {
       // 잠긴 글 — 이 기기에 기억된 비밀번호 키로 풀어 폼을 채운다
-      setLockOn(true);
+      setLockOn(!p.boardSealed);   // 게시판 잠금으로 봉한 글은 「글 비밀번호」가 아니다
       const sealed = p.locked;
       void (async () => {
-        const k = await postContentKey(true);
-        if (!k) { toast('잠긴 글을 열지 못했습니다 — 프롬프트 게시판을 먼저 열어 주세요'); return; }
+        const k = await postContentKey(isAdmin);
+        if (!k) { toast('잠긴 글을 열지 못했습니다 — 비밀번호를 먼저 입력해 주세요'); return; }
         try {
-          const o = await openBody<{ body: string; images?: string[]; caption?: string }>(k, sealed);
+          const o = await openBody<SealedPost>(k, sealed);
           setBody(o.body ?? ''); setImages(o.images ?? []); setCaption(o.caption ?? '');
+          if (o.thumbSrc) { setThumbSrc(o.thumbSrc); setThumbCrop(o.thumbCrop); }
         } catch { toast('잠긴 글을 열지 못했습니다'); }
       })();
     }
@@ -200,14 +204,20 @@ function WriteInner() {
         images: undefined, caption: undefined,
       };
     // 비밀번호 글 — 본문·이미지·설명을 암호화해 locked에 넣고 겉에는 비워 둔다 (대표 썸네일도 숨김)
-    let lockPart: Pick<Post, 'locked'> = { locked: undefined };
-    if (lockOn && isAdmin) {
-      const k = await ensurePostContentKey();
+    // 잠긴 게시판(사용자 요청)의 글은 자동으로 봉한다 — 게시판 잠금을 풀면 같이 풀린다(boardSealed)
+    const ownLock = lockOn && isAdmin;
+    let lockPart: Pick<Post, 'locked' | 'boardSealed'> = { locked: undefined, boardSealed: undefined };
+    if (ownLock || boardLocked) {
+      const k = isAdmin ? await ensurePostContentKey() : await postContentKey(false);
       if (!k) {
-        toast(postLockAvailable() ? '이 기기에서 프롬프트 게시판을 한 번 열어 주세요 (비밀번호 입력)' : '먼저 프롬프트 게시판에 비밀번호를 걸어 주세요');
+        toast(!isAdmin ? '게시판 비밀번호를 먼저 입력해 주세요'
+          : postLockAvailable() ? '이 기기에서 프롬프트 게시판을 한 번 열어 주세요 (비밀번호 입력)' : '먼저 프롬프트 게시판에 비밀번호를 걸어 주세요');
         return;
       }
-      lockPart = { locked: await sealBody(k, { body: content.body, images: content.images, caption: content.caption }) };
+      lockPart = {
+        locked: await sealBody(k, { body: content.body, images: content.images, caption: content.caption, thumbSrc, thumbCrop } satisfies SealedPost),
+        boardSealed: !ownLock || undefined,
+      };
       Object.assign(content, { body: '', images: undefined, caption: undefined });
     }
     const thumb = lockPart.locked ? { thumbSrc: undefined, thumbCrop: undefined } : { thumbSrc, thumbCrop };
@@ -426,7 +436,8 @@ function WriteInner() {
             <div style={{ display: 'grid', gap: 9 }}>
               <KCheck label="비밀글 (관리자와 나만 열람)" checked={secret} onChange={setSecret} />
               {isAdmin && <KCheck label="♡ 목록 맨 위에 고정" checked={pinned} onChange={setPinned} />}
-              {isAdmin && <KCheck label="🔒 비밀번호 걸기 (프롬프트 게시판과 같은 비밀번호 · 매달 함께 바뀜)" checked={lockOn} onChange={setLockOn} />}
+              {isAdmin && <KCheck label={<><LockIcon className="ic-gap" />비밀번호 걸기 (프롬프트 게시판과 같은 비밀번호 · 매달 함께 바뀜)</>} checked={lockOn} onChange={setLockOn} />}
+              {boardLocked && <p className="hint" style={{ margin: 0 }}><LockIcon className="ic-gap" />잠긴 게시판이라 이 글도 비밀번호로 잠겨요</p>}
             </div>
           </div>
           <div className="panel widget" style={{ marginBottom: 14 }}>

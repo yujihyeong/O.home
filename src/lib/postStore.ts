@@ -92,6 +92,8 @@ export interface Post {
   fontSize?: number;
   /** 비밀번호 글 (사용자 요청) — 본문·이미지·설명을 프롬프트 게시판 비밀번호로 암호화한 것. 있으면 body는 비어 있다 */
   locked?: { iv: string; data: string };
+  /** 게시판 잠금으로 함께 잠긴 글 — 게시판 비밀번호를 풀면 다시 풀린다 (글마다 직접 건 잠금과 구분) */
+  boardSealed?: boolean;
 }
 
 export type PostKind = 'gallery' | 'log';

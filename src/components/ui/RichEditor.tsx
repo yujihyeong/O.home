@@ -1,6 +1,7 @@
 'use client';
 // 리치 텍스트 에디터 (TipTap) — 프로필 탭 등 HTML 콘텐츠 작성용
 // 자체 스타일 툴바 (7장 — 기본 UI 금지) · 출력은 HTML, 저장 시 새니타이즈는 렌더 쪽에서 (6.3)
+import { ImageIcon } from './Icons';
 import React, { useEffect, useRef, useState } from 'react';
 import { useEditor, EditorContent, Mark } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
@@ -185,7 +186,7 @@ export function RichEditor({ value, onChange, placeholder, font }: {
         <TBtn title="맞춤법 검사 — 드래그하면 그 부분만, 아니면 글 전체" label="가✓" on={!!spell} onClick={runSpell} />
         <span className="re-sep" />
         {font && <><FontControls whole={font.whole} onPick={pickFont} /><span className="re-sep" /></>}
-        <TBtn title={busy ? '올리는 중…' : '이미지 올리기'} label={busy ? '⏳' : '🖼'}
+        <TBtn title={busy ? '올리는 중…' : '이미지 올리기'} label={busy ? '⏳' : <ImageIcon size={15} />}
           onClick={() => { if (!busy) fileRef.current?.click(); }} />
         <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }}
           onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; void insertImage(f); }} />

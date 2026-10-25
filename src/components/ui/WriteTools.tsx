@@ -2,6 +2,7 @@
 // 글쓰기 도구 막대 — 로그 정리 · 맞춤법 검사
 // 드래그해서 고른 부분이 있으면 그 부분에만, 없으면 글 전체에 적용한다.
 // 텍스트에리어용(TextTools)과 TipTap 에디터용(RichEditor가 SpellPanel을 직접 씀)이 같은 패널을 공유한다.
+import { ImageIcon } from './Icons';
 import React, { useRef, useState } from 'react';
 import { expandToLines, findSpelling, SpellIssue, tidyLog } from '@/lib/writeTools';
 import { useToast } from '@/components/ui/Toast';
@@ -272,7 +273,7 @@ export function TextTools({ value, onChange, log, spell: spellOn = true, font, u
           <button type="button" disabled={upBusy} onMouseDown={e => e.preventDefault()}
             onClick={() => { caret.current = ta()?.selectionEnd ?? null; fileRef.current?.click(); }}
             data-tip="커서가 있는 자리에 이미지를 넣어요 — 여러 장 가능">
-            {upBusy ? '올리는 중…' : '🖼 이미지'}
+            {upBusy ? '올리는 중…' : <><ImageIcon className="ic-gap" />이미지</>}
           </button>
           <input ref={fileRef} type="file" accept="image/*" multiple style={{ display: 'none' }}
             onChange={e => { void addImages(e.target.files); e.target.value = ''; }} />

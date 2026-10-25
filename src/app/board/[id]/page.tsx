@@ -1,5 +1,6 @@
 'use client';
 // 게시글 상세 (4.2) — 본문 렌더(격리 새니타이즈) · 접기 · 댓글+대댓글
+import { LockIcon } from '@/components/ui/Icons';
 import { PostHead } from '@/components/ui/PostHead';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
@@ -231,7 +232,7 @@ export default function BoardDetailPage() {
       <div className="panel" style={{ padding: '26px 28px' }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
           <h2 style={{ fontSize: 19, marginBottom: 4, flex: 1 }}>
-            {(post.secret || post.locked) && '🔒 '}<PostHead cat={post.category} />{post.title}
+            {(post.secret || (post.locked && !post.boardSealed)) && <LockIcon className="ic-gap" />}<PostHead cat={post.category} />{post.title}
           </h2>
           {/* 로그 글 — 원하는 문단을 눌러 골라 발췌 */}
           {post.kind !== 'gallery' && (!post.fold || open) && (

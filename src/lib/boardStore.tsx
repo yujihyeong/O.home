@@ -137,6 +137,8 @@ export interface Board {
   permComment: BoardPerm;  // 댓글 권한
   cats: BoardBadge[];      // 게시판별 말머리
   fg?: string;             // 목록 글씨색 (v1.9 — 미지정이면 테마 기본색)
+  /** 게시판 비밀번호 (사용자 요청) — 프롬프트 게시판과 같은 비밀번호로 열고, 글 본문은 그 비밀번호로 암호화해 둔다 */
+  locked?: boolean;
 }
 
 const BOARDS_KEY = 'ohome.boards.v1';

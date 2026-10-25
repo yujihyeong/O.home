@@ -19,6 +19,7 @@ import { PageTitle, EditableDesc } from '@/components/ui/PageText';
 import { ConfirmModal, Modal } from '@/components/ui/Modal';
 import { useToast } from '@/components/ui/Toast';
 import { LockScreen } from '@/components/ui/LockScreen';
+import { LockIcon } from '@/components/ui/Icons';
 
 /** 사진 주소 — 사이트에 든 그림(/…)은 그대로, 올린 사진은 저장소에서 */
 function usePic(img?: string | null) {
@@ -315,7 +316,7 @@ function PromptInner() {
         <EditableDesc k="prompt-desc" def="캐릭터별 복장 프롬프트" />
         {isAdmin && (
           <div className="head-actions">
-            <button className="btn btn-ghost" onClick={() => setPwOpen(true)} aria-label="게시판 비밀번호">{board.locked ? '🔒 비밀번호' : '🔓 비밀번호'}</button>
+            <button className="btn btn-ghost" onClick={() => setPwOpen(true)} aria-label="게시판 비밀번호"><LockIcon open={!board.locked} className="ic-gap" />비밀번호</button>
             <button className="btn btn-dark" onClick={startNew}>＋ 새 글</button>
           </div>
         )}
