@@ -36,6 +36,25 @@ export default function GuestbookPage() {
   const [editText, setEditText] = useState('');
   const [editSecret, setEditSecret] = useState(false);
   const isMine = (e: GuestEntry) => !!user && !!e.authorId && e.authorId === user.id;
+  /* 내가 단 답글 고치기 (사용자 요청) — 따로 저장된 답글은 단 회원 본인이,
+     예전 방식(글 안에 든 관리자 답글)은 관리자가 */
+  const [rEdit, setREdit] = useState<{ rowId?: string; entryId?: string } | null>(null);
+  const [rEditText, setREditText] = useState('');
+  const saveReplyEdit = () => {
+    if (!rEdit) return;
+    const t = rEditText.trim();
+    if (!t) { toast('내용을 입력해 주세요'); return; }
+    if (rEdit.rowId) {
+      const c = cmtRows.find(x => x.id === rEdit.rowId);
+      if (!c || !user || c.authorId !== user.id) { toast('수정 권한이 없습니다'); return; }
+      setCmtRows(cmtRows.map(x => (x.id === c.id ? { ...x, text: t } : x)));
+    } else if (rEdit.entryId) {
+      if (!isAdmin) { toast('수정 권한이 없습니다'); return; }
+      setEntries(entries.map(x => (x.id === rEdit.entryId && x.reply ? { ...x, reply: { ...x.reply, text: t } } : x)));
+    }
+    setREdit(null);
+    toast('답글을 수정했습니다');
+  };
   const openEdit = (e: GuestEntry) => { setEditFor(e.id); setEditText(e.body); setEditSecret(e.secret); };
   const saveEdit = () => {
     const e = entries.find(x => x.id === editFor);
@@ -196,11 +215,20 @@ export default function GuestbookPage() {
             </p>
             {/* 예전 방식(글 안에 든 관리자 답글)도 그대로 보여 준다 — 이미 쌓인 데이터 (v2.0) */}
             {e.reply && canRead(e) && (
-              <div className="reply"><b>↳ {e.reply.author}</b>{e.reply.text}</div>
+              <div className="reply"><b>↳ {e.reply.author}</b>{e.reply.text}
+                {isAdmin && (
+                  <span style={{ cursor: 'var(--cur-pointer,pointer)', marginLeft: 8, fontSize: 10.5, color: 'var(--faint)' }}
+                    onClick={() => { setREdit({ entryId: e.id }); setREditText(e.reply!.text); }}>수정</span>
+                )}
+              </div>
             )}
             {canRead(e) && repliesOf(e.id).map(c => (
               <div className="reply" key={c.id}>
                 <b>↳ {c.author}</b>{c.text}
+                {!!user && !!c.authorId && c.authorId === user.id && (
+                  <span style={{ cursor: 'var(--cur-pointer,pointer)', marginLeft: 8, fontSize: 10.5, color: 'var(--faint)' }}
+                    onClick={() => { setREdit({ rowId: c.id }); setREditText(c.text); }}>수정</span>
+                )}
                 {(isAdmin || (!!c.authorId && c.authorId === user?.id)) && (
                   <span style={{ cursor: 'var(--cur-pointer,pointer)', marginLeft: 8, fontSize: 10.5, color: 'var(--faint)' }}
                     onClick={() => removeReply(c)}>삭제</span>
@@ -227,6 +255,15 @@ export default function GuestbookPage() {
         </div>
       </Modal>
       {del.element}
+
+      {/* 내가 단 답글 수정 (사용자 요청) */}
+      <Modal open={rEdit !== null} onClose={() => setREdit(null)} small title="답글 수정"
+        actions={<>
+          <button className="btn btn-ghost" onClick={() => setREdit(null)}>CANCEL</button>
+          <button className="btn btn-dark" onClick={saveReplyEdit}>SAVE</button>
+        </>}>
+        <KTextarea value={rEditText} onChange={e => setREditText(e.target.value)} placeholder="답글 내용" />
+      </Modal>
 
       {/* 내가 쓴 방명록 수정 (사용자 요청) */}
       <Modal open={editFor !== null} onClose={() => setEditFor(null)} small title="방명록 수정"
