@@ -21,7 +21,7 @@ const linksOf = (conf: WidgetConf): CardLink[] => {
     : [];
 };
 const themeOf = (conf: WidgetConf) => (conf.settings.theme === 'story' ? 'story' : 'card');
-const motionOf = (conf: WidgetConf) => (conf.settings.motion === 'flow' ? 'flow' : 'spin');
+const motionOf = (conf: WidgetConf) => (conf.settings.motion === 'spin' ? 'spin' : 'flow');   // 기본은 흐름(B, 사용자 선택)
 
 /** 스토리 테마의 동그라미 하나 */
 function StoryItem({ l }: { l: CardLink }) {
@@ -153,8 +153,8 @@ export function LinkCardEditor({ conf }: { conf: WidgetConf }) {
         </div>
         {story && (
           <div className="mini-seg">
-            <button type="button" className={motionOf(conf) === 'spin' ? 'on' : ''} onClick={() => set({ motion: 'spin' })}>빙글빙글</button>
             <button type="button" className={motionOf(conf) === 'flow' ? 'on' : ''} onClick={() => set({ motion: 'flow' })}>흐름</button>
+            <button type="button" className={motionOf(conf) === 'spin' ? 'on' : ''} onClick={() => set({ motion: 'spin' })}>빙글빙글</button>
           </div>
         )}
       </div>
