@@ -223,10 +223,12 @@ function ThreadsPageInner() {
     if (pathNo.p) pendingPNo.current = pathNo.p;
   }, [pathNo, works, workNoMap]);
 
+  const linked = !!(routeQ.get('w') || pathNo);
   // 기본 보기 — 환경설정값 로드 후 1회 적용 (v1.8 확정)
   useEffect(() => {
-    if (setLoaded && !viewInit) { setView(settings.defaultView); setViewInit(true); }
-  }, [setLoaded, viewInit, settings.defaultView]);
+    // 공유 주소로 들어오면 기본 보기가 리스트여도 그 타래를 연다 (사용자 요청)
+    if (setLoaded && !viewInit) { setView(linked ? 'thread' : settings.defaultView); setViewInit(true); }
+  }, [setLoaded, viewInit, settings.defaultView, linked]);
 
   // 공개범위 → 분류 필터 → 검색, 최근 글 순
   const visible = useMemo(() => works
