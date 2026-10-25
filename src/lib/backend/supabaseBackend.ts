@@ -160,8 +160,19 @@ export async function createSupabaseBackend(
       if (patch.avatarUrl !== undefined) row.avatar_url = patch.avatarUrl;
       if (patch.avatarColor !== undefined) row.avatar_color = patch.avatarColor;
       if (Object.keys(row).length > 1) {   // id 말고 실제 바꿀 필드가 있을 때만 (비번만 바꾸면 생략)
-        const { error } = await sb.from('profiles').upsert(row, { onConflict: 'id' });
+        // 있는 행은 고치기(update)로 (사용자 제보 — 회원 프로필 사진이 안 바뀌던 문제).
+        // 예전엔 upsert였는데, upsert는 먼저 「새 행 넣기」를 시도해서 바꿀 칸만 보낸 경우
+        // 필수 칸(닉네임)이 비었다고 거절당했다 — 사진만 바꾸면 늘 실패
+        const { id: _id, ...patchRow } = row;
+        void _id;
+        const { data: upd, error } = await sb.from('profiles').update(patchRow).eq('id', data.user.id).select('id');
         if (error) return { ok: false, error: error.message };
+        if (!upd?.length) {
+          // 프로필 행이 아직 없을 때만 새로 만든다 — 닉네임을 채워서
+          const nick = (patch.nickname ?? (data.user.user_metadata?.nickname as string | undefined) ?? data.user.email?.split('@')[0] ?? 'user');
+          const { error: insErr } = await sb.from('profiles').insert({ ...row, nickname: nick });
+          if (insErr) return { ok: false, error: insErr.message };
+        }
       }
       return { ok: true };
     },
