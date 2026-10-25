@@ -126,7 +126,7 @@ export function PushSettings() {
     <div className="panel" style={{ padding: 24 }}>
       <h4 style={{ fontSize: 11.5, letterSpacing: '.12em', color: 'var(--faint)', marginBottom: 6 }}>WEB PUSH</h4>
       <p className="hint" style={{ margin: '0 0 12px', lineHeight: 1.6 }}>
-        웹푸시 알림 받기 — 체크한 기기에만 역극·댓글·메모·다이어리 알림이 브라우저 알림으로 옵니다 (탭을 닫아도).
+        웹푸시 알림 받기 — 체크한 기기에만 댓글·메모·다이어리 알림이 브라우저 알림으로 옵니다 (탭을 닫아도).
         켜기는 그 기기에서, 끄기는 어디서든 됩니다.
       </p>
       <div style={{ display: 'grid', gap: 10 }}>
@@ -135,7 +135,7 @@ export function PushSettings() {
         {/* 내용 숨기기 (커플홈 사용자 요청) — 잠금 화면 등에 글 내용이 보이지 않게, 종류만 적은 문구로 */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginTop: 4 }}>
           <KCheck label="알림에 내용 숨기기" checked={hideOn} disabled={busy} onChange={v => setHide(v)} />
-          <small className="hint" style={{ margin: 0 }}>글 내용 대신 「역극 새 메시지 · 내용은 홈에서 확인해 주세요」처럼 종류만 표시</small>
+          <small className="hint" style={{ margin: 0 }}>글 내용 대신 「새 댓글 · 내용은 홈에서 확인해 주세요」처럼 종류만 표시</small>
         </div>
       </div>
       {/* 아이폰·아이패드의 브라우저 탭에는 푸시 API 자체가 없다(사파리든 크롬이든) — 홈 화면에 추가한 웹앱에서만 생긴다 (iOS 16.4+).

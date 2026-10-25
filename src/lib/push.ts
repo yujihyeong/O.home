@@ -145,7 +145,7 @@ export interface PushPayload {
 export const PUSH_HIDE_KEY = 'ohome.pushhide.v1';
 
 const HIDE_TITLE: Record<string, string> = {
-  rp: '역극 새 메시지', comment: '새 댓글', guest: '방명록 새 글', thread: '타래 새 글', memo: '새 메모', diary: '새 다이어리',
+  comment: '새 댓글', guest: '방명록 새 글', thread: '타래 새 글', memo: '새 메모', diary: '새 다이어리',
 };
 /** 내용을 숨긴 문구 — 종류와 「홈에서 확인」만 (아이콘은 그대로) */
 export function hiddenPayload(p: PushPayload): PushPayload {

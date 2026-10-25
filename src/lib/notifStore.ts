@@ -13,7 +13,8 @@ import { fetchList, syncList } from './db';
 import { webPushTo } from './push';
 import { currentUserId } from './currentUser';
 
-export type NotifType = 'rp' | 'comment' | 'guest' | 'prompt';
+// 역극 새 메시지 알림은 없앴다 (사용자 요청 — 쓰지 않는 기능)
+export type NotifType = 'comment' | 'guest' | 'prompt';
 export interface Notif {
   id: string;
   type: NotifType;
@@ -42,13 +43,14 @@ const SET_KEY = 'ohome.notifset.v1'; // 회원별 알림 항목 on/off — { [us
 export const NOTIF_EVENT = 'ohome-notif';
 
 export const NOTIF_TYPE_LABEL: Record<NotifType, string> = {
-  rp: '역극 새 메시지', comment: '내 글 댓글', guest: '방명록 (관리자)', prompt: '프롬프트 비밀번호 변경 (관리자)',
+  comment: '내 글 댓글', guest: '방명록 (관리자)', prompt: '프롬프트 비밀번호 변경 (관리자)',
 };
 
 export function readNotifs(): Notif[] {
   try {
     const all = JSON.parse(localStorage.getItem(KEY) ?? '[]') as Notif[];
-    const kept = pruneNotifs(all);
+    // 예전에 쌓인 역극 알림도 보이지 않게 정리한다 (역극 알림 기능 삭제)
+    const kept = pruneNotifs(all).filter(n => (n.type as string) !== 'rp');
     // 정리된 게 있으면 저장까지 (다음 번에 또 훑지 않게) — 여기서 이벤트를 쏘면 렌더 중 갱신이 되어 안 쏜다
     if (kept.length !== all.length) {
       try { localStorage.setItem(KEY, JSON.stringify(kept)); } catch { /* 무시 */ }
@@ -62,8 +64,8 @@ function write(list: Notif[]) {
   window.dispatchEvent(new Event(NOTIF_EVENT));
 }
 
-export interface NotifSettings { rp: boolean; comment: boolean; guest: boolean; prompt: boolean }
-const DEFAULT_SET: NotifSettings = { rp: true, comment: true, guest: true, prompt: true };
+export interface NotifSettings { comment: boolean; guest: boolean; prompt: boolean }
+const DEFAULT_SET: NotifSettings = { comment: true, guest: true, prompt: true };
 
 export function notifSettings(userId: string): NotifSettings {
   try {
