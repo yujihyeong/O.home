@@ -8,11 +8,9 @@ import {
   useLocalList, BOARD_SEED, GUEST_SEED, Post, GuestEntry, fmtDate,
   CommentRow, COMMENT_KEY, COMMENT_SEED,
 } from '@/lib/postStore';
-import { Character, CHAR_SEED } from '@/lib/charStore';
 import { RoadItem, ROAD_SEED } from '@/lib/galleryStore';
 import { useBoards } from '@/lib/boardStore';
 import { collectMyItems, MyItem } from '@/lib/myActivity';
-import { CroppedBlobImg } from '@/components/ui/CropEditor';
 import { putBlob, useBlobUrl, promoteToStorage } from '@/lib/blobStore';
 import { KInput } from '@/components/ui/Kit';
 import { Modal } from '@/components/ui/Modal';
@@ -26,7 +24,6 @@ export default function MyPage() {
   const router = useRouter();
   const toast = useToast();
   const { user, isAdmin, updateProfile } = useAuth();
-  const [chars] = useLocalList<Character>('ohome.chars.v1', CHAR_SEED);
   const [posts] = useLocalList<Post>('ohome.board.v1', BOARD_SEED);
   const [roads] = useLocalList<RoadItem>('ohome.road.v1', ROAD_SEED);
   const [guestEntries] = useLocalList<GuestEntry>('ohome.guest.v1', GUEST_SEED);
@@ -115,9 +112,6 @@ export default function MyPage() {
     toast(r.ok ? '비밀번호가 변경되었습니다' : r.error!);
   };
 
-  // 나에게 연동된 캐릭터 (일반 회원)
-  const myChars = chars.filter(c => c.grants?.some(g => g.userId === user.id));
-
   // 내가 쓴 글/댓글 (일반 회원) — 6개까지만, 나머지는 전체 리스트에서 (v1.9)
   const myItems: MyItem[] = collectMyItems(user.id, posts, roads, guestEntries, boards, cmtRows);
 
@@ -186,30 +180,6 @@ export default function MyPage() {
 
         {/* 웹푸시 알림 받기 (자놀 이식) — PC·모바일 체크, 처음에는 둘 다 해제 */}
         <PushSettings />
-
-        {/* 나에게 연동된 캐릭터 — 일반 회원만 (관리자는 전권이라 불필요) */}
-        {!isAdmin && (
-          <div className="panel" style={{ padding: 24 }}>
-            <h4 style={{ fontSize: 11.5, letterSpacing: '.12em', color: 'var(--faint)', marginBottom: 14 }}>MY CHARACTERS</h4>
-            {myChars.length === 0 && <p className="hint" style={{ margin: 0 }}>연동된 캐릭터가 없습니다</p>}
-            {/* 1:1 썸네일 그리드 (v1.9) — 8열 균등(좁으면 자동 감소), 이미지 없으면 캐릭터 테마색, 호버 툴팁 이름 */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(60px, 1fr))', gap: 10 }}>
-              {myChars.map(c => (
-                <div key={c.id}
-                  data-tip={c.name}
-                  onClick={() => router.push(`/chars/${c.id}`)}
-                  style={{
-                    aspectRatio: '1/1', borderRadius: 12, overflow: 'hidden', position: 'relative',
-                    cursor: 'var(--cur-pointer,pointer)', background: c.color, border: '1px solid var(--line)',
-                  }}>
-                  {(c.thumbId ?? c.arts?.[0]) && (
-                    <CroppedBlobImg fileRef={c.thumbId ?? c.arts?.[0]} crop={c.thumbCrop} ph={c.thumbClass} />
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
 
         {/* 내가 쓴 글/댓글 — 일반 회원만 */}
         {!isAdmin && (
