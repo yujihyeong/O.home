@@ -217,9 +217,10 @@ function BoardInner() {
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <SearchBar onSearch={v => { setQ(v); setPage(1); }} />
           {isAdmin && (
-            <button className={`btn ${locked ? 'btn-dark' : 'btn-ghost'}`} disabled={lockBusy} onClick={() => setLockAsk(true)}
-              data-tip={locked ? '게시판 비밀번호 바꾸기·풀기' : '게시판에 비밀번호 걸기'}>
-              <LockIcon open={!locked} className="ic-gap" />{lockBusy ? '…' : locked ? '잠금 중' : '잠금'}
+            <button className={`btn btn-lockic ${locked ? 'btn-dark' : 'btn-ghost'}`} disabled={lockBusy} onClick={() => setLockAsk(true)}
+              aria-label={locked ? '게시판 비밀번호 (잠금 중)' : '게시판에 비밀번호 걸기'}
+              data-tip={locked ? '잠금 중 — 비밀번호 바꾸기·풀기' : '게시판에 비밀번호 걸기'}>
+              <LockIcon open={!locked} size={15} />
             </button>
           )}
           {allow(board.permWrite) && !!user && (

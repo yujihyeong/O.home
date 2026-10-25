@@ -3320,3 +3320,6 @@ html[data-scene="night"] .mw-bits i.now{box-shadow:0 0 10px var(--mw-acc)}
 .ic-line{display:inline-block;vertical-align:-2px;flex-shrink:0}
 .ic-gap{margin-right:4px}
 .pr-lock-ic .ic-line{vertical-align:middle}
+
+/* 게시판 잠금 버튼 — 아이콘만 (사용자 요청), 검색 버튼과 같은 크기 */
+.btn.btn-lockic{width:35px;height:35px;padding:0;border-radius:10px;display:inline-grid;place-items:center;box-sizing:border-box}
