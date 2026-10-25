@@ -18,13 +18,46 @@ const SPEAKER = /^((?:\[[^\]]{1,20}\]\s*)?)([^\s:：\[\]"“]{1,20})\s*[:：]\s*
 const URL_LINE = /^<?https?:\/\/\S+>?$/;
 const hasMd = (t: string) => MD_HEAD.test(t) || MD_TAIL.test(t) || URL_LINE.test(t);
 
+/** 줄 앞 블록 마크다운 — 제목 · 인용 · 목록 · 코드 · 표 · 이미지/링크 · 구분선 · HTML (강조 *…* 는 뺀 것) */
+const BLOCK_HEAD = /^(#{1,6}\s|>|[-+]\s|\*\s|\d+[.)]\s|```|~~~|\||!\[|\[[^\]]*\]\(|(-{3,}|\*{3,}|_{3,})\s*$|<[a-z!/])/i;
+/** 강조 조각 — **굵게** 또는 *기울임* */
+const EMPH = /(\*\*[^*\n]+?\*\*|\*[^*\n]+?\*)/;
+
+/**
+ * 한 문단 안에 *강조*와 그냥 글이 섞여 있으면 (사용자 요청)
+ * 강조는 그대로 두고 나머지 글만 ""로 감싼다 — Deine Hände... *걸으며 말했다.* ...you have → "Deine Hände..." *걸으며 말했다.* "...you have"
+ * 섞여 있지 않으면 null
+ */
+function tidyMixed(line: string): string | null {
+  if (BLOCK_HEAD.test(line) || !EMPH.test(line)) return null;
+  const parts = line.split(EMPH);
+  const plain = parts.filter((_, i) => i % 2 === 0).map(t => t.trim());
+  // 강조 바깥에 글자가 없으면 섞인 게 아니다 (*지문*만 있는 줄)
+  if (!plain.some(t => /[\p{L}\p{N}]/u.test(t))) return null;
+  const out: string[] = [];
+  parts.forEach((t, i) => {
+    const v = t.trim();
+    if (!v) return;
+    if (i % 2 === 1 || QUOTED.test(v) || !/[\p{L}\p{N}]/u.test(v)) out.push(v);
+    else out.push(`"${v}"`);
+  });
+  return out.join(' ');
+}
+
 function tidyLine(raw: string): string {
   const line = raw.trim();
-  if (!line || hasMd(line) || QUOTED.test(line)) return line;
-  const sp = line.match(SPEAKER);
+  if (!line) return line;
+  const sp = MD_HEAD.test(line) ? null : line.match(SPEAKER);   // 줄이 마크다운으로 시작하면(*지문: …* 등) 대사로 보지 않는다
+  if (!sp) {
+    const mixed = tidyMixed(line);
+    if (mixed !== null) return mixed;
+  }
+  if (!sp && (hasMd(line) || QUOTED.test(line))) return line;
   if (sp) {
     const [, pre, name, said] = sp;
     const body = said.trim();
+    const m = tidyMixed(body);
+    if (m !== null) return `${pre}${name}: ${m}`;
     if (hasMd(body) || QUOTED.test(body)) return `${pre}${name}: ${body}`;
     return `${pre}${name}: "${body}"`;
   }
@@ -35,11 +68,14 @@ function tidyLine(raw: string): string {
  * 로그 한 덩어리를 정리한다.
  * · 줄마다: 앞뒤에 마크다운이 없으면 "문장" — 이미 따옴표거나 마크다운(*지문*, > 인용, # 제목 …)이면 그대로
  * · 「이름: 대사」는 대사만 감싼다
+ * · 한 줄에 *강조*와 그냥 글이 섞이면 강조는 두고 나머지만 감싼다
+ * · <sub>…</sub> 줄은 바로 위 글 아래에 붙이고, <br>은 지운다
  * · 마크다운은 한 줄 바꿈을 이어 붙이므로, 줄마다 빈 줄을 하나씩 둬 각자 문단이 되게 한다
  * · 코드 블록(```) 안은 손대지 않는다
  */
 export function tidyLog(text: string): string {
-  const lines = text.replace(/\r\n?/g, '\n').split('\n');
+  // <br>은 지운다 (사용자 요청)
+  const lines = text.replace(/\r\n?/g, '\n').replace(/[ \t]*<br\s*\/?>[ \t]*/gi, ' ').split('\n');
   const out: string[] = [];
   let fence = false;
   let codeBuf: string[] = [];
@@ -58,6 +94,8 @@ export function tidyLog(text: string): string {
       || /^([-*+]\s|\d+[.)]\s)/.test(t) && /^([-*+]\s|\d+[.)]\s)/.test(prev.split('\n').pop() ?? ''));
     const tidy = tidyLine(l);
     if (!tidy) continue;
+    // <sub>…</sub> 줄은 바로 위 글 바로 아래에 붙인다 (사용자 요청) — 빈 줄 없이, 마크다운 줄바꿈(끝 공백 둘)으로
+    if (/^<sub>[\s\S]*<\/sub>$/i.test(tidy) && prev !== undefined) { out[out.length - 1] = `${prev}  \n${tidy}`; continue; }
     if (cont) out[out.length - 1] = `${prev}\n${tidy}`;
     else push(tidy);
   }
