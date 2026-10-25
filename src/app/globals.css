@@ -2672,6 +2672,7 @@ html[data-scene="night"] .mb-guest-av{background:#e6def2;box-shadow:inset 0 0 0 
   background:var(--dd-bg,rgba(30,32,38,.75));color:var(--dd-fg,#fff);font-size:14px;line-height:1;opacity:0;transition:opacity .15s;box-shadow:0 2px 6px rgba(0,0,0,.18);text-shadow:none}
 .wgt:hover>.wgt-gear,.wgt-gear:focus-visible{opacity:.92}
 @media (hover:none){.wgt-gear{opacity:.7}}
+.wgt-gear.show{opacity:.9}
 
 /* ===== 이미지 위젯 (사용자 요청) — 1·2·3장 나란히, 위젯 크기에 맞춰 늘어남 ===== */
 .iw-widget{padding:10px;min-width:120px}
