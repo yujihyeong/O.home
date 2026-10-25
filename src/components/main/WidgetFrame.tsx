@@ -288,7 +288,8 @@ export function WidgetFrame({ conf, mobileOrder, children, className, style, onC
     >
       <WidgetGuard name={conf.type}>{children}</WidgetGuard>
       {gear && (
-        <button type="button" className="wgt-gear" aria-label="위젯 설정" data-tip="설정"
+        /* 이미지 위젯은 ⚙를 늘 보이게 (사용자 요청 — 마우스를 올려야 나와서 찾기 어려웠다) */
+        <button type="button" className={`wgt-gear ${conf.type === 'images' ? 'show' : ''}`} aria-label="위젯 설정" data-tip="설정"
           onClick={e => { e.stopPropagation(); window.dispatchEvent(new CustomEvent('ohome-widget-edit', { detail: { id: conf.id } })); }}>⚙</button>
       )}
       {/* Shift+드래그 중앙 정렬 — 폭이 안 맞아 5px 치우칠 때 가로를 어느 쪽으로 맞출지 (v1.9 사용자 요청) */}
