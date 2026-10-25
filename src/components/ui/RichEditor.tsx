@@ -3,7 +3,7 @@
 // 자체 스타일 툴바 (7장 — 기본 UI 금지) · 출력은 HTML, 저장 시 새니타이즈는 렌더 쪽에서 (6.3)
 import { ImageIcon } from './Icons';
 import React, { useEffect, useRef, useState } from 'react';
-import { useEditor, EditorContent, Mark } from '@tiptap/react';
+import { useEditor, EditorContent, Mark, Editor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Image from '@tiptap/extension-image';
 import { putBlob } from '@/lib/blobStore';
@@ -57,12 +57,14 @@ function TBtn({ on, label, title, onClick }: { on?: boolean; label: React.ReactN
   );
 }
 
-export function RichEditor({ value, onChange, placeholder, font }: {
+export function RichEditor({ value, onChange, placeholder, font, onReady }: {
   value: string;
   onChange: (html: string) => void;
   placeholder?: string;
   /** 글씨체·크기 — 드래그한 부분이 있으면 그 부분만, 없으면 글 전체(setWhole) */
   font?: { whole: WholeFont; setWhole: (w: WholeFont) => void };
+  /** 바깥 도구(검게 가리기 등)가 편집기를 직접 다룰 수 있게 */
+  onReady?: (e: Editor | null) => void;
 }) {
   const toast = useToast();
   const { familyOf } = useFonts();
@@ -78,6 +80,12 @@ export function RichEditor({ value, onChange, placeholder, font }: {
     },
     onUpdate: ({ editor: e }) => onChange(e.getHTML()),
   });
+
+  useEffect(() => {
+    onReady?.(editor ?? null);
+    return () => onReady?.(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editor]);
 
   // 외부 값이 완전히 바뀐 경우(탭 전환) 동기화
   useEffect(() => {

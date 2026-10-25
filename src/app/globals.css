@@ -3387,6 +3387,8 @@ html[data-scene="night"] .mw-bits i.now{box-shadow:0 0 10px var(--mw-acc)}
 .body-ed-rep .k-input{width:120px;padding:5px 9px;font-size:calc(12px*var(--fs,1))}
 .body-ed-rep b{color:var(--faint);font-weight:400}
 .body-ed-rep .btn{padding:4px 11px;font-size:calc(11px*var(--fs,1))}
+.body-ed-sep{width:1px;height:16px;background:var(--line);margin:0 4px}
+.body-ed-redact span{letter-spacing:-2px;margin-right:4px;font-size:.85em}
 .thr-pshare{border:none;background:none;color:var(--faint);cursor:var(--cur-pointer,pointer);margin-left:6px;padding:2px;vertical-align:-1px;line-height:0}
 .thr-pshare:hover{color:var(--accent)}
 /* 이미지 위젯 — 관리자는 눌러서 설정 (사용자 요청) */
