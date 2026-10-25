@@ -3365,3 +3365,12 @@ html[data-scene="night"] .mw-bits i.now{box-shadow:0 0 10px var(--mw-acc)}
 .thr-pno{display:inline-block;min-width:26px;color:var(--faint);font-weight:500;font-variant-numeric:tabular-nums}
 .thr-post.focus{animation:thrFocus 2s ease}
 @keyframes thrFocus{0%,40%{background:color-mix(in srgb,var(--accent) 12%,transparent)}100%{background:transparent}}
+
+/* 단어 바꾸기 (사용자 요청 — 감상타래 글쓰기) · 타래 글 공유 */
+.body-ed-rep{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:calc(11.5px*var(--fs,1));color:var(--sub)}
+.body-ed-rep>span{font-weight:600;margin-right:2px}
+.body-ed-rep .k-input{width:120px;padding:5px 9px;font-size:calc(12px*var(--fs,1))}
+.body-ed-rep b{color:var(--faint);font-weight:400}
+.body-ed-rep .btn{padding:4px 11px;font-size:calc(11px*var(--fs,1))}
+.thr-pshare{border:none;background:none;color:var(--faint);cursor:var(--cur-pointer,pointer);margin-left:6px;padding:2px;vertical-align:-1px;line-height:0}
+.thr-pshare:hover{color:var(--accent)}

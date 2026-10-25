@@ -232,6 +232,15 @@ function ThreadsPageInner() {
   const [pView, setPView] = useState<'thread' | 'list'>('list');   // 목록이 먼저 (사용자 요청)
   const [focusPid, setFocusPid] = useState<string | null>(null);
   useEffect(() => { setPView('list'); setFocusPid(null); }, [selId]);
+  // 글 공유 주소(?w=타래&p=글)로 들어오면 그 글을 타래 보기에서 바로 (사용자 요청) — 글이 불러와지면 한 번
+  const pendingP = useRef<string | null>(routeQ.get('p'));
+  useEffect(() => {
+    const pid = pendingP.current;
+    if (!pid || !sel || !sel.posts.some(x => x.id === pid)) return;
+    pendingP.current = null;
+    setPView('thread'); setFocusPid(pid);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sel?.id, sel?.posts.length]);
   useEffect(() => {
     if (pView !== 'thread' || !focusPid) return;
     const t = setTimeout(() => document.getElementById(`tp-${focusPid}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 60);
@@ -347,15 +356,16 @@ function ThreadsPageInner() {
   };
 
   /** 타래 공유 (사용자 요청) — 그 타래가 바로 열리는 주소. 휴대폰은 공유 창, 컴퓨터는 주소 복사 */
-  const shareWork = async (w: ThreadWork) => {
+  const shareWork = async (w: ThreadWork, post?: ThreadPost) => {
     const base = sectionHref('threads', w.secId ?? 'main');
-    const url = `${location.origin}${base}${base.includes('?') ? '&' : '?'}w=${encodeURIComponent(w.id)}`;
+    const url = `${location.origin}${base}${base.includes('?') ? '&' : '?'}w=${encodeURIComponent(w.id)}`
+      + (post ? `&p=${encodeURIComponent(post.id)}` : '');
     if (navigator.share) {
       try { await navigator.share({ title: w.title, url }); } catch { /* 닫음 */ }
       return;
     }
-    try { await navigator.clipboard.writeText(url); toast('타래 주소를 복사했어요'); }
-    catch { window.prompt('타래 주소', url); }
+    try { await navigator.clipboard.writeText(url); toast(post ? '글 주소를 복사했어요' : '타래 주소를 복사했어요'); }
+    catch { window.prompt('주소', url); }
   };
 
   if (!loaded) return <section className="page" />;
@@ -533,7 +543,12 @@ function ThreadsPageInner() {
                             )}
                           </>
                         )}
-                        <div className="tm">{fmtMDHM(p.date)}</div>
+                        <div className="tm">
+                          {fmtMDHM(p.date)}
+                          {/* 이 글 공유 (사용자 요청) */}
+                          <button type="button" className="thr-pshare" aria-label="이 글 공유" data-tip="이 글 공유"
+                            onClick={() => { void shareWork(sel, p); }}><ShareIcon size={11} /></button>
+                        </div>
                         {isAdmin && (
                           <div className="hv-actions">
                             <button onClick={() => openEdit(p)}>EDIT</button>
@@ -552,7 +567,7 @@ function ThreadsPageInner() {
                 {isAdmin && (
                   <div className="thr-write">
                     {/* 글쓰기와 같은 편집기 (사용자 요청) — 에디터·Markdown·로그 정리·HTML, 맞춤법·글씨체·이미지 */}
-                    <BodyEditor value={text} onChange={setText} mode={wMode} onMode={setWMode}
+                    <BodyEditor value={text} onChange={setText} mode={wMode} onMode={setWMode} replace
                       whole={whole} onWhole={setWhole} minHeight={110} />
                     {urls.length > 0 && (
                       <div className="thr-att">
@@ -613,7 +628,7 @@ function ThreadsPageInner() {
           <button className="btn btn-dark" onClick={saveEdit}>SAVE</button>
         </>}>
         <div style={{ display: 'grid', gap: 10 }}>
-          <BodyEditor value={epText} onChange={setEpText} mode={epMode} onMode={setEpMode} whole={epWhole} onWhole={setEpWhole} minHeight={140} />
+          <BodyEditor value={epText} onChange={setEpText} mode={epMode} onMode={setEpMode} whole={epWhole} onWhole={setEpWhole} minHeight={140} replace />
           {/* 접기 (v2.0 스포일러 쿠션) — 컴포저와 같은 선택지 */}
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <KSelect minWidth={140} value={epFoldType} onChange={v => setEpFoldType(v as FoldPick)} options={FOLD_OPTIONS} />
