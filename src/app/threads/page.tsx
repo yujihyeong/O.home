@@ -3,7 +3,7 @@
 // 보기 2종(타래/리스트, 기본 보기는 환경설정) · 분류 필터 · 작품명 검색 · 이어쓰기 컴포저
 import React, { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
 import { useSectionParam, filterSection, sectionSetter, secQuery, sectionHref } from '@/lib/sectionStore';
 import {
@@ -201,6 +201,28 @@ function ThreadsPageInner() {
   const routeQ = useRouteSearch();
   const [selId, setSelId] = useState<string | null>(() => routeQ.get('w'));
 
+  /* 깔끔한 주소 (사용자 요청) — /threads/타래 번호/글 번호.
+     타래 번호 = 이 섹션에서 세워진 순서(시작일 순), 글 번호 = 타래 안 글 순서 (목록의 번호와 같다).
+     예전 주소(?w=…&p=…)도 그대로 열린다 */
+  const pathname = usePathname();
+  const pathNo = useMemo(() => {
+    const m = pathname.match(/^\/threads\/(\d+)(?:\/(\d+))?\/?$/);
+    return m ? { w: Number(m[1]), p: m[2] ? Number(m[2]) : null } : null;
+  }, [pathname]);
+  const workNoMap = useMemo(() => {
+    const order = [...works].sort((a, b) => a.created.localeCompare(b.created) || a.id.localeCompare(b.id));
+    return new Map(order.map((w, i) => [w.id, i + 1]));
+  }, [works]);
+  const pathApplied = useRef(false);
+  useEffect(() => {
+    if (!pathNo || pathApplied.current || !works.length) return;
+    const w = works.find(x => workNoMap.get(x.id) === pathNo.w);
+    if (!w) return;
+    pathApplied.current = true;
+    setSelId(w.id);
+    if (pathNo.p) pendingPNo.current = pathNo.p;
+  }, [pathNo, works, workNoMap]);
+
   // 기본 보기 — 환경설정값 로드 후 1회 적용 (v1.8 확정)
   useEffect(() => {
     if (setLoaded && !viewInit) { setView(settings.defaultView); setViewInit(true); }
@@ -240,13 +262,19 @@ function ThreadsPageInner() {
   useEffect(() => { setPView('list'); setFocusPid(null); }, [selId]);
   // 글 공유 주소(?w=타래&p=글)로 들어오면 그 글을 타래 보기에서 바로 (사용자 요청) — 글이 불러와지면 한 번
   const pendingP = useRef<string | null>(routeQ.get('p'));
+  const pendingPNo = useRef<number | null>(null);   // 깔끔한 주소의 글 번호
   useEffect(() => {
+    // 주소로 고른 타래가 실제로 선택된 뒤에 (선택이 바뀌면 보기가 목록으로 돌아가므로 그다음에 연다)
+    if (pendingPNo.current && sel && sel.id === selId && sel.posts.length >= pendingPNo.current) {
+      pendingP.current = sel.posts[pendingPNo.current - 1].id;
+      pendingPNo.current = null;
+    }
     const pid = pendingP.current;
     if (!pid || !sel || !sel.posts.some(x => x.id === pid)) return;
     pendingP.current = null;
     setPView('thread'); setFocusPid(pid);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sel?.id, sel?.posts.length]);
+  }, [sel?.id, sel?.posts.length, selId]);
   useEffect(() => {
     if (pView !== 'thread' || !focusPid) return;
     const t = setTimeout(() => document.getElementById(`tp-${focusPid}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 60);
@@ -363,9 +391,15 @@ function ThreadsPageInner() {
 
   /** 타래 공유 (사용자 요청) — 그 타래가 바로 열리는 주소. 휴대폰은 공유 창, 컴퓨터는 주소 복사 */
   const shareWork = async (w: ThreadWork, post?: ThreadPost) => {
+    // 주소: /threads/타래 번호/글 번호 (다른 섹션이면 뒤에 ?s=섹션)
     const base = sectionHref('threads', w.secId ?? 'main');
-    const url = `${location.origin}${base}${base.includes('?') ? '&' : '?'}w=${encodeURIComponent(w.id)}`
-      + (post ? `&p=${encodeURIComponent(post.id)}` : '');
+    const q = base.includes('?') ? base.slice(base.indexOf('?')) : '';
+    const wno = workNoMap.get(w.id);
+    const pno = post ? w.posts.findIndex(x => x.id === post.id) + 1 : 0;
+    const url = wno
+      ? `${location.origin}/threads/${wno}${pno > 0 ? `/${pno}` : ''}${q}`
+      : `${location.origin}${base}${base.includes('?') ? '&' : '?'}w=${encodeURIComponent(w.id)}`
+        + (post ? `&p=${encodeURIComponent(post.id)}` : '');
     if (navigator.share) {
       try { await navigator.share({ title: w.title, url }); } catch { /* 닫음 */ }
       return;
