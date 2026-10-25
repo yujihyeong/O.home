@@ -2,7 +2,7 @@
 // 게시판 글쓰기/수정 (4.2 / 5.2 다중 게시판) — 게시판 형태(갤러리/로그)대로 · MD/HTML 모드 + 실시간 미리보기 + 접기/비밀글
 // ?edit=<글 id> 로 진입하면 수정 모드 (작성자·관리자만)
 import { LockIcon } from '@/components/ui/Icons';
-import type { SealedPost } from '@/lib/boardLock';
+import { boardKey, type SealedPost } from '@/lib/boardLock';
 import React, { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
@@ -142,7 +142,8 @@ function WriteInner() {
       setLockOn(!p.boardSealed);   // 게시판 잠금으로 봉한 글은 「글 비밀번호」가 아니다
       const sealed = p.locked;
       void (async () => {
-        const k = await postContentKey(isAdmin);
+        const pb = boards.find(b => b.id === (p.boardId ?? MAIN_BOARD_ID));
+        const k = p.boardSealed && pb ? await boardKey(pb, isAdmin) : await postContentKey(isAdmin);
         if (!k) { toast('잠긴 글을 열지 못했습니다 — 비밀번호를 먼저 입력해 주세요'); return; }
         try {
           const o = await openBody<SealedPost>(k, sealed);
@@ -208,7 +209,8 @@ function WriteInner() {
     const ownLock = lockOn && isAdmin;
     let lockPart: Pick<Post, 'locked' | 'boardSealed'> = { locked: undefined, boardSealed: undefined };
     if (ownLock || boardLocked) {
-      const k = isAdmin ? await ensurePostContentKey() : await postContentKey(false);
+      // 글 비밀번호는 자동 비밀번호 키, 게시판 잠금은 그 게시판 키(직접 정한 비밀번호면 그 키)
+      const k = ownLock ? await ensurePostContentKey() : await boardKey(board, isAdmin);
       if (!k) {
         toast(!isAdmin ? '게시판 비밀번호를 먼저 입력해 주세요'
           : postLockAvailable() ? '이 기기에서 프롬프트 게시판을 한 번 열어 주세요 (비밀번호 입력)' : '먼저 프롬프트 게시판에 비밀번호를 걸어 주세요');

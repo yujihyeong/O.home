@@ -139,6 +139,8 @@ export interface Board {
   fg?: string;             // 목록 글씨색 (v1.9 — 미지정이면 테마 기본색)
   /** 게시판 비밀번호 (사용자 요청) — 프롬프트 게시판과 같은 비밀번호로 열고, 글 본문은 그 비밀번호로 암호화해 둔다 */
   locked?: boolean;
+  /** 직접 정한 비밀번호로 잠갔을 때 (없으면 자동으로 바뀌는 프롬프트 게시판 비밀번호) */
+  lockOwn?: import('./boardLock').BoardOwnLock;
 }
 
 const BOARDS_KEY = 'ohome.boards.v1';
