@@ -519,7 +519,8 @@ function ThreadsPageInner() {
                           </b>
                         </div>
                         <span>{p.images.length > 0 ? `사진 ${p.images.length}` : ''}</span>
-                        <span>{fmtMDHM(p.date)}</span>
+                        {/* 글 목록에는 날짜만 — 등록 시간(시:분)은 빼고 (사용자 요청) */}
+                        <span>{fmtMD(p.date)}</span>
                       </div>
                     ))}
                   </div>
