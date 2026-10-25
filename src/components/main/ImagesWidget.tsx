@@ -32,6 +32,7 @@ function Slot({ img, empty }: { img?: string | null; empty?: React.ReactNode }) 
 
 export function ImagesWidget({ conf }: { conf: WidgetConf }) {
   const { isAdmin } = useAuth();
+  const { editOn } = useMainStore();
   const [open, setOpen] = useState(false);
   useEffect(() => {
     const h = (e: Event) => { if ((e as CustomEvent).detail?.id === conf.id) setOpen(true); };
@@ -41,18 +42,25 @@ export function ImagesWidget({ conf }: { conf: WidgetConf }) {
   const n = countOf(conf);
   const imgs = imgsOf(conf);
   return (
-    <div className="panel widget iw-widget"
-      style={{ '--iw-gap': `${gapOf(conf)}px`, '--iw-r': `${radiusOf(conf)}px` } as React.CSSProperties}>
+    <div className={`panel widget iw-widget ${isAdmin && !editOn ? 'iw-admin' : ''}`}
+      style={{ '--iw-gap': `${gapOf(conf)}px`, '--iw-r': `${radiusOf(conf)}px` } as React.CSSProperties}
+      /* 관리자는 위젯을 누르기만 해도 설정 창이 열린다 (사용자 요청 — ⚙가 잘 안 보여 찾기 어려웠다).
+         편집모드에서는 끌어 옮겨야 하므로 열지 않는다 */
+      onClick={() => { if (isAdmin && !editOn) setOpen(true); }}
+      data-tip={isAdmin && !editOn ? '눌러서 설정' : undefined}>
       <div className="iw-row">
         {Array.from({ length: n }, (_, i) => (
           <Slot key={i} img={imgs[i]} empty={<span className="iw-empty">{isAdmin ? '＋ 이미지' : ''}</span>} />
         ))}
       </div>
-      <Modal open={open} onClose={() => setOpen(false)} title="이미지 위젯"
-        desc="칸 수를 고르고 칸을 눌러 이미지를 넣어 주세요 — 위젯 크기를 바꾸면 이미지 길이도 같이 바뀌어요"
-        actions={<button className="btn btn-dark" onClick={() => setOpen(false)}>CLOSE</button>}>
-        {open && <ImagesEditor conf={conf} />}
-      </Modal>
+      {/* 창 안의 클릭이 위젯 클릭으로 번져 닫자마자 다시 열리지 않게 */}
+      <div onClick={e => e.stopPropagation()} style={{ display: 'contents' }}>
+        <Modal open={open} onClose={() => setOpen(false)} title="이미지 위젯"
+          desc="칸 수를 고르고 칸을 눌러 이미지를 넣어 주세요 — 위젯 크기를 바꾸면 이미지 길이도 같이 바뀌어요"
+          actions={<button className="btn btn-dark" onClick={() => setOpen(false)}>CLOSE</button>}>
+          {open && <ImagesEditor conf={conf} />}
+        </Modal>
+      </div>
     </div>
   );
 }
