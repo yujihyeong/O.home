@@ -34,7 +34,7 @@ class WidgetGuard extends React.Component<{ name: string; children: React.ReactN
  */
 function dragSession(
   e: React.PointerEvent, el: HTMLElement, bodyCls: string,
-  move: (dx: number, dy: number, ev: PointerEvent) => void,
+  move: (dx: number, dy: number, ev: PointerEvent) => number | void,
   end: () => void,
   opts?: { noScroll?: boolean },
 ) {
@@ -52,10 +52,11 @@ function dragSession(
     if (!last) return;
     const dx = last.clientX - sx + ((scroller?.scrollLeft ?? 0) - sl);
     const dy = last.clientY - sy + ((scroller?.scrollTop ?? 0) - st);
-    move(dx, dy, last);
+    // move가 위젯 아래끝을 돌려주면 그걸 쓰고(레이아웃 강제 계산 없이), 아니면 실제 위치로
+    const bottom = move(dx, dy, last);
     // 아래로 끌어 캔버스 밖으로 나가면 캔버스를 늘려 계속 내려갈 수 있게
     if (grid) {
-      const need = el.offsetTop + el.offsetHeight + 40;
+      const need = (typeof bottom === 'number' ? bottom : el.offsetTop + el.offsetHeight) + 40;
       if (need > grid.offsetHeight) grid.style.minHeight = `${need}px`;
     }
   };
@@ -160,14 +161,24 @@ export function WidgetFrame({ conf, mobileOrder, children, className, style, onC
       const myW = () => conf.w ?? Math.round(el.getBoundingClientRect().width);
       const snap = gridOn && !conf.freeMove;   // freeMove(그리드 무시)는 그리드가 켜져 있어도 자유 배치
       let centered = false, ax = bx, ay = by;
+      // 끄는 동안은 left/top 대신 transform으로만 옮긴다 — 레이아웃·다른 위젯 다시 그리기 없이
+      // 화면 합성만 하므로 무거운 위젯(애니메이션·흐림 배경)이 많아도 매끄럽게 (사용자 제보: 버벅임)
+      const rotT = conf.rot ? ` rotate(${conf.rot}deg)` : '';
+      const h0 = el.offsetHeight, w0 = myW();
+      el.style.willChange = 'transform';
       dragSession(e, el, 'drag-move', (dx, dy, ev) => {
         const nx = bx + dx, ny = Math.max(0, by + dy);
         centered = ev.shiftKey && canvasW > 0;
-        const cx = centered ? (canvasW - myW()) / 2 : nx;
+        const cx = centered ? (canvasW - w0) / 2 : nx;
         ax = snap ? Math.round(cx / 10) * 10 : Math.round(cx);
         ay = snap ? Math.round(ny / 10) * 10 : Math.round(ny);
-        el.style.left = `${ax}px`; el.style.top = `${ay}px`;
+        el.style.transform = `translate(${ax - bx}px, ${ay - by}px)${rotT}`;
+        return ay + h0;
       }, () => {
+        // 최종 위치를 left/top으로 옮겨 적고 transform은 원래(기울기)로 — 리액트 반영 전 한 프레임도 튀지 않게
+        el.style.left = `${ax}px`; el.style.top = `${ay}px`;
+        el.style.transform = rotT.trim();
+        el.style.willChange = '';
         if (ax !== bx || ay !== by) updateWidget(conf.id, { ax, ay });
         // 그리드(10px)에서 딱 가운데에 놓으려면 (캔버스폭 - 가로)가 20의 배수여야 함 — 아니면 5px 치우침
         if (centered && snap) {
@@ -206,13 +217,19 @@ export function WidgetFrame({ conf, mobileOrder, children, className, style, onC
     const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
     const base = conf.rot ?? 0;
     const a0 = Math.atan2(e.clientY - cy, e.clientX - cx);
+    // 끄는 동안은 화면만 돌리고 손을 뗄 때 한 번 저장 (버벅임 방지)
+    const pre = abs ? '' : (conf.tx || conf.ty ? `translate(${conf.tx}px, ${conf.ty}px) ` : '');
+    let deg = base;
     dragSession(e, el, 'drag-move', (dx, dy, ev) => {
-      let deg = base + (Math.atan2(ev.clientY - cy, ev.clientX - cx) - a0) * 180 / Math.PI;
-      deg = gridOn && !conf.freeMove ? Math.round(deg / 5) * 5 : Math.round(deg);
-      if (deg > 180) deg -= 360;
-      if (deg < -180) deg += 360;
-      updateWidget(conf.id, { rot: deg === 0 ? undefined : deg });
-    }, () => {}, { noScroll: true });
+      let d = base + (Math.atan2(ev.clientY - cy, ev.clientX - cx) - a0) * 180 / Math.PI;
+      d = gridOn && !conf.freeMove ? Math.round(d / 5) * 5 : Math.round(d);
+      if (d > 180) d -= 360;
+      if (d < -180) d += 360;
+      deg = d;
+      el.style.transform = `${pre}rotate(${deg}deg)`;
+    }, () => {
+      if (deg !== base) updateWidget(conf.id, { rot: deg === 0 ? undefined : deg });
+    }, { noScroll: true });
   };
 
   // 리사이즈 — 절대배치라 흐름 재배치가 없어 실시간 적용해도 다른 위젯이 밀리지 않음 (v1.9)
