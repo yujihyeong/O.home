@@ -228,6 +228,24 @@ function ThreadsPageInner() {
   }, [wCtx]);
   // 접기 해제한 글 (v2.0 스포일러 쿠션) — 이 화면에 있는 동안만 기억한다
   const [openFolds, setOpenFolds] = useState<Set<string>>(new Set());
+  /* 타래 안 글 보기 (사용자 요청) — 타래(이어 보기) / 목록(게시판처럼 한 줄씩). 목록에서 누르면 그 글로 */
+  const [pView, setPView] = useState<'thread' | 'list'>('thread');
+  const [focusPid, setFocusPid] = useState<string | null>(null);
+  useEffect(() => { setPView('thread'); setFocusPid(null); }, [selId]);
+  useEffect(() => {
+    if (pView !== 'thread' || !focusPid) return;
+    const t = setTimeout(() => document.getElementById(`tp-${focusPid}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 60);
+    const u = setTimeout(() => setFocusPid(null), 2200);
+    return () => { clearTimeout(t); clearTimeout(u); };
+  }, [pView, focusPid]);
+  /** 목록 한 줄 — 마크다운·HTML 기호를 걷어 낸 첫 줄 */
+  const excerptOf = (p: ThreadPost) => {
+    const plain = (p.mode === 'html' ? p.text.replace(/<[^>]+>/g, ' ') : p.text)
+      .replace(/<[^>]+>/g, ' ').replace(/!\[[^\]]*\]\([^)]*\)/g, '').replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
+      .replace(/[*_~`>#|]+/g, '').replace(/&nbsp;/g, ' ');
+    const line = plain.split('\n').map(x => x.trim()).find(Boolean) ?? '';
+    return line.length > 60 ? `${line.slice(0, 60)}…` : line;
+  };
 
   // 이어쓰기 컴포저 (관리자)
   const [text, setText] = useState('');
@@ -463,11 +481,38 @@ function ThreadsPageInner() {
                     </div>
                   </div>
                 </div>
+                {/* 타래 / 목록 전환 (사용자 요청) */}
+                {sel.posts.length > 0 && (
+                  <div className="thr-pview">
+                    <div className="mini-seg">
+                      <button className={pView === 'thread' ? 'on' : ''} onClick={() => setPView('thread')}>타래</button>
+                      <button className={pView === 'list' ? 'on' : ''} onClick={() => setPView('list')}>목록 {sel.posts.length}</button>
+                    </div>
+                  </div>
+                )}
+                {pView === 'list' ? (
+                  <div className="board-list flush thr-plist">
+                    {sel.posts.map((p, i) => (
+                      <div key={p.id} className="brow nocat" onClick={() => { setFocusPid(p.id); setPView('thread'); }}>
+                        <div className="tcell">
+                          <b>
+                            <span className="thr-pno">{i + 1}</span>
+                            {p.fold && !openFolds.has(p.id)
+                              ? <span style={{ color: 'var(--faint)' }}>{p.fold.type === 'custom' ? (p.fold.label || '접힌 글') : FOLD_LABEL[p.fold.type]}</span>
+                              : (excerptOf(p) || (p.images.length ? '(사진)' : '(빈 글)'))}
+                          </b>
+                        </div>
+                        <span>{p.images.length > 0 ? `사진 ${p.images.length}` : ''}</span>
+                        <span>{fmtMDHM(p.date)}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
                 <div className="thr-body">
                   {sel.posts.map(p => {
                     const folded = !!p.fold && !openFolds.has(p.id);
                     return (
-                      <div key={p.id} className="thr-post">
+                      <div key={p.id} id={`tp-${p.id}`} className={`thr-post ${focusPid === p.id ? 'focus' : ''}`}>
                         {folded ? (
                           /* 접기 쿠션 (v2.0 사용자 요청) — 문구만 보이고, 눌러야 내용이 나온다 */
                           <div className="thr-fold" onClick={() => setOpenFolds(s => { const n = new Set(s); n.add(p.id); return n; })}>
@@ -502,6 +547,7 @@ function ThreadsPageInner() {
                     <p style={{ fontSize: 12.5, color: 'var(--faint)', paddingBottom: 18 }}>아직 글이 없습니다</p>
                   )}
                 </div>
+                )}
                 {/* 이어쓰기 컴포저 (트위터식, 관리자) */}
                 {isAdmin && (
                   <div className="thr-write">
