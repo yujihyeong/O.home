@@ -538,10 +538,10 @@ function ThreadsPageInner() {
                         ) : (
                           <>
                             {p.text && exPid === p.id ? (
-                              /* 발췌 (사용자 요청) — 출처는 「타래 이름 • 분류」 */
+                              /* 발췌 (사용자 요청) — 출처 꾸밈은 게시판과 같고 글만 바뀐다: — 「타래 이름」 · 분류뱃지 */
                               <ExcerptBody html={p.mode ? renderBody(p.mode, p.text) : plainHtml(p.text)} active
-                                onExit={() => setExPid(null)} title={sel.title} author={sel.author}
-                                source={`${sel.title} • ${catLabel(cats, sel.catId)}`} style={wholeFontStyle(familyOf, p)} />
+                                onExit={() => setExPid(null)} title={sel.title} author={catLabel(cats, sel.catId)}
+                                style={wholeFontStyle(familyOf, p)} />
                             ) : p.text && (p.mode
                               /* 글쓰기와 같은 편집기로 쓴 글 — 마크다운·HTML 그대로 (사용자 요청) */
                               ? <div className="post-body thr-pbody" style={wholeFontStyle(familyOf, p)}
