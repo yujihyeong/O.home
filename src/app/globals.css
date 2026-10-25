@@ -3344,3 +3344,13 @@ html[data-scene="night"] .mw-bits i.now{box-shadow:0 0 10px var(--mw-acc)}
 .exc-side button.on{background:var(--ink);color:var(--panel-solid,#fff)}
 /* 제목 끈 모스부호 위젯 — 부호 줄이 위로 붙게 */
 .wgt-notitle .mw-code{margin-top:4px}
+
+/* 감상타래 — 글쓰기와 같은 편집기 · 마크다운/HTML 글 · 공유 (사용자 요청) */
+.body-ed{display:grid;gap:8px}
+.body-ed-modes{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.thr-write .body-ed{padding:12px 18px 8px}
+.thr-write .body-ed textarea{border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--panel-solid,transparent)}
+.thr-pbody{margin:0 0 6px}
+.thr-pbody>:first-child{margin-top:0}
+.thr-pbody>:last-child{margin-bottom:0}
+.btn.thr-share{padding:4px 8px;display:inline-grid;place-items:center;line-height:1}

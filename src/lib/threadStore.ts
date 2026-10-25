@@ -16,6 +16,11 @@ export interface ThreadPost {
   /** 접기 (v2.0 사용자 요청 — 스포일러 1차 쿠션). 게시판 글 접기(6.2)와 같은 모양:
    *  spoiler/adult는 정해진 문구, custom은 label을 그대로 보여 준다. 없으면 바로 보인다. */
   fold?: { type: 'spoiler' | 'adult' | 'custom'; label?: string } | null;
+  /** 글쓰기와 같은 편집기로 쓴 글 (사용자 요청) — 렌더 방식·작성 도구·글 전체 글씨체/크기. 없으면 예전 그냥 글 */
+  mode?: 'md' | 'html';
+  authored?: 'editor' | 'log';
+  fontId?: string;
+  fontSize?: number;
 }
 
 export interface ThreadWork {

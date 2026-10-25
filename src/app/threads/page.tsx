@@ -7,8 +7,8 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
 import { useSectionParam, filterSection, sectionSetter, secQuery, sectionHref } from '@/lib/sectionStore';
 import {
-  useLocalList, newId, fmtDate, Comment,
-  CommentRow, COMMENT_KEY, COMMENT_SEED, commentsFor,
+  useLocalList, newId,
+  CommentRow, COMMENT_KEY, COMMENT_SEED,
 } from '@/lib/postStore';
 import {
   ThreadWork, ThreadPost, THREAD_SEED, useThreadSettings, threadCats, catLabel, threadBadgeStyle, lastDate, fmtMD, fmtMDHM,
@@ -16,14 +16,16 @@ import {
 import { useFonts } from '@/lib/fontStore';
 import { putBlob, BlobImg, useBlobUrl } from '@/lib/blobStore';
 import { CroppedBlobImg } from '@/components/ui/CropEditor';
-import { SearchBar, KTextarea, KInput, KSelect } from '@/components/ui/Kit';
-import { GuestIdBar } from '@/components/ui/GuestId';
+import { SearchBar, KInput, KSelect } from '@/components/ui/Kit';
 import { Modal, useConfirmDelete } from '@/components/ui/Modal';
 import { EditableDesc, PageTitle } from '@/components/ui/PageText';
 import { Lightbox } from '@/components/ui/Lightbox';
 import { useToast } from '@/components/ui/Toast';
-import { pushNotif, notifyAdmins } from '@/lib/notifStore';
-import { LockIcon } from '@/components/ui/Icons';
+import { LockIcon, ShareIcon } from '@/components/ui/Icons';
+import { BodyEditor, WriteMode, saveModeOf, modeOf } from '@/components/ui/BodyEditor';
+import { wholeFontStyle, WholeFont } from '@/components/ui/WriteTools';
+import { renderBody } from '@/lib/sanitize';
+import { useRouteSearch } from '@/lib/routeParams';
 import { LockScreen } from '@/components/ui/LockScreen';
 import { LockModal } from '@/components/ui/LockModal';
 import { ensurePostContentKey, postLockAvailable } from '@/lib/promptStore';
@@ -189,7 +191,9 @@ function ThreadsPageInner() {
   const [viewInit, setViewInit] = useState(false);
   const [cat, setCat] = useState('all');
   const [q, setQ] = useState('');
-  const [selId, setSelId] = useState<string | null>(null);
+  // 공유한 주소(?w=타래id)로 들어오면 그 타래부터 (사용자 요청)
+  const routeQ = useRouteSearch();
+  const [selId, setSelId] = useState<string | null>(() => routeQ.get('w'));
 
   // 기본 보기 — 환경설정값 로드 후 1회 적용 (v1.8 확정)
   useEffect(() => {
@@ -244,6 +248,9 @@ function ThreadsPageInner() {
     setFiles(next);
     setUrls(next.map(f => URL.createObjectURL(f)));
   };
+  // 글쓰기와 같은 편집기 (사용자 요청) — 모드·글 전체 글씨체
+  const [wMode, setWMode] = useState<WriteMode>('log');
+  const [whole, setWhole] = useState<WholeFont>({});
   const post = async () => {
     if (!sel) return;
     if (!text.trim() && files.length === 0) { toast('내용을 입력해 주세요'); return; }
@@ -251,6 +258,7 @@ function ThreadsPageInner() {
     for (const f of files) images.push(await putBlob(f));
     const p: ThreadPost = {
       id: newId(), text: text.trim(), images, date: new Date().toISOString(),
+      ...saveModeOf(wMode), fontId: whole.fontId, fontSize: whole.fontSize,
       fold: foldType === 'none' ? undefined : { type: foldType, label: foldType === 'custom' ? foldLabel.trim() || undefined : undefined },
     };
     setWorks(works.map(w => w.id === sel.id ? { ...w, posts: [...w.posts, p] } : w));
@@ -260,6 +268,8 @@ function ThreadsPageInner() {
   // 글 수정 모달 — 텍스트 + 첨부 이미지 관리 (총 4장 제한)
   const [epId, setEpId] = useState<string | null>(null);
   const [epText, setEpText] = useState('');
+  const [epMode, setEpMode] = useState<WriteMode>('md');
+  const [epWhole, setEpWhole] = useState<WholeFont>({});
   const [epFoldType, setEpFoldType] = useState<FoldPick>('none');   // 접기 (v2.0)
   const [epFoldLabel, setEpFoldLabel] = useState('');
   const [epKeep, setEpKeep] = useState<string[]>([]);   // 유지할 기존 이미지 id
@@ -269,7 +279,11 @@ function ThreadsPageInner() {
   const epImgRef = useRef<HTMLInputElement>(null);
   const epCount = epKeep.length + epPh.length + epFiles.length;
   const openEdit = (p: ThreadPost) => {
-    setEpId(p.id); setEpText(p.text);
+    setEpId(p.id);
+    // 예전 그냥 글은 마크다운으로 연다 — 줄바꿈이 사라지지 않게 줄 끝에 마크다운 줄바꿈을 붙인다
+    setEpText(p.mode ? p.text : p.text.replace(/\n/g, '  \n'));
+    setEpMode(p.mode ? modeOf(p.mode, p.authored) : 'md');
+    setEpWhole({ fontId: p.fontId, fontSize: p.fontSize });
     setEpFoldType(p.fold?.type ?? 'none'); setEpFoldLabel(p.fold?.label ?? '');
     setEpKeep(p.images); setEpPh(p.images.length ? [] : (p.phList ?? []));
     setEpFiles([]); setEpUrls([]);
@@ -291,6 +305,7 @@ function ThreadsPageInner() {
       ...w,
       posts: w.posts.map(p => p.id === epId ? {
         ...p, text: epText.trim(), images: [...epKeep, ...added],
+        ...saveModeOf(epMode), fontId: epWhole.fontId, fontSize: epWhole.fontSize,
         phList: [...epKeep, ...added].length ? undefined : (epPh.length ? epPh : undefined),
         fold: epFoldType === 'none' ? undefined : { type: epFoldType, label: epFoldType === 'custom' ? epFoldLabel.trim() || undefined : undefined },
       } : p),
@@ -313,48 +328,17 @@ function ThreadsPageInner() {
     }, `타래의 글 ${w.posts.length}개도 함께 삭제됩니다.`);
   };
 
-  /* ---------- 댓글 (v2.0 사용자 요청) — 게시판과 같은 모양: 한 단계 답글, 손님은 닉네임으로 ---------- */
-  const [cmt, setCmt] = useState('');
-  const [replyTo, setReplyTo] = useState<string | null>(null);
-  const [gName, setGName] = useState('');
-  const guestMode = !user;                       // 손님 작성 허용 (방명록·로드비 기본과 동일)
-  const comments = sel ? commentsFor(cmtRows, 'thread', sel.id) : [];
-  const addComment = () => {
-    if (!sel || !cmt.trim()) return;
-    if (guestMode && !gName.trim()) { toast('닉네임을 입력해 주세요'); return; }
-    const base = { id: newId(), text: cmt.trim(), date: new Date().toISOString(), parentId: replyTo ?? undefined };
-    const c: CommentRow = user
-      ? { ...base, target: 'thread' as const, targetId: sel.id, author: user.nickname, authorId: user.id }
-      : { ...base, target: 'thread' as const, targetId: sel.id, author: gName.trim(), authorId: '' };
-    setCmtRows([...cmtRows, c]);
-    /* 알림 (v2.0) — 타래는 관리자의 것이라 관리자에게, 답글이면 그 댓글 주인에게도 */
-    notifyAdmins({
-      type: 'comment', href: sectionHref('threads', sel.secId ?? 'main'),
-      title: `「${sel.title}」 타래에 새 댓글`, body: `${c.author} — ${c.text.slice(0, 50)}`,
-    });
-    if (replyTo) {
-      // 뿌리 주인만이 아니라 그 대화에 답글을 단 전원에게 (v2.0 포크 제보 — 게시판과 동일)
-      const rootAuthor = comments.find(x => x.id === replyTo)?.authorId;
-      const seen = new Set<string>();
-      for (const t of comments.filter(x => x.id === replyTo || x.parentId === replyTo)) {
-        const to = t.authorId;
-        if (!to || to === (user?.id ?? '') || seen.has(to)) continue;
-        seen.add(to);
-        pushNotif({
-          type: 'comment', toUserId: to, href: sectionHref('threads', sel.secId ?? 'main'),
-          title: to === rootAuthor ? '내 댓글에 답글이 달렸습니다' : '참여한 댓글에 새 답글이 달렸습니다',
-          body: `${c.author} — ${c.text.slice(0, 50)}`,
-        });
-      }
+  /** 타래 공유 (사용자 요청) — 그 타래가 바로 열리는 주소. 휴대폰은 공유 창, 컴퓨터는 주소 복사 */
+  const shareWork = async (w: ThreadWork) => {
+    const base = sectionHref('threads', w.secId ?? 'main');
+    const url = `${location.origin}${base}${base.includes('?') ? '&' : '?'}w=${encodeURIComponent(w.id)}`;
+    if (navigator.share) {
+      try { await navigator.share({ title: w.title, url }); } catch { /* 닫음 */ }
+      return;
     }
-    setCmt(''); setReplyTo(null);
+    try { await navigator.clipboard.writeText(url); toast('타래 주소를 복사했어요'); }
+    catch { window.prompt('타래 주소', url); }
   };
-  // 댓글 삭제 — 답글도 함께. 손님 댓글은 관리자만 지운다 (게시판 v2.0 확정과 동일)
-  const removeComment = (c: Comment) =>
-    del.ask('이 댓글을 삭제하시겠습니까?', () =>
-      setCmtRows(cmtRows.filter(x => !(x.id === c.id || x.parentId === c.id))));
-  const cmtRoots = comments.filter(c => !c.parentId);
-  const cmtChildren = (pid: string) => comments.filter(c => c.parentId === pid);
 
   if (!loaded) return <section className="page" />;
   if (locked && gate !== 'open') {
@@ -464,14 +448,19 @@ function ThreadsPageInner() {
                       타래 시작 {fmtMD(sel.created)} · 글 {sel.posts.length}
                       {sel.visibility !== 'public' && ` · ${sel.visibility === 'member' ? '멤버공개' : '나만보기'}`}
                     </small>
-                    {isAdmin && (
-                      <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
-                        <button className="btn btn-ghost" style={{ padding: '3px 10px', fontSize: 10.5 }}
-                          onClick={() => router.push(`/threads/${sel.id}/edit`)}>EDIT</button>
-                        <button className="btn btn-ghost" style={{ padding: '3px 10px', fontSize: 10.5 }}
-                          onClick={() => removeWork(sel)}>DELETE</button>
-                      </div>
-                    )}
+                    <div style={{ display: 'flex', gap: 6, marginTop: 8, alignItems: 'center' }}>
+                      {isAdmin && (
+                        <>
+                          <button className="btn btn-ghost" style={{ padding: '3px 10px', fontSize: 10.5 }}
+                            onClick={() => router.push(`/threads/${sel.id}/edit`)}>EDIT</button>
+                          <button className="btn btn-ghost" style={{ padding: '3px 10px', fontSize: 10.5 }}
+                            onClick={() => removeWork(sel)}>DELETE</button>
+                        </>
+                      )}
+                      {/* 타래 공유 (사용자 요청) */}
+                      <button className="btn btn-ghost thr-share" aria-label="타래 공유" data-tip="공유"
+                        onClick={() => { void shareWork(sel); }}><ShareIcon size={13} /></button>
+                    </div>
                   </div>
                 </div>
                 <div className="thr-body">
@@ -487,7 +476,11 @@ function ThreadsPageInner() {
                           </div>
                         ) : (
                           <>
-                            {p.text && <p>{p.text}</p>}
+                            {p.text && (p.mode
+                              /* 글쓰기와 같은 편집기로 쓴 글 — 마크다운·HTML 그대로 (사용자 요청) */
+                              ? <div className="post-body thr-pbody" style={wholeFontStyle(familyOf, p)}
+                                  dangerouslySetInnerHTML={{ __html: renderBody(p.mode, p.text) }} />
+                              : <p>{p.text}</p>)}
                             <PostImgs p={p} onOpen={(ids, idx) => setLb({ srcs: ids, idx })} />
                             {p.fold && (
                               /* 다시 접기 — 열어 본 뒤에도 쿠션을 되돌릴 수 있게 */
@@ -512,7 +505,9 @@ function ThreadsPageInner() {
                 {/* 이어쓰기 컴포저 (트위터식, 관리자) */}
                 {isAdmin && (
                   <div className="thr-write">
-                    <textarea placeholder="타래 이어쓰기…" value={text} onChange={e => setText(e.target.value)} />
+                    {/* 글쓰기와 같은 편집기 (사용자 요청) — 에디터·Markdown·로그 정리·HTML, 맞춤법·글씨체·이미지 */}
+                    <BodyEditor value={text} onChange={setText} mode={wMode} onMode={setWMode}
+                      whole={whole} onWhole={setWhole} minHeight={110} />
                     {urls.length > 0 && (
                       <div className="thr-att">
                         {urls.map((u, i) => (
@@ -544,41 +539,6 @@ function ThreadsPageInner() {
                   </div>
                 )}
 
-                {/* 댓글 (v2.0 사용자 요청) — 게시판과 같은 모양: 한 단계 답글, 손님은 닉네임으로 */}
-                <div className="thr-cmts">
-                  <h4>COMMENTS {comments.length > 0 && <span>{comments.length}</span>}</h4>
-                  {cmtRoots.map(c => (
-                    <React.Fragment key={c.id}>
-                      {[c, ...cmtChildren(c.id)].map((x, i) => (
-                        <div key={x.id} className={`cmt ${i > 0 ? 'reply-depth' : ''}`}>
-                          <b>{x.author}</b><small>{fmtDate(x.date)}</small>
-                          {i === 0 && (
-                            <small style={{ cursor: 'var(--cur-pointer,pointer)', color: 'var(--accent)', marginLeft: 8 }}
-                              onClick={() => setReplyTo(replyTo === x.id ? null : x.id)}>
-                              {replyTo === x.id ? '답글 취소' : '답글'}
-                            </small>
-                          )}
-                          {/* 손님 댓글은 관리자만 지운다 (v2.0 확정) — 서버가 그렇게밖에 못 받는다 */}
-                          {(isAdmin || (user && x.authorId === user.id)) && (
-                            <small style={{ cursor: 'var(--cur-pointer,pointer)', marginLeft: 8 }}
-                              onClick={() => removeComment(x)}>삭제</small>
-                          )}
-                          <p>{x.text}</p>
-                        </div>
-                      ))}
-                    </React.Fragment>
-                  ))}
-                  {comments.length === 0 && <p className="hint" style={{ margin: 0 }}>첫 댓글을 남겨보세요</p>}
-                </div>
-                <div className={`cmt-input ${guestMode ? 'guest' : ''}`}>
-                  {guestMode && <GuestIdBar name={gName} onName={setGName} />}
-                  <div className="ci-row" style={guestMode ? undefined : { display: 'contents' }}>
-                    <KInput placeholder={replyTo ? '답글 작성...' : '댓글 남기기...'} value={cmt}
-                      onChange={e => setCmt(e.target.value)}
-                      onKeyDown={e => { if (e.key === 'Enter') addComment(); }} />
-                    <button className="btn btn-dark" onClick={addComment}>POST</button>
-                  </div>
-                </div>
               </>
             )}
           </div>
@@ -607,7 +567,7 @@ function ThreadsPageInner() {
           <button className="btn btn-dark" onClick={saveEdit}>SAVE</button>
         </>}>
         <div style={{ display: 'grid', gap: 10 }}>
-          <KTextarea style={{ minHeight: 120 }} value={epText} onChange={e => setEpText(e.target.value)} />
+          <BodyEditor value={epText} onChange={setEpText} mode={epMode} onMode={setEpMode} whole={epWhole} onWhole={setEpWhole} minHeight={140} />
           {/* 접기 (v2.0 스포일러 쿠션) — 컴포저와 같은 선택지 */}
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <KSelect minWidth={140} value={epFoldType} onChange={v => setEpFoldType(v as FoldPick)} options={FOLD_OPTIONS} />
