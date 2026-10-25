@@ -9,6 +9,7 @@ import { boardEntries, useMenuSettings, buildMenu } from '@/lib/menuStore';
 import { useBoards } from '@/lib/boardStore';
 import { useSections, sectionMenuEntries } from '@/lib/sectionStore';
 import { useCustomLinks, linkEntries } from '@/lib/linkStore';
+import { useAliases, aliasKey } from '@/lib/aliasStore';
 import { useSiteSettings } from '@/lib/siteStore';
 import { useAuth } from '@/lib/auth';
 import { useMainStore } from '@/lib/mainStore';
@@ -42,6 +43,7 @@ const SIDE_TAGS: Record<string, string> = {
   '영': 'INFO', 'beom': 'INFO',
   'story': 'LOG', 'another': 'OOC', 'memory': 'CM',
   'dovsi': 'PROMPT', '선망': 'PROMPT',
+  'threads': 'THREADS', '스레드': 'THREADS', '쓰레드': 'THREADS', '감상타래': 'THREADS', '타래': 'THREADS',
 };
 const sideTag = (label: string) => SIDE_TAGS[label.replace(/\s+/g, '').toLowerCase()];
 
@@ -64,6 +66,7 @@ export function TopBar() {
   const router = useRouter();
   const pathname = usePathname();
   const toast = useToast();
+  const [aliases] = useAliases();
   const [menuOpen, setMenuOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [mOpen, setMOpen] = useState(false);   // 모바일 메뉴 창 (사용자 요청)
@@ -363,7 +366,12 @@ export function TopBar() {
           <div className="mm-head"><span>MENU</span><i />{siteLoaded && <small>{site.title}</small>}</div>
           {(() => {
             let n = 0;   // 차례로 나타나는 순서
-            const row = (href: string, label: string, side = sideTag(label)) => {
+            // 이름표가 없어도 스레드 게시판으로 가는 메뉴(짧은 주소 포함)엔 THREADS (사용자 요청)
+            const isThreads = (href: string) => {
+              const to = href.startsWith('/threads') ? href : aliases[aliasKey(href.split('?')[0])];
+              return !!to && to.startsWith('/threads');
+            };
+            const row = (href: string, label: string, side = sideTag(label) ?? (isThreads(href) ? 'THREADS' : undefined)) => {
               const on = href === curHref || (href === '/' && pathname === '/');
               return (
                 <button key={href} type="button" className={`mm-row ${on ? 'on' : ''}`} style={{ '--i': n++ } as React.CSSProperties}
