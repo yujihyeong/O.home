@@ -229,9 +229,9 @@ function ThreadsPageInner() {
   // 접기 해제한 글 (v2.0 스포일러 쿠션) — 이 화면에 있는 동안만 기억한다
   const [openFolds, setOpenFolds] = useState<Set<string>>(new Set());
   /* 타래 안 글 보기 (사용자 요청) — 타래(이어 보기) / 목록(게시판처럼 한 줄씩). 목록에서 누르면 그 글로 */
-  const [pView, setPView] = useState<'thread' | 'list'>('thread');
+  const [pView, setPView] = useState<'thread' | 'list'>('list');   // 목록이 먼저 (사용자 요청)
   const [focusPid, setFocusPid] = useState<string | null>(null);
-  useEffect(() => { setPView('thread'); setFocusPid(null); }, [selId]);
+  useEffect(() => { setPView('list'); setFocusPid(null); }, [selId]);
   useEffect(() => {
     if (pView !== 'thread' || !focusPid) return;
     const t = setTimeout(() => document.getElementById(`tp-${focusPid}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 60);
@@ -485,8 +485,8 @@ function ThreadsPageInner() {
                 {sel.posts.length > 0 && (
                   <div className="thr-pview">
                     <div className="mini-seg">
-                      <button className={pView === 'thread' ? 'on' : ''} onClick={() => setPView('thread')}>타래</button>
                       <button className={pView === 'list' ? 'on' : ''} onClick={() => setPView('list')}>목록 {sel.posts.length}</button>
+                      <button className={pView === 'thread' ? 'on' : ''} onClick={() => setPView('thread')}>타래</button>
                     </div>
                   </div>
                 )}
