@@ -449,6 +449,9 @@ export async function createFirebaseBackend(cfg: FirebaseCfg): Promise<Backend> 
       await stMod.deleteObject(stMod.ref(storage, ref));
     },
 
+    // 가입 승인은 Supabase에서만 — Firebase는 가입 즉시 회원 (승인 단계 없음)
+    async approveMember() { /* 없음 */ },
+
     async deleteMember(id) {
       // profiles 문서만 지운다 — Authentication 계정은 관리자 키가 있어야 지울 수 있다
       await deleteDoc(doc(db, 'profiles', id));

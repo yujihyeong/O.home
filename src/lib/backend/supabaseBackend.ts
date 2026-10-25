@@ -21,8 +21,16 @@ export async function createSupabaseBackend(
 
   const toUser = async (u: { id: string; email?: string; user_metadata?: Record<string, unknown> } | null | undefined): Promise<BackendUser | null> => {
     if (!u) return null;
-    const { data: prof } = await sb.from('profiles')
-      .select('nickname, role, avatar_url, avatar_color').eq('id', u.id).maybeSingle();
+    type Prof = { nickname?: string; role?: string; avatar_url?: string | null; avatar_color?: string | null; approved?: boolean };
+    let { data: prof, error } = await sb.from('profiles')
+      .select('nickname, role, avatar_url, avatar_color, approved').eq('id', u.id).maybeSingle<Prof>();
+    // 서버 스키마를 아직 다시 실행하지 않아 approved 칸이 없으면 — 예전처럼 (모두 승인)
+    let noApproval = false;
+    if (error) {
+      noApproval = true;
+      ({ data: prof } = await sb.from('profiles')
+        .select('nickname, role, avatar_url, avatar_color').eq('id', u.id).maybeSingle<Prof>());
+    }
     return {
       id: u.id,
       nickname: prof?.nickname ?? (u.user_metadata?.nickname as string) ?? u.email ?? 'user',
@@ -30,6 +38,8 @@ export async function createSupabaseBackend(
       email: u.email,
       avatarUrl: prof?.avatar_url ?? undefined,
       avatarColor: prof?.avatar_color ?? undefined,
+      // 가입 승인 대기 (사용자 요청) — 관리자가 거절해 프로필이 지워진 계정도 회원이 아니다
+      pending: !noApproval && (!prof || prof.approved === false),
     };
   };
 
@@ -89,9 +99,9 @@ export async function createSupabaseBackend(
       return error ? { ok: false, error: error.message } : { ok: true };
     },
 
-    async signUp(id, password, nickname, invite) {
+    async signUp(id, password, nickname, invite, extra) {
       // 가입코드는 서버 트리거(handle_new_user)가 비공개 표와 비교한다 — 틀리면 계정 자체가 만들어지지 않는다
-      const { error } = await sb.auth.signUp({ email: id, password, options: { data: { nickname, invite } } });
+      const { error } = await sb.auth.signUp({ email: id, password, options: { data: { nickname, invite, twitter: extra?.twitter ?? '' } } });
       if (error && /database error/i.test(error.message)) return { ok: false, error: '가입코드가 올바르지 않습니다.' };
       return error ? { ok: false, error: error.message } : { ok: true };
     },
@@ -154,15 +164,28 @@ export async function createSupabaseBackend(
 
     async listMembers() {
       // avatar_url도 함께 — 이미지 정리가 프로필 사진을 「안 쓰는 파일」로 지우지 않게 (v2.0 사용자 제보)
-      const { data, error } = await sb.from('profiles').select('id, nickname, role, avatar_url').order('created_at');
+      let { data, error } = await sb.from('profiles').select('id, nickname, role, avatar_url, approved, twitter, created_at').order('created_at')
+        .returns<Record<string, unknown>[]>();
+      // 승인 칸이 없는 예전 스키마 — 승인 없이 예전처럼
+      if (error) {
+        ({ data, error } = await sb.from('profiles').select('id, nickname, role, avatar_url, created_at').order('created_at')
+          .returns<Record<string, unknown>[]>());
+      }
       if (error) throw error;
       return (data ?? []).map(r => {
-        const p = r as { id: string; nickname: string; role: string; avatar_url?: string | null };
+        const p = r as { id: string; nickname: string; role: string; avatar_url?: string | null; approved?: boolean; twitter?: string | null; created_at?: string };
         return {
           id: p.id, nickname: p.nickname, role: (p.role as 'admin' | 'member') ?? 'member',
           avatarUrl: p.avatar_url ?? undefined,
+          pending: p.approved === false, twitter: p.twitter ?? undefined, createdAt: p.created_at,
         };
       });
+    },
+
+    async approveMember(id) {
+      const { data, error } = await sb.from('profiles').update({ approved: true }).eq('id', id).select('id');
+      if (error) throw new Error(/approved/.test(error.message) ? '서버 스키마를 최신으로 다시 실행해 주세요 (approved 칸이 없습니다)' : error.message);
+      if (!data?.length) throw new Error('수락하지 못했습니다 — 관리자 권한을 확인해 주세요');
     },
 
     async fetchList<T extends ListItem>(coll: string): Promise<T[]> {

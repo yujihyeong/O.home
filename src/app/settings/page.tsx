@@ -3,7 +3,8 @@
 // 나머지 카테고리는 해당 기능 마일스톤에서 함께 구현.
 import React, { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth, inviteCode, setInviteCode } from '@/lib/auth';
-import { useMembers } from '@/lib/members';
+import { useMembers, useMemberList } from '@/lib/members';
+import { PendingMembers } from '@/components/ui/PendingMembers';
 import { useTheme } from '@/lib/ThemeProvider';
 import { ThemeVars } from '@/lib/theme';
 import { ColorField } from '@/components/ui/ColorField';
@@ -991,7 +992,9 @@ function MemberPane() {
   }, []);
   void regVer;
 
-  const members = useMembers();
+  // 가입 승인 대기 회원은 위 「가입 신청」에서 따로 (사용자 요청)
+  const [allMembers, reloadMembers] = useMemberList(true);
+  const members = allMembers.filter(m => !m.pending);
   const serverOn2 = isServerMode();
   // 계정 삭제는 서비스 콘솔에서만 가능 — 바로 열 수 있게 이 홈의 프로젝트 주소를 만들어 둔다
   const authConsoleUrl = (() => {
@@ -1065,6 +1068,11 @@ function MemberPane() {
             }}>SAVE</button>
         </div>
       </div>
+
+      {/* 가입 신청 (사용자 요청) — 트위터 아이디로 신청한 사람을 수락해야 가입 완료 */}
+      <h3 style={{ marginTop: 26 }}>가입 신청</h3>
+      <div className="d">수락하면 회원이 되고, 거절하면 신청이 사라져요 — 승인 전에는 로그인할 수 없어요</div>
+      <PendingMembers list={allMembers} reload={reloadMembers} />
 
       <h3 style={{ marginTop: 26 }}>회원 목록</h3>
       <div className="d">기본 계정(관리자·지인회원)은 삭제할 수 없습니다 — 태그로 그룹화</div>
