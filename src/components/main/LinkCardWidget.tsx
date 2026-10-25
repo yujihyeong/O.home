@@ -47,6 +47,57 @@ function usePic(img?: string | null) {
   return fixed ?? blob;
 }
 
+/** 위젯 안에 n개가 다 들어가는 가장 큰 원 지름 — 열 수를 1..n 다 해 보고 (원 + 이름이 원의 약 28%) */
+function fitCircles(W: number, H: number, n: number) {
+  let best = { d: 0, c: 1, gap: 8 };
+  for (let c = 1; c <= n; c++) {
+    const r = Math.ceil(n / c);
+    const gap = Math.max(8, W * 0.03);
+    const d = Math.min((W - gap * (c - 1)) / c, (H - gap * 0.6 * (r - 1)) / r / 1.28, 140);
+    if (d > best.d) best = { d, c, gap };
+  }
+  return best;
+}
+
+/* 스토리 줄 (사용자 요청) — PC는 위젯 크기에 맞춰 원 크기를 정하고, 한 줄에 안 들어가면 아래로 내려온다.
+   어떤 크기에서도 위젯 밖으로 넘치지 않게(넘치면 원이 작아진다). 모바일은 가로로 밀어 보는 한 줄 그대로 */
+function StoryRow({ links }: { links: CardLink[] }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [fit, setFit] = useState<{ d: number; c: number; gap: number } | null>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const mq = window.matchMedia('(max-width: 620px)');
+    let raf = 0;
+    const lay = () => {
+      raf = 0;
+      if (mq.matches) { setFit(null); return; }
+      const W = el.clientWidth, H = el.clientHeight;
+      if (W < 20 || H < 20) return;
+      const f = fitCircles(W - 4, H - 4, links.length);
+      setFit(prev => (prev && Math.abs(prev.d - f.d) < 0.5 && prev.c === f.c ? prev : f));
+    };
+    const kick = () => { if (!raf) raf = requestAnimationFrame(lay); };
+    const ro = new ResizeObserver(kick);
+    ro.observe(el);
+    mq.addEventListener('change', kick);
+    lay();
+    return () => { ro.disconnect(); mq.removeEventListener('change', kick); if (raf) cancelAnimationFrame(raf); };
+  }, [links.length]);
+  const style = fit
+    ? ({ '--lcs-size': `${fit.d}px`, gap: `${fit.gap * 0.6}px ${fit.gap}px`, '--lcs-cols': fit.c,
+      '--lcs-maxw': `${fit.c * fit.d + (fit.c - 1) * fit.gap + 1}px` } as React.CSSProperties)
+    : undefined;
+  // 재는 건 바깥 칸(위젯 안쪽 남은 자리) — 줄 자체는 원 크기에 맞춰 줄어들므로 재면 점점 작아진다
+  return (
+    <div ref={ref} className={`lcs-box ${fit ? 'fit' : ''}`}>
+      <div className={`lcs-row ${fit ? 'fit' : ''}`} style={style}>
+        {links.map((l, i) => <StoryItem key={i} l={l} />)}
+      </div>
+    </div>
+  );
+}
+
 export function LinkCardWidget({ conf }: { conf: WidgetConf }) {
   const { isAdmin } = useAuth();
   const [open, setOpen] = useState(false);
@@ -69,11 +120,9 @@ export function LinkCardWidget({ conf }: { conf: WidgetConf }) {
     return (
       <div className={`panel widget lcs-widget ${motionOf(conf)}`}>
         {name && <div className="lcs-name">{name}</div>}
-        <div className="lcs-row">
-          {links.length
-            ? links.map((l, i) => <StoryItem key={i} l={l} />)
-            : isAdmin && <span className="lc-empty">⚙ 눌러 링크 추가</span>}
-        </div>
+        {links.length
+          ? <StoryRow links={links} />
+          : <div className="lcs-row">{isAdmin && <span className="lc-empty">⚙ 눌러 링크 추가</span>}</div>}
         {modal}
       </div>
     );
