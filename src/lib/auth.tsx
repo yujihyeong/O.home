@@ -15,15 +15,32 @@ export interface User {
   avatarUrl?: string;    // 프로필 이미지 (파일 참조 또는 URL)
   avatarColor?: string;  // 단색 아바타 (이미지 없을 때)
   email?: string;
+  pending?: boolean;     // 가입 승인 대기 (사용자 요청)
+  twitter?: string;      // 가입할 때 적은 트위터 아이디
 }
 
 type Result = { ok: boolean; error?: string };
+
+/* ---------- 트위터 아이디로 가입 (사용자 요청 — 이메일 대신) ----------
+   로그인 서비스(Supabase)는 이메일 모양의 아이디가 필요해서, 트위터 아이디를 이 홈 전용
+   가짜 주소(받는 곳이 없는 주소)로 바꿔 쓴다. 메일은 보내지 않는다 — 대신 관리자가 승인한다.
+   예전부터 이메일로 가입한 계정은 그대로 이메일로 로그인한다. */
+const TW_DOMAIN = 'x.ohome.invalid';
+/** @ 떼고, 대소문자 무시 */
+export const normHandle = (s: string) => s.trim().replace(/^@+/, '').toLowerCase();
+export const validHandle = (s: string) => /^[a-z0-9_]{1,30}$/.test(normHandle(s));
+/** 로그인 칸에 적은 값 → 실제 로그인 주소 (이메일이면 그대로) */
+export const loginEmailOf = (id: string) => (/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(id.trim()) ? id.trim() : `${normHandle(id)}@${TW_DOMAIN}`);
+/** 이 홈 전용 주소에서 트위터 아이디만 */
+export const handleOfEmail = (email?: string) => (email && email.endsWith(`@${TW_DOMAIN}`) ? email.slice(0, -TW_DOMAIN.length - 1) : undefined);
+const PENDING_MSG = '관리자 승인을 기다리고 있어요 — 승인되면 로그인할 수 있어요.';
 
 interface AuthCtx {
   user: User | null;          // null = 비로그인
   isAdmin: boolean;
   login: (id: string, password: string) => Promise<Result>;
-  signup: (id: string, password: string, nickname: string, inviteCode: string, email?: string) => Promise<Result>;
+  /** id = 트위터 아이디. 가입하면 승인 대기 상태가 되고 로그인되지 않는다 */
+  signup: (id: string, password: string, nickname: string, inviteCode: string) => Promise<Result>;
   findId: (email: string) => Promise<Result & { foundId?: string }>;
   resetPassword: (email: string) => Promise<Result & { tempPassword?: string }>;
   logout: () => Promise<void>;
@@ -65,6 +82,19 @@ const MOCK_ACCOUNTS: Record<string, { password: string; user: User }> = {
 
 function mockRegistry(): Record<string, { password: string; user: User }> {
   try { return JSON.parse(localStorage.getItem(MOCK_REG_KEY) ?? '{}'); } catch { return {}; }
+}
+
+/** 로컬 계정 가입 수락·거절 (관리자) */
+export function mockApprove(id: string) {
+  const reg = mockRegistry();
+  if (!reg[id]) return;
+  reg[id] = { ...reg[id], user: { ...reg[id].user, pending: false } };
+  try { localStorage.setItem(MOCK_REG_KEY, JSON.stringify(reg)); } catch { /* 무시 */ }
+}
+export function mockReject(id: string) {
+  const reg = mockRegistry();
+  delete reg[id];
+  try { localStorage.setItem(MOCK_REG_KEY, JSON.stringify(reg)); } catch { /* 무시 */ }
 }
 
 /** 회원 프로필 조회 (관리자 회원 상세) — 로컬 모드에서만 의미가 있다 */
@@ -112,40 +142,59 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
     let alive = true;
-    void be.currentUser().then(u => { if (alive) { setUser(u as User | null); setReady(true); } });
-    const off = be.onAuthChange(u => { if (alive) { setUser(u as User | null); setReady(true); } });
+    // 승인 대기 계정은 로그인 상태로 두지 않는다 (사용자 요청)
+    const take = (u: User | null) => {
+      if (!alive) return;
+      if (u?.pending) { setUser(null); setReady(true); void be.signOut(); return; }
+      setUser(u); setReady(true);
+    };
+    void be.currentUser().then(u => take(u as User | null));
+    const off = be.onAuthChange(u => take(u as User | null));
     return () => { alive = false; off(); };
   }, [server, be]);
 
   const login = useCallback(async (id: string, password: string): Promise<Result> => {
     if (server && be) {
-      const r = await be.signIn(id.trim(), password);
-      return r.ok ? { ok: true } : { ok: false, error: r.error ?? '로그인에 실패했습니다.' };
+      const r = await be.signIn(loginEmailOf(id), password);
+      if (!r.ok) {
+        return { ok: false, error: /invalid login|credentials/i.test(r.error ?? '') ? '아이디 또는 비밀번호가 올바르지 않습니다.' : (r.error ?? '로그인에 실패했습니다.') };
+      }
+      const u = await be.currentUser();
+      if (u?.pending) { await be.signOut(); setUser(null); return { ok: false, error: PENDING_MSG }; }
+      return { ok: true };
     }
-    const acc = mockRegistry()[id] ?? (isSetupDone() ? undefined : MOCK_ACCOUNTS[id]);
+    const key = mockRegistry()[id] ? id : normHandle(id);
+    const acc = mockRegistry()[key] ?? (isSetupDone() ? undefined : MOCK_ACCOUNTS[id]);
     if (!acc || acc.password !== password) return { ok: false, error: '아이디 또는 비밀번호가 올바르지 않습니다.' };
+    if (acc.user.pending) return { ok: false, error: PENDING_MSG };
     setUser(acc.user);
     try { localStorage.setItem(MOCK_KEY, JSON.stringify(acc.user)); } catch { /* 무시 */ }
     return { ok: true };
   }, [server, be]);
 
-  // 회원가입 — 가입코드(초대코드) 방식
-  const signup = useCallback(async (id: string, password: string, nickname: string, code: string): Promise<Result> => {
-    if (!id || !password || !nickname) return { ok: false, error: '아이디·비밀번호·닉네임을 모두 입력해 주세요.' };
+  // 회원가입 — 가입코드(초대코드) + 트위터 아이디, 관리자 승인 후 완료 (사용자 요청)
+  const signup = useCallback(async (handle: string, password: string, nickname: string, code: string): Promise<Result> => {
+    const id = normHandle(handle);
+    if (!id || !password || !nickname) return { ok: false, error: '트위터 아이디·비밀번호·닉네임을 모두 입력해 주세요.' };
+    if (!validHandle(id)) return { ok: false, error: '트위터 아이디는 영문·숫자·밑줄(_)만 쓸 수 있어요.' };
     if (server && be) {
       // 서버 모드 — 가입코드는 서버가 검사한다 (방문자 화면에는 코드가 내려오지 않는다)
-      const r = await be.signUp(id.trim(), password, nickname.trim(), code.trim());
-      if (!r.ok) return { ok: false, error: r.error ?? '가입에 실패했습니다.' };
-      // 계정이 만들어지는 순간 로그인 상태가 되며 사용자 정보가 먼저 계산되는데,
-      // 그때는 닉네임(프로필)이 아직 저장되기 전이라 이메일이 이름 자리에 들어간다.
-      // 저장이 끝난 지금 다시 읽어 이름을 바로잡는다.
-      try { const u = await be.currentUser(); if (u) setUser(u); } catch { /* 무시 */ }
+      const r = await be.signUp(loginEmailOf(id), password, nickname.trim(), code.trim(), { twitter: id });
+      if (!r.ok) {
+        const e = r.error ?? '';
+        if (/already registered|already exists/i.test(e)) return { ok: false, error: '이미 가입 신청한 트위터 아이디입니다.' };
+        if (/password/i.test(e) && /least|short|6/i.test(e)) return { ok: false, error: '비밀번호는 6자 이상이어야 합니다.' };
+        return { ok: false, error: e || '가입에 실패했습니다.' };
+      }
+      // 계정이 만들어지며 바로 로그인될 수 있다 — 승인 전이므로 로그아웃해 둔다
+      try { await be.signOut(); } catch { /* 무시 */ }
+      setUser(null);
       return { ok: true };
     }
     if (code !== inviteCode()) return { ok: false, error: '가입코드가 올바르지 않습니다.' };
     if (MOCK_ACCOUNTS[id] || mockRegistry()[id]) return { ok: false, error: '이미 사용 중인 아이디입니다.' };
     const reg = mockRegistry();
-    reg[id] = { password, user: { id, nickname, role: 'member' } };
+    reg[id] = { password, user: { id, nickname, role: 'member', pending: true, twitter: id } };
     try { localStorage.setItem(MOCK_REG_KEY, JSON.stringify(reg)); } catch { /* 무시 */ }
     return { ok: true };
   }, [server, be]);

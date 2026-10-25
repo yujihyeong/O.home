@@ -25,6 +25,9 @@ import {
 } from '@/lib/notifStore';
 import { subscribeTable } from '@/lib/db';
 import { MemberBox } from '@/components/main/MemberBox';
+import { useMemberList } from '@/lib/members';
+import { PendingMembers } from '@/components/ui/PendingMembers';
+import { Modal } from '@/components/ui/Modal';
 
 const BellIcon = () => (
   <svg viewBox="0 0 24 24">
@@ -70,6 +73,11 @@ export function TopBar() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [mOpen, setMOpen] = useState(false);   // 모바일 메뉴 창 (사용자 요청)
+  // 가입 신청 (사용자 요청) — 관리자에게만, 모바일 메뉴·계정 메뉴에서 바로 수락
+  const [members, reloadMembers] = useMemberList(true, isAdmin);
+  const pendingN = isAdmin ? members.filter(m => m.pending).length : 0;
+  const [pendOpen, setPendOpen] = useState(false);
+  useEffect(() => { if (isAdmin && (mOpen || menuOpen)) reloadMembers(); }, [isAdmin, mOpen, menuOpen, reloadMembers]);
   const [menuSet, , menuLoaded] = useMenuSettings(); // 메뉴 관리 (5.2) — 노출·순서·이름
   const { boards, loaded: boardsLoaded } = useBoards(); // 다중 게시판 (5.2) — 게시판 그룹에 동적 반영
   const { map: secMap } = useSections();
@@ -346,6 +354,9 @@ export function TopBar() {
                   </button>
                 )}
                 <button onClick={() => { setMenuOpen(false); nav('/settings'); }}>환경설정</button>
+                {pendingN > 0 && (
+                  <button className="um-pend" onClick={() => { setMenuOpen(false); setPendOpen(true); }}>가입 신청 {pendingN}</button>
+                )}
               </>
             )}
             <button onClick={() => { setMenuOpen(false); logout(); }}>로그아웃</button>
@@ -363,6 +374,12 @@ export function TopBar() {
         <div className="m-menu" role="dialog" aria-label="메뉴" onClick={e => { if (e.target === e.currentTarget) setMOpen(false); }}>
           {/* 회원정보창 — 메인 위젯과 같은 모양·기능(낮/밤 손님 그림까지), 제목만 빼고 맨 위에 (사용자 요청) */}
           <div className="mm-member"><MemberBox noTitle onNav={() => setMOpen(false)} /></div>
+          {/* 가입 신청 (사용자 요청) — 휴대폰에서도 바로 수락 */}
+          {pendingN > 0 && (
+            <button type="button" className="mm-pend" onClick={() => { setMOpen(false); setPendOpen(true); }}>
+              가입 신청 <b>{pendingN}</b>
+            </button>
+          )}
           <div className="mm-head"><span>MENU</span><i />{siteLoaded && <small>{site.title}</small>}</div>
           {(() => {
             let n = 0;   // 차례로 나타나는 순서
@@ -400,6 +417,13 @@ export function TopBar() {
           })()}
         </div>,
         document.body,
+      )}
+      {isAdmin && (
+        <Modal open={pendOpen} onClose={() => setPendOpen(false)} small title="가입 신청"
+          desc="수락하면 회원이 되고, 거절하면 신청이 사라져요"
+          actions={<button className="btn btn-ghost" onClick={() => setPendOpen(false)}>CLOSE</button>}>
+          <PendingMembers list={members} reload={reloadMembers} />
+        </Modal>
       )}
     </header>
   );

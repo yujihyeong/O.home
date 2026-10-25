@@ -18,6 +18,10 @@ create table if not exists public.profiles (
   tags text[] not null default '{}',
   created_at timestamptz not null default now()
 );
+-- 가입 승인 (사용자 요청) — 새 가입자는 관리자가 수락해야 회원이 된다. 이미 있던 회원은 그대로 승인 상태
+alter table public.profiles add column if not exists approved boolean not null default true;
+-- 가입할 때 적은 트위터 아이디 (사용자 요청 — 이메일 대신)
+alter table public.profiles add column if not exists twitter text;
 
 -- ── 2. 가입코드 (초대코드 방식) ──────────────────────────────
 create table if not exists public.invite_codes (
@@ -49,6 +53,12 @@ returns boolean language sql stable security definer set search_path = public as
   select exists (select 1 from public.profiles p where p.id = auth.uid() and p.role = 'admin')
 $$;
 
+-- 승인된 회원인지 (가입 승인 — 사용자 요청). 승인 전 계정은 로그인해도 멤버공개 글을 못 읽고 못 쓴다
+create or replace function public.is_member()
+returns boolean language sql stable security definer set search_path = public as $$
+  select exists (select 1 from public.profiles p where p.id = auth.uid() and p.approved)
+$$;
+
 -- ── 5. 가입 시 프로필 자동 생성 (첫 가입자 = 관리자) ─────────
 create or replace function public.handle_new_user()
 returns trigger language plpgsql security definer set search_path = public as $$
@@ -63,11 +73,14 @@ begin
       raise exception 'invalid invite code';
     end if;
   end if;
-  insert into public.profiles (id, nickname, role)
+  -- 첫 계정(관리자)만 바로 승인, 나머지는 관리자가 수락할 때까지 대기
+  insert into public.profiles (id, nickname, role, approved, twitter)
   values (
     new.id,
     coalesce(new.raw_user_meta_data->>'nickname', split_part(new.email, '@', 1)),
-    case when existing = 0 then 'admin' else 'member' end
+    case when existing = 0 then 'admin' else 'member' end,
+    existing = 0,
+    nullif(new.raw_user_meta_data->>'twitter', '')
   );
   return new;
 end $$;
@@ -94,10 +107,12 @@ begin
   end if;
   if tg_op = 'UPDATE' then
     new.role := old.role;                         -- 수정으로는 role 변경 불가
+    new.approved := old.approved;                 -- 가입 승인도 관리자만
   else
     select count(*) into admin_count from public.profiles where role = 'admin';
     if admin_count > 0 then
       new.role := 'member';                       -- 관리자가 이미 있으면 신규는 member 고정
+      new.approved := false;                      -- 신규는 승인 대기
     end if;                                       -- (admin_count = 0 일 때만 최초 소유자 admin 통과)
   end if;
   return new;
@@ -169,7 +184,7 @@ begin
     execute format($p$
       create policy "read" on public.%I for select using (
         visibility = 'public'
-        or (visibility = 'member' and auth.uid() is not null)
+        or (visibility = 'member' and public.is_member())
         or author_id = auth.uid()
         or auth.uid()::text = any(reader_ids)
         or public.is_admin()
@@ -181,8 +196,8 @@ begin
     -- 편집 권한을 받은 회원(editor_ids)은 통과 — 저장이 upsert라 수정할 때도 이 검사를 거친다
     execute format($p$
       create policy "insert" on public.%I for insert to authenticated
-        with check (author_id is null or author_id = auth.uid() or public.is_admin()
-                    or auth.uid()::text = any(editor_ids))$p$, t);
+        with check (public.is_admin() or (public.is_member() and (author_id is null or author_id = auth.uid()
+                    or auth.uid()::text = any(editor_ids))))$p$, t);
 
     -- 수정·삭제: 본인 · 편집 권한을 받은 회원(editor_ids) · 관리자
     execute format('drop policy if exists "update" on public.%I', t);

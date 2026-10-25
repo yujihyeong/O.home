@@ -25,6 +25,8 @@ export interface BackendUser {
   email?: string;
   avatarUrl?: string;
   avatarColor?: string;
+  /** 가입 승인 대기 (사용자 요청) — 관리자가 수락하기 전에는 로그인 상태로 두지 않는다 */
+  pending?: boolean;
 }
 
 /** 연결·규칙 점검 결과 (설치 화면의 [연결 확인]) */
@@ -49,7 +51,7 @@ export interface Backend {
   onAuthChange(cb: (u: BackendUser | null) => void): () => void;
   signIn(id: string, password: string): Promise<{ ok: boolean; error?: string }>;
   /** invite: 가입코드 — 서버가 직접 검사한다 (보안 강화, 화면 비교만으로는 API를 직접 부르면 뚫렸다) */
-  signUp(id: string, password: string, nickname: string, invite: string): Promise<{ ok: boolean; error?: string }>;
+  signUp(id: string, password: string, nickname: string, invite: string, extra?: { twitter?: string }): Promise<{ ok: boolean; error?: string }>;
   /** 가입코드 — 관리자만 읽고 쓴다 (공개 설정이 아니라 비공개 저장소에) */
   getInvite(): Promise<string | null>;
   setInvite(code: string): Promise<{ ok: boolean; error?: string }>;
@@ -63,7 +65,9 @@ export interface Backend {
   /** 가입 회원 목록 — 역극 참여자 선택·회원 관리 화면용.
    *  avatarUrl도 내준다 (v2.0 사용자 제보) — 이미지 정리가 콘텐츠·설정만 훑던 시절, 프로필 사진은
    *  어디에도 참조가 안 잡혀 「아무도 안 쓰는 파일」로 지워졌다. */
-  listMembers(): Promise<{ id: string; nickname: string; role: 'admin' | 'member'; email?: string; avatarUrl?: string }[]>;
+  listMembers(): Promise<{ id: string; nickname: string; role: 'admin' | 'member'; email?: string; avatarUrl?: string; pending?: boolean; twitter?: string; createdAt?: string }[]>;
+  /** 가입 신청 수락 (사용자 요청) — 관리자만. 거절은 deleteMember */
+  approveMember(id: string): Promise<void>;
 
   /* ---- 목록(콘텐츠) ---- */
   fetchList<T extends ListItem>(coll: string): Promise<T[]>;

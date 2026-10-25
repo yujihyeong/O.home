@@ -3395,3 +3395,21 @@ html[data-scene="night"] .mw-bits i.now{box-shadow:0 0 10px var(--mw-acc)}
 .thr-pex:hover,.thr-pex.on{color:var(--accent);border-color:var(--accent)}
 /* 이미지 위젯 — 관리자는 눌러서 설정 (사용자 요청) */
 .iw-widget.iw-admin{cursor:var(--cur-pointer,pointer)}
+
+/* 회원가입 — 트위터 아이디 칸 앞의 @ (사용자 요청) */
+.tw-id-input{position:relative}
+.tw-id-input>span{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--faint);font-size:13px;pointer-events:none;z-index:1}
+.tw-id-input .k-input{padding-left:26px;width:100%}
+/* 가입 신청 목록 (사용자 요청) — 휴대폰에서도 누르기 쉽게 */
+.pm-list{display:grid;gap:8px}
+.pm-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius-s,10px);background:var(--panel-solid)}
+.pm-who{flex:1;min-width:140px;display:flex;align-items:baseline;gap:7px;flex-wrap:wrap}
+.pm-who b{font-size:13px}
+.pm-who span{font-size:12px;color:var(--accent)}
+.pm-who small{font-size:10.5px;color:var(--faint)}
+.pm-act{display:flex;gap:6px}
+.pm-act .btn{padding:7px 16px;font-size:12px;min-height:34px}
+.pm-empty{font-size:12px;color:var(--faint);padding:6px 0}
+.mm-pend{display:flex;align-items:center;gap:8px;width:100%;margin:6px 0 2px;padding:10px 12px;border-radius:10px;border:1px solid var(--accent);background:color-mix(in srgb,var(--accent) 10%,transparent);color:var(--ink);font-size:13px;font-weight:600;cursor:var(--cur-pointer,pointer)}
+.mm-pend b{margin-left:auto;min-width:22px;height:22px;border-radius:11px;background:var(--accent);color:#fff;font-size:11.5px;display:grid;place-items:center;padding:0 6px}
+.um-pend{color:var(--accent) !important;font-weight:600}
