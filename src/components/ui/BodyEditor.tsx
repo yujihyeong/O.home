@@ -1,7 +1,8 @@
 'use client';
 // 글 편집기 (사용자 요청 — 감상타래에서도 글쓰기 기능 전부) — 게시판 글쓰기와 같은 모드·도구를 한 덩어리로.
 // 에디터 · Markdown · 로그 정리 · HTML(코드/미리보기 편집) + 맞춤법·글씨체·이미지 올리기 + 실시간 미리보기
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
+import type { Editor } from '@tiptap/react';
 import { RichEditor } from '@/components/ui/RichEditor';
 import { TextTools, WholeFont, wholeFontStyle } from '@/components/ui/WriteTools';
 import { KTextarea } from '@/components/ui/Kit';
@@ -38,6 +39,9 @@ function toDataUrl(f: Blob): Promise<string> {
 }
 
 /** 단어 바꾸기 — 글자만 바꾸고 HTML 태그(<…>) 안은 건드리지 않는다. [바뀐 글, 바꾼 수] */
+/** 검게 가리기에 쓰는 상자 글자 */
+const BLOCK = '█';
+
 export function replaceWord(text: string, from: string, to: string): [string, number] {
   if (!from) return [text, 0];
   let n = 0;
@@ -55,7 +59,7 @@ export function BodyEditor({ value, onChange, mode, onMode, whole, onWhole, minH
   mode: WriteMode; onMode: (m: WriteMode) => void;
   whole: WholeFont; onWhole: (w: WholeFont) => void;
   minHeight?: number; preview?: boolean;
-  /** 단어 바꾸기 칸 (사용자 요청 — 감상타래 글쓰기) */
+  /** 단어 바꾸기 칸 + 검게 가리기 (사용자 요청 — 감상타래 글쓰기) */
   replace?: boolean;
 }) {
   const toast = useToast();
@@ -71,6 +75,38 @@ export function BodyEditor({ value, onChange, mode, onMode, whole, onWhole, minH
     if (!n) { toast(`본문에 「${from}」이(가) 없어요`); return; }
     onChange(next);
     toast(`「${from}」 ${n}곳을 「${rTo}」(으)로 바꿨어요`);
+  };
+  /* 검게 가리기 (사용자 요청) — 드래그한 부분을 글자 수만큼 ▇ 상자로. 줄바꿈은 그대로 둔다 */
+  const rootRef = useRef<HTMLDivElement>(null);
+  const edRef = useRef<Editor | null>(null);
+  const redact = () => {
+    const rich = mode === 'editor' || (mode === 'html' && htmlView === 'preview');
+    if (rich) {
+      const ed = edRef.current;
+      if (!ed) return;
+      const { from, to } = ed.state.selection;
+      if (from === to) { toast('가릴 부분을 드래그해 주세요'); return; }
+      // 글 조각마다 같은 길이로 바꾼다 — 문단 경계·굵게 같은 꾸밈은 그대로
+      const parts: [number, number, string][] = [];
+      ed.state.doc.nodesBetween(from, to, (n, pos) => {
+        if (!n.isText || !n.text) return;
+        const a = Math.max(from, pos), b = Math.min(to, pos + n.text.length);
+        if (b > a) parts.push([a, b, BLOCK.repeat([...n.text.slice(a - pos, b - pos)].length)]);
+      });
+      if (!parts.length) return;
+      const tr = ed.state.tr;
+      for (const [a, b, t] of parts.reverse()) tr.insertText(t, a, b);
+      ed.view.dispatch(tr);
+      ed.commands.focus();
+      return;
+    }
+    const ta = rootRef.current?.querySelector('textarea');
+    if (!ta) return;
+    const a = ta.selectionStart, b = ta.selectionEnd;
+    if (a === b) { toast('가릴 부분을 드래그해 주세요'); return; }
+    const hidden = value.slice(a, b).replace(/[^\n]/gu, BLOCK);
+    onChange(value.slice(0, a) + hidden + value.slice(b));
+    requestAnimationFrame(() => { ta.focus(); ta.setSelectionRange(a, a + hidden.length); });
   };
   const font = { whole, setWhole: onWhole };
   const isMd = mode === 'md' || mode === 'log';
@@ -100,7 +136,7 @@ export function BodyEditor({ value, onChange, mode, onMode, whole, onWhole, minH
     />
   );
   return (
-    <div className="body-ed">
+    <div className="body-ed" ref={rootRef}>
       <div className="body-ed-modes">
         <div className="mini-seg">
           <button type="button" className={mode === 'editor' ? 'on' : ''} onClick={() => {
@@ -133,10 +169,14 @@ export function BodyEditor({ value, onChange, mode, onMode, whole, onWhole, minH
           <input className="k-input" value={rTo} placeholder="새 단어" onChange={e => setRTo(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) { e.preventDefault(); doReplace(); } }} />
           <button type="button" className="btn btn-ghost" onClick={doReplace}>모두 바꾸기</button>
+          <i className="body-ed-sep" aria-hidden />
+          <button type="button" className="btn btn-ghost body-ed-redact" onMouseDown={e => e.preventDefault()} onClick={redact}
+            data-tip="드래그한 부분을 글자 수만큼 검은 상자로"><span aria-hidden>▇▇</span> 검게 가리기</button>
         </div>
       )}
       {mode === 'editor' || (mode === 'html' && htmlView === 'preview') ? (
-        <RichEditor value={value} onChange={onChange} font={font} placeholder="내용을 작성하세요 — 이미지 삽입 가능" />
+        <RichEditor value={value} onChange={onChange} font={font} placeholder="내용을 작성하세요 — 이미지 삽입 가능"
+          onReady={e => { edRef.current = e; }} />
       ) : (
         <>
           {isMd
