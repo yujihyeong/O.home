@@ -3354,3 +3354,14 @@ html[data-scene="night"] .mw-bits i.now{box-shadow:0 0 10px var(--mw-acc)}
 .thr-pbody>:first-child{margin-top:0}
 .thr-pbody>:last-child{margin-bottom:0}
 .btn.thr-share{padding:4px 8px;display:inline-grid;place-items:center;line-height:1}
+
+/* 감상타래 — 글 수정·삭제 버튼은 늘 보이게 (사용자 요청 — 휴대폰엔 마우스 올리기가 없다) */
+.thr-post .hv-actions{opacity:.6;pointer-events:auto;background:color-mix(in srgb,var(--ink) 6%,transparent)}
+.thr-post:hover .hv-actions{opacity:1}
+/* 타래 안 글 목록 (사용자 요청) — 게시판 목록처럼 한 줄씩 */
+.thr-pview{display:flex;justify-content:flex-end;padding:12px 22px 0}
+.thr-plist{margin:10px 0 6px;border-top:1px solid var(--line)}
+.thr-plist .brow{padding:11px 22px}
+.thr-pno{display:inline-block;min-width:26px;color:var(--faint);font-weight:500;font-variant-numeric:tabular-nums}
+.thr-post.focus{animation:thrFocus 2s ease}
+@keyframes thrFocus{0%,40%{background:color-mix(in srgb,var(--accent) 12%,transparent)}100%{background:transparent}}
