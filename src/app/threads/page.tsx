@@ -380,7 +380,7 @@ function ThreadsPageInner() {
       <section className="page">
         <div className="page-head">
           <PageTitle>{sec.id === 'main' ? 'THREADS' : sec.name}</PageTitle>
-          <EditableDesc k="threads-desc" def="본 것, 읽은 것의 감상을 타래로" />
+          <EditableDesc k="threads-desc" def="찍먹 모음집" />
         </div>
         {gate === 'closed' && (
           <LockScreen onUnlock={async pw => {
@@ -398,7 +398,7 @@ function ThreadsPageInner() {
     <section className="page">
       <div className="page-head">
         <PageTitle>{sec.id === 'main' ? 'THREADS' : sec.name}</PageTitle>
-        <EditableDesc k="threads-desc" def="본 것, 읽은 것의 감상을 타래로" />
+        <EditableDesc k="threads-desc" def="찍먹 모음집" />
       </div>
 
       <div className="toolrow">
