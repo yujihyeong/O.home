@@ -93,10 +93,13 @@ export function MorseWidget({ conf }: { conf: WidgetConf }) {
   return (
     <div className="panel widget mw-widget">
       <Deco />
-      <div className="mw-hd">
-        <span>MORSE</span>
-        <span className="mw-count">{pad(pos.u < 0 ? 0 : curLetter)} / {pad(letters)}</span>
-      </div>
+      {/* 위젯 설정에서 「제목」을 끄면 위쪽 MORSE·글자 수 줄도 숨긴다 (사용자 요청) */}
+      {!conf.noTitle && (
+        <div className="mw-hd">
+          <span>MORSE</span>
+          <span className="mw-count">{pad(pos.u < 0 ? 0 : curLetter)} / {pad(letters)}</span>
+        </div>
+      )}
       <div className="mw-code">
         {units.length ? units.map((un, u) => ('space' in un
           ? <i key={u} className="mw-sp" />
