@@ -23,6 +23,7 @@ import { wholeFontStyle } from '@/components/ui/WriteTools';
 import { useFonts } from '@/lib/fontStore';
 import { pushNotif } from '@/lib/notifStore';
 import { postContentKey, openBody } from '@/lib/promptStore';
+import { boardKey } from '@/lib/boardLock';
 import { LockScreen } from '@/components/ui/LockScreen';
 
 const FOLD_LABEL = { spoiler: '스포일러 주의', adult: '수위 주의' };
@@ -65,7 +66,9 @@ export default function BoardDetailPage() {
   const sealed = post?.locked;
   const openWith = async (pw?: string) => {
     if (!post?.locked) return false;
-    const k = await postContentKey(isAdmin, pw);
+    // 게시판 잠금으로 봉한 글은 그 게시판의 비밀번호(직접 정했으면 그것)로
+    const pb = boards.find(b => b.id === (post.boardId ?? MAIN_BOARD_ID));
+    const k = post.boardSealed && pb ? await boardKey(pb, isAdmin, pw) : await postContentKey(isAdmin, pw);
     if (!k) return false;
     try {
       const o = await openBody<{ body: string }>(k, post.locked);
@@ -76,7 +79,7 @@ export default function BoardDetailPage() {
   useEffect(() => {
     if (sealed && loaded) void openWith();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sealed?.data, loaded, isAdmin]);
+  }, [sealed?.data, loaded, isAdmin, boards]);
   const unlocked = post?.locked ? (opened?.id === post.id ? opened : null) : null;
   const html = useMemo(() => (post && loaded ? renderBody(post.mode, post.locked ? unlocked?.body ?? '' : post.body) : ''), [post, loaded, unlocked]);
 

@@ -4,8 +4,9 @@
 import { LockIcon, ImageIcon } from '@/components/ui/Icons';
 import { LockScreen } from '@/components/ui/LockScreen';
 import { useToast } from '@/components/ui/Toast';
-import { postContentKey, ensurePostContentKey, postLockAvailable, openBody } from '@/lib/promptStore';
-import { sealPost, unsealPost, SealedPost } from '@/lib/boardLock';
+import { ensurePostContentKey, postLockAvailable, openBody } from '@/lib/promptStore';
+import { sealPost, unsealPost, SealedPost, boardKey, createOwnLock, rewrapOwnLock, rememberBoardKey } from '@/lib/boardLock';
+import { Modal } from '@/components/ui/Modal';
 import { PostHead } from '@/components/ui/PostHead';
 import React, { Suspense, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -18,6 +19,7 @@ import {
 import {
   useBoardSettings, useBoards, boardBadgeStyle, boardHref, MAIN_BOARD_ID, BoardPerm,
 } from '@/lib/boardStore';
+import type { Board } from '@/lib/boardStore';
 import { SearchBar, Pager } from '@/components/ui/Kit';
 import { CropImg } from '@/components/ui/CropEditor';
 import { EditableDesc, PageTitle } from '@/components/ui/PageText';
@@ -115,9 +117,10 @@ function BoardInner() {
     if (!locked) { setGate('open'); return; }
     let alive = true;
     setGate('checking');
-    postContentKey(isAdmin).then(k => { if (!alive) return; setCk(k); setGate(k ? 'open' : 'closed'); });
+    boardKey(board, isAdmin).then(k => { if (!alive) return; setCk(k); setGate(k ? 'open' : 'closed'); });
     return () => { alive = false; };
-  }, [locked, isAdmin, board?.id]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [locked, isAdmin, board?.id, board?.lockOwn?.salt]);
   // 봉한 글의 대표 사진 — 열린 뒤에만 이 화면 안에서 풀어 쓴다
   const [thumbs, setThumbs] = useState<Record<string, { src?: string; crop?: Post['thumbCrop'] }>>({});
   useEffect(() => {
@@ -137,31 +140,50 @@ function BoardInner() {
   const thumbOf = (p: Post) => (canRead(p) ? (p.thumbSrc ?? firstImage(p.body) ?? thumbs[p.id]?.src ?? null) : null);
   const cropOf = (p: Post) => (p.thumbSrc ? p.thumbCrop : thumbs[p.id]?.crop);
 
-  /** 잠그기·풀기 (관리자) — 잠그면 이 게시판 글을 모두 봉하고, 풀면 게시판 잠금으로 봉했던 글만 푼다 */
+  /** 잠그기·풀기 (관리자) — 잠그면 이 게시판 글을 모두 봉하고, 풀면 게시판 잠금으로 봉했던 글만 푼다.
+   *  비밀번호는 고른다 (사용자 요청): 자동(프롬프트 게시판과 같이 매달 바뀜) / 직접 정한 비밀번호 */
   const [lockBusy, setLockBusy] = useState(false);
-  const toggleLock = async () => {
-    if (lockBusy || !board) return;
+  const [lockAsk, setLockAsk] = useState(false);
+  const mine = (p: Post) => (p.boardId ?? MAIN_BOARD_ID) === board.id;
+  const lockBoard = async (own: string | null) => {
+    let k: CryptoKey | null;
+    let lockOwn: Board['lockOwn'];
+    if (own) {
+      const made = await createOwnLock(own);
+      k = made.key; lockOwn = made.lock;
+    } else {
+      if (!postLockAvailable()) { toast('먼저 프롬프트 게시판에 비밀번호를 걸어 주세요'); return false; }
+      k = await ensurePostContentKey();
+      if (!k) { toast('이 기기에서 프롬프트 게시판을 한 번 열어 주세요 (비밀번호 입력)'); return false; }
+    }
+    setPosts(await Promise.all(posts.map(p => (mine(p) && !p.locked ? sealPost(k!, p, true) : Promise.resolve(p)))));
+    const nb = { ...board, locked: true, lockOwn };
+    patchBoard(board.id, { locked: true, lockOwn });
+    if (own) await rememberBoardKey(nb, k);
+    setCk(k); setGate('open');
+    toast(own ? '게시판에 비밀번호를 걸었어요' : '게시판에 비밀번호를 걸었어요 — 프롬프트 게시판과 같이 매달 바뀌어요');
+    return true;
+  };
+  const unlockBoard = async () => {
+    const k = ck ?? await boardKey(board, true);
+    if (!k) { toast(board.lockOwn ? '게시판 비밀번호를 먼저 입력해 주세요' : '이 기기에서 프롬프트 게시판을 한 번 열어 주세요 (비밀번호 입력)'); return false; }
+    setPosts(await Promise.all(posts.map(p => (mine(p) && p.boardSealed ? unsealPost(k, p) : Promise.resolve(p)))));
+    patchBoard(board.id, { locked: false, lockOwn: undefined });
+    toast('게시판 비밀번호를 풀었어요');
+    return true;
+  };
+  const changeOwn = async (pw: string) => {
+    if (!ck) { toast('게시판 비밀번호를 먼저 입력해 주세요'); return false; }
+    const lockOwn = await rewrapOwnLock(pw, ck);
+    patchBoard(board.id, { lockOwn });
+    await rememberBoardKey({ ...board, lockOwn }, ck);
+    toast('게시판 비밀번호를 바꿨어요');
+    return true;
+  };
+  const runLock = async (fn: () => Promise<boolean>) => {
+    if (lockBusy) return;
     setLockBusy(true);
-    try {
-      const mine = (p: Post) => (p.boardId ?? MAIN_BOARD_ID) === board.id;
-      if (!locked) {
-        if (!postLockAvailable()) { toast('먼저 프롬프트 게시판에 비밀번호를 걸어 주세요'); return; }
-        const k = await ensurePostContentKey();
-        if (!k) { toast('이 기기에서 프롬프트 게시판을 한 번 열어 주세요 (비밀번호 입력)'); return; }
-        const next = await Promise.all(posts.map(p => (mine(p) && !p.locked ? sealPost(k, p, true) : Promise.resolve(p))));
-        setPosts(next);
-        patchBoard(board.id, { locked: true });
-        setCk(k); setGate('open');
-        toast('게시판에 비밀번호를 걸었어요 — 프롬프트 게시판과 같은 비밀번호');
-      } else {
-        const k = ck ?? await postContentKey(true);
-        if (!k) { toast('이 기기에서 프롬프트 게시판을 한 번 열어 주세요 (비밀번호 입력)'); return; }
-        const next = await Promise.all(posts.map(p => (mine(p) && p.boardSealed ? unsealPost(k, p) : Promise.resolve(p))));
-        setPosts(next);
-        patchBoard(board.id, { locked: false });
-        toast('게시판 비밀번호를 풀었어요');
-      }
-    } finally { setLockBusy(false); }
+    try { if (await fn()) setLockAsk(false); } finally { setLockBusy(false); }
   };
 
   if (!boardsLoaded) return <section className="page post-read" />;
@@ -174,7 +196,7 @@ function BoardInner() {
         </div>
         {gate === 'closed' && (
           <LockScreen onUnlock={async pw => {
-            const k = await postContentKey(isAdmin, pw);
+            const k = await boardKey(board, isAdmin, pw);
             if (!k) return false;
             setCk(k); setGate('open');
             return true;
@@ -195,8 +217,8 @@ function BoardInner() {
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <SearchBar onSearch={v => { setQ(v); setPage(1); }} />
           {isAdmin && (
-            <button className={`btn ${locked ? 'btn-dark' : 'btn-ghost'}`} disabled={lockBusy} onClick={() => void toggleLock()}
-              data-tip={locked ? '게시판 비밀번호 풀기' : '게시판에 비밀번호 걸기 (프롬프트 게시판과 같은 비밀번호)'}>
+            <button className={`btn ${locked ? 'btn-dark' : 'btn-ghost'}`} disabled={lockBusy} onClick={() => setLockAsk(true)}
+              data-tip={locked ? '게시판 비밀번호 바꾸기·풀기' : '게시판에 비밀번호 걸기'}>
               <LockIcon open={!locked} className="ic-gap" />{lockBusy ? '…' : locked ? '잠금 중' : '잠금'}
             </button>
           )}
@@ -295,6 +317,8 @@ function BoardInner() {
         </div>
       )}
       <Pager page={page} total={totalPages} onChange={setPage} />
+      <BoardLockModal open={lockAsk} locked={locked} own={!!board.lockOwn} busy={lockBusy} onClose={() => setLockAsk(false)}
+        onLock={own => runLock(() => lockBoard(own))} onUnlock={() => runLock(unlockBoard)} onChange={pw => runLock(() => changeOwn(pw))} />
     </section>
   );
 }
@@ -312,4 +336,69 @@ const pinCmp = (a: Post, b: Post) => {
 export default function BoardPage() {
   // useSearchParams는 Suspense 경계 필요 (Next App Router)
   return <Suspense fallback={<section className="page post-read" />}><BoardInner /></Suspense>;
+}
+
+/** 게시판 비밀번호 고르기 (사용자 요청) — 자동으로 바뀌는 비밀번호 / 직접 정한 비밀번호 */
+function BoardLockModal({ open, locked, own, busy, onClose, onLock, onUnlock, onChange }: {
+  open: boolean; locked: boolean; own: boolean; busy: boolean; onClose: () => void;
+  onLock: (own: string | null) => void; onUnlock: () => void; onChange: (pw: string) => void;
+}) {
+  const [mode, setMode] = useState<'auto' | 'own'>('auto');
+  const [a, setA] = useState('');
+  const [b, setB] = useState('');
+  useEffect(() => { if (open) { setMode(own ? 'own' : 'auto'); setA(''); setB(''); } }, [open, own]);
+  const ok = a.length >= 4 && a === b;
+  const pwFields = (
+    <>
+      <input className="pr-in" type="password" autoComplete="new-password" placeholder={locked ? '새 비밀번호 (4자 이상)' : '비밀번호 (4자 이상)'} value={a} onChange={e => setA(e.target.value)} />
+      <input className="pr-in" type="password" autoComplete="new-password" placeholder="한 번 더" value={b} onChange={e => setB(e.target.value)} />
+      {b && a !== b && <p className="hint" style={{ margin: 0, color: 'var(--accent)' }}>두 칸이 서로 달라요</p>}
+    </>
+  );
+  return (
+    <Modal open={open} onClose={onClose} small title={locked ? '게시판 비밀번호' : '게시판에 비밀번호 걸기'}
+      actions={locked ? (
+        <>
+          <button className="btn btn-ghost" disabled={busy} onClick={onUnlock}>비밀번호 풀기</button>
+          {own && <button className="btn btn-dark" disabled={!ok || busy} onClick={() => onChange(a)}>{busy ? '…' : '바꾸기'}</button>}
+        </>
+      ) : (
+        <button className="btn btn-dark" disabled={busy || (mode === 'own' && !ok)} onClick={() => onLock(mode === 'own' ? a : null)}>{busy ? '…' : '걸기'}</button>
+      )}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {locked ? (
+          <>
+            <p className="hint" style={{ margin: 0, lineHeight: 1.7 }}>
+              {own ? <>지금은 <b>직접 정한 비밀번호</b>로 잠겨 있어요. 아래에 새 비밀번호를 적으면 바뀌어요.</>
+                : <>지금은 <b>자동으로 바뀌는 비밀번호</b>(프롬프트 게시판과 같음)로 잠겨 있어요. 매달 1일 함께 바뀌어요.</>}
+            </p>
+            {own && pwFields}
+            <p className="hint" style={{ margin: 0, lineHeight: 1.7 }}>다른 방식으로 바꾸려면 비밀번호를 풀고 다시 걸어 주세요.</p>
+          </>
+        ) : (
+          <>
+            <div className="mini-seg" style={{ alignSelf: 'flex-start' }}>
+              <button className={mode === 'auto' ? 'on' : ''} onClick={() => setMode('auto')}>자동으로 바뀌는 비밀번호</button>
+              <button className={mode === 'own' ? 'on' : ''} onClick={() => setMode('own')}>직접 정하기</button>
+            </div>
+            {mode === 'auto' ? (
+              <p className="hint" style={{ margin: 0, lineHeight: 1.7 }}>
+                프롬프트 게시판과 <b>같은 비밀번호</b>예요. 매달 1일 랜덤 4글자로 함께 바뀌고, 새 비밀번호는 알림으로 알려 드려요.
+              </p>
+            ) : (
+              <>
+                {pwFields}
+                <p className="hint" style={{ margin: 0, lineHeight: 1.7 }}>
+                  이 게시판만의 비밀번호예요. 자동으로 바뀌지 않아요. <b>잊어버리면 되찾을 방법이 없어요.</b>
+                </p>
+              </>
+            )}
+          </>
+        )}
+        <p className="hint" style={{ margin: 0, lineHeight: 1.7 }}>
+          글 본문·이미지는 비밀번호로 <b>암호화</b>돼 저장돼요. 관리자는 이 기기에서 바로 들어가지고, 다른 기기에서는 한 번만 넣으면 돼요.
+        </p>
+      </div>
+    </Modal>
+  );
 }
