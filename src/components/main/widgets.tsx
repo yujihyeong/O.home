@@ -514,7 +514,7 @@ export function FreeTextWidget({ conf }: { conf: WidgetConf }) {
         textAlign: s.align ?? 'left', fontWeight: s.bold ? 700 : 400,
         lineHeight: 1.7, whiteSpace: 'pre-line', margin: 0, wordBreak: 'keep-all',
       }}>
-        {s.text || (isAdmin ? '자유 텍스트 — 편집모드에서 우클릭 → 설정' : '')}
+        {s.text || (isAdmin ? '자유 텍스트 — ⚙ 설정을 눌러 문구 넣기' : '')}
       </p>
       <Modal open={open} onClose={() => setOpen(false)} title="자유 텍스트"
         desc="패널 없이 문구만 표시 — 폰트·크기·색·정렬 지정, 배치는 편집모드에서 드래그"
@@ -654,7 +654,7 @@ export function DecoWidget({ conf }: { conf: WidgetConf }) {
           ))
         : (
           <div className="ph" style={{ position: 'absolute', inset: 0 }}>
-            <span style={{ fontSize: 10 }}>{isAdmin ? 'DECO — 편집모드에서 우클릭 → 설정' : 'DECO'}</span>
+            <span style={{ fontSize: 10 }}>{isAdmin ? 'DECO — ⚙ 설정을 눌러 이미지 넣기' : 'DECO'}</span>
           </div>
         )}
       {/* 여러 장일 때만 지금 몇 번째인지 표시 — 눌러서 바로 넘길 수도 있다 (v2.0) */}

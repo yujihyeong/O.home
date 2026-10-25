@@ -92,7 +92,7 @@ export const WIDGET_META: Record<WidgetType, { title: string; desc: string }> = 
 /** 설정 창이 있는 위젯 — 편집 모드 ✎ · 제목 숨김 때의 ⚙ 버튼이 'ohome-widget-edit'로 연다 */
 export const EDITABLE_TYPES: WidgetType[] = ['banner', 'memo', 'dday', 'todo', 'freetext', 'deco', 'apply', 'chat', 'recent', 'quote', 'polaroid', 'guidewave', 'clock', 'images', 'pildam', 'linkcard', 'morse'];
 /** 처음부터 제목 줄이 없는 위젯 — 설정 버튼(⚙)을 따로 띄운다 */
-export const TITLELESS_TYPES: WidgetType[] = ['clock', 'images', 'pildam', 'tarot', 'linkcard', 'calendar', 'morse'];
+export const TITLELESS_TYPES: WidgetType[] = ['clock', 'images', 'pildam', 'tarot', 'linkcard', 'calendar', 'morse', 'deco', 'freetext'];
 export const MULTI_TYPES: WidgetType[] = ['freetext', 'deco', 'banner', 'chat', 'quote', 'polaroid', 'guidewave', 'clock', 'images', 'pildam', 'linkcard', 'morse'];   // banner: v2.0 사용자 요청 — 슬라이드 배너 여러 개
 
 /** 위젯 표시 이름 — 중복 추가 가능한 위젯이 2개 이상이면 번호를 붙여 구분 (v1.9) */
