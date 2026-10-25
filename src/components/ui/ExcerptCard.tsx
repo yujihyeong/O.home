@@ -5,6 +5,7 @@
 // 고른 꾸밈은 이 브라우저에 기억해 두고 다음 발췌에도 쓴다.
 // 사진 따로 넣기 (사용자 요청): 배경과 별개로 2.5:1 사진 한 장 — 가로 띠는 글 위에, 세로 띠는 글 왼쪽에.
 // 배경 이미지와 같이 쓰면 흐린 배경 위에 사진과 글이 올라간다 (시안 B · E).
+// 거리측정 HUD 배경 (사용자 요청 — 저격수 테마, 어두운 색) · 트위터식 발췌 (한 트윗에 길게, 사용자 요청)
 import React, { useEffect, useRef, useState } from 'react';
 import { useFonts } from '@/lib/fontStore';
 import { KSelect } from '@/components/ui/Kit';
@@ -29,7 +30,21 @@ interface CardStyle {
   photoDir?: 'none' | 'h' | 'v';   // 따로 넣는 사진 — 없음 / 가로 띠(글 위) / 세로 띠(글 옆)
   photo?: string | null;   // 그 사진 (올린 이미지 data URL)
   speakers?: Speaker[];    // 대사 말풍선의 발화자 (사용자 요청)
+  kind?: 'card' | 'tweet'; // 모양 — 카드 / 트위터식
+  deco?: 'hud' | null;     // 그려 넣는 꾸밈 배경 — 거리측정 HUD
+  hud?: string[];          // HUD 네 귀퉁이 작은 글씨 (왼쪽 위 · 오른쪽 위 · 왼쪽 아래 · 오른쪽 아래, 비우면 숨김)
+  tw?: Partial<TweetConf>;
 }
+/** 트위터식 발췌 — 이름 자리는 글 제목, 나머지는 직접 고친다 */
+interface TweetConf {
+  handle: string; time: string; dark: boolean;
+  av: string | null;       // 프로필 사진 (올린 이미지 data URL)
+  avColor: string;         // 사진이 없을 때 동그라미 색
+  n: string[];             // 답글 · 리트윗 · 마음 · 조회수
+}
+const TW_DEF: TweetConf = { handle: 'yujihyeong', time: '2시', dark: false, av: null, avColor: '#9aa7b4', n: ['1', '', '5', '81'] };
+export const HUD_DEF = ['RNG 812M', 'WIND 3.2 ←', 'ELEV +2.4', 'REC'];
+const HUD_INK = '#e4e6e3';
 
 /* ---------- 대사 말풍선 (사용자 요청 — 시안 A: 이름이 말풍선 위) ----------
    앞뒤가 따옴표인 문단은 발화자를 고르면 그 사람 색의 파스텔 말풍선으로, 왼쪽·오른쪽에 붙여 그린다 */
@@ -130,7 +145,7 @@ const loadStyle = (): CardStyle => {
 const saveStyle = (s: CardStyle) => {
   try { localStorage.setItem(KEY, JSON.stringify(s)); } catch {
     // 올린 이미지가 커서 못 담으면 이미지만 빼고 기억한다
-    try { localStorage.setItem(KEY, JSON.stringify({ ...s, img: s.img?.startsWith('data:') ? null : s.img, photo: null })); } catch { /* 무시 */ }
+    try { localStorage.setItem(KEY, JSON.stringify({ ...s, img: s.img?.startsWith('data:') ? null : s.img, photo: null, tw: { ...s.tw, av: null } })); } catch { /* 무시 */ }
   }
 };
 
@@ -198,10 +213,165 @@ function wrap(ctx: CanvasRenderingContext2D, runs: Run[], max: number, fontOf: (
   return lines;
 }
 
+/** 한 줄 그리기 — 형광펜 먼저(글자 아래쪽 2/3쯤만 칠해 손으로 그은 느낌), 그 위에 글자.
+ *  이어진 형광펜 조각은 한 번에 칠한다 — 조각마다 칠하면 겹친 곳이 진해져 줄무늬가 생긴다 */
+function paintLine(ctx: CanvasRenderingContext2D, l: Piece[], textX: number, y: number, lh: number, size: number,
+  fontOf: (r: Run) => string, hl: string, ink: string) {
+  let x = textX, hs: number | null = null;
+  const sh = ctx.shadowBlur;
+  const stroke = (from: number, to: number) => {
+    ctx.shadowBlur = 0; ctx.globalAlpha = 0.6; ctx.fillStyle = hl;
+    ctx.fillRect(from - 3, y + lh * 0.38, to - from + 6, lh * 0.46);
+    ctx.globalAlpha = 1; ctx.shadowBlur = sh;
+  };
+  for (const pc of l) {
+    ctx.font = fontOf(pc.r);
+    const w = ctx.measureText(pc.t).width;
+    if (pc.r.h && hs === null) hs = x;
+    if (!pc.r.h && hs !== null) { stroke(hs, x); hs = null; }
+    x += w;
+  }
+  if (hs !== null) stroke(hs, x);
+  x = textX;
+  ctx.fillStyle = ink;
+  for (const pc of l) {
+    ctx.font = fontOf(pc.r);
+    ctx.fillText(pc.t, x, y + (lh - size) / 2);
+    x += ctx.measureText(pc.t).width;
+  }
+}
+
+const MONO = 'ui-monospace, "SFMono-Regular", Menlo, Consolas, "DejaVu Sans Mono", monospace';
+/* 거리측정 HUD (사용자 확정 — 어두운 색) — 네 모서리 표시 · 위 가운데 작은 십자 · 오른쪽 눈금(5칸마다 긴 눈금, 글 길이만큼) · 귀퉁이 작은 글씨 */
+const HUD = { bg: '#1d2124', sub: '#7d8588', acc: '#d0575f', padL: 137, padR: 170, padY: 210 };
+function drawHud(ctx: CanvasRenderingContext2D, H: number, labels: string[]) {
+  ctx.save();
+  ctx.fillStyle = HUD.bg; ctx.fillRect(0, 0, W, H);
+  ctx.strokeStyle = HUD_INK; ctx.lineCap = 'butt';
+  // 모서리 표시
+  const o = 58, L = 58;
+  ctx.globalAlpha = 0.75; ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.moveTo(o, o + L); ctx.lineTo(o, o); ctx.lineTo(o + L, o);
+  ctx.moveTo(W - o - L, o); ctx.lineTo(W - o, o); ctx.lineTo(W - o, o + L);
+  ctx.moveTo(o, H - o - L); ctx.lineTo(o, H - o); ctx.lineTo(o + L, H - o);
+  ctx.moveTo(W - o - L, H - o); ctx.lineTo(W - o, H - o); ctx.lineTo(W - o, H - o - L);
+  ctx.stroke();
+  // 위 가운데 작은 십자
+  ctx.globalAlpha = 0.6; ctx.lineWidth = 3.6;
+  const cy = 95;
+  ctx.beginPath(); ctx.moveTo(W / 2, cy - 16); ctx.lineTo(W / 2, cy + 16); ctx.moveTo(W / 2 - 16, cy); ctx.lineTo(W / 2 + 16, cy); ctx.stroke();
+  // 오른쪽 눈금
+  const rx = W - 86, top = 223, bot = H - 223;
+  ctx.globalAlpha = 0.5; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.moveTo(rx, top); ctx.lineTo(rx, bot);
+  for (let i = 0, yy = top; yy <= bot + 0.5; i++, yy += 29) { ctx.moveTo(rx, yy); ctx.lineTo(rx - (i % 5 === 0 ? 25 : 14), yy); }
+  ctx.stroke();
+  // 귀퉁이 작은 글씨 — 마지막(오른쪽 아래)은 빨간 점(녹화 표시)과 함께
+  ctx.globalAlpha = 1; ctx.fillStyle = HUD.sub; ctx.textBaseline = 'middle';
+  ctx.font = `30px ${MONO}`;
+  try { (ctx as CanvasRenderingContext2D & { letterSpacing: string }).letterSpacing = '3.6px'; } catch { /* 무시 */ }
+  const [tl, tr, bl, br] = [0, 1, 2, 3].map(i => (labels[i] ?? '').trim());
+  const ly = 87, X = 144;
+  ctx.textAlign = 'left';
+  if (tl) ctx.fillText(tl, X, ly);
+  if (bl) ctx.fillText(bl, X, H - ly);
+  ctx.textAlign = 'right';
+  if (tr) ctx.fillText(tr, W - X, ly);
+  if (br) {
+    ctx.fillText(br, W - X, H - ly);
+    const bw = ctx.measureText(br).width;
+    ctx.fillStyle = HUD.acc;
+    ctx.beginPath(); ctx.arc(W - X - bw - 18, H - ly, 9, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.restore();
+  try { (ctx as CanvasRenderingContext2D & { letterSpacing: string }).letterSpacing = '0px'; } catch { /* 무시 */ }
+}
+
+/* 트위터식 발췌 (사용자 확정 — 한 트윗에 길게) — 프로필 · 제목 @아이디 · 시간 · 본문 · 아이콘 줄 */
+const TW_ICONS = {
+  rp: ['M4 11.5a7.5 7 0 0 1 7.5-7h1a7.5 7 0 0 1 0 15H8l-4 3v-4.5a7 7 0 0 1 0-6.5z'],
+  rt: ['M3 8.5 6 5.5l3 3', 'M6 5.5v10.5a2.5 2.5 0 0 0 2.5 2.5H13', 'M21 15.5l-3 3-3-3', 'M18 18.5V8a2.5 2.5 0 0 0-2.5-2.5H11'],
+  lk: ['M12 20s-7.5-4.6-7.5-10A4.3 4.3 0 0 1 12 7.4 4.3 4.3 0 0 1 19.5 10c0 5.4-7.5 10-7.5 10z'],
+  vw: ['M5 20V12M10 20V5M15 20v-9M20 20v-5'],
+  bm: ['M6.5 4h11v16L12 16l-5.5 4z'],
+  sh: ['M12 15V4M7.5 8.5 12 4l4.5 4.5M5 14v5h14v-5'],
+};
+function drawIcon(ctx: CanvasRenderingContext2D, d: string[], x: number, y: number, s: number, color: string) {
+  ctx.save();
+  ctx.translate(x, y); ctx.scale(s / 24, s / 24);
+  ctx.strokeStyle = color; ctx.lineWidth = 1.7; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  for (const p of d) ctx.stroke(new Path2D(p));
+  ctx.restore();
+}
+async function drawTweet(canvas: HTMLCanvasElement, paras: Run[][], name: string, st: CardStyle, family: string, scale: number) {
+  const ctx = canvas.getContext('2d')!;
+  const tw = { ...TW_DEF, ...st.tw };
+  const ink = tw.dark ? '#e7e9ea' : '#0f1419', sub = tw.dark ? '#71767b' : '#536471';
+  const fs = Math.round(st.size * 1.2);
+  const fontOf = (r: Run) => `${r.i ? 'italic ' : ''}${r.b ? 'bold ' : ''}${fs}px ${family}`;
+  const hs = Math.round(fs * 0.95), cs = Math.round(fs * 0.8);
+  const all = paras.map(p => p.map(r => r.t).join('')).join('');
+  try {
+    await Promise.all([document.fonts.load(`${fs}px ${family}`, all), document.fonts.load(`bold ${hs}px ${family}`, name),
+      document.fonts.load(`bold ${fs}px ${family}`, all), document.fonts.load(`italic ${fs}px ${family}`, all)]);
+  } catch { /* 기본 글꼴로 */ }
+  let av: HTMLImageElement | null = null;
+  if (tw.av) { try { av = await loadImg(tw.av); } catch { av = null; } }
+  const P = 64, AV = 132, cx = P + AV + 36, cw = W - cx - P;
+  const lh = fs * 1.45, headH = hs * 1.4, ic = Math.round(fs * 0.95);
+  const lines = paras.map(p => wrap(ctx, p, cw, fontOf));
+  const bodyH = lines.reduce((n, l, i) => n + l.length * lh + (i ? lh : 0), 0);
+  const bodyTop = P + headH + fs * 0.2;
+  const actTop = bodyTop + bodyH + fs * 0.75;
+  const H = Math.ceil(Math.max(actTop + ic + P * 0.9, P * 2 + AV));
+  const S = Math.max(1, Math.min(scale, Math.sqrt(16_000_000 / (W * H))));
+  canvas.width = Math.round(W * S); canvas.height = Math.round(H * S);
+  ctx.setTransform(S, 0, 0, S, 0, 0);
+  ctx.imageSmoothingEnabled = true;
+  ctx.fillStyle = tw.dark ? '#000000' : '#ffffff';
+  ctx.fillRect(0, 0, W, H);
+  // 프로필 — 사진 또는 색 동그라미 (글씨 없음)
+  if (av) { ctx.imageSmoothingQuality = 'high'; drawCover(ctx, av, P, P, AV, AV, AV / 2); }
+  else { ctx.fillStyle = tw.avColor; ctx.beginPath(); ctx.arc(P + AV / 2, P + AV / 2, AV / 2, 0, Math.PI * 2); ctx.fill(); }
+  // 제목 @아이디 · 시간 — 넘치면 잘라 낸다
+  ctx.textBaseline = 'middle';
+  ctx.save();
+  ctx.beginPath(); ctx.rect(cx, P, cw, headH); ctx.clip();
+  const hy = P + headH / 2;
+  ctx.font = `bold ${hs}px ${family}`; ctx.fillStyle = ink;
+  ctx.fillText(name, cx, hy);
+  const nw = ctx.measureText(name).width;
+  const meta = [tw.handle.trim() ? `@${tw.handle.trim().replace(/^@+/, '')}` : '', tw.time.trim()].filter(Boolean).join(' · ');
+  ctx.font = `${hs}px ${family}`; ctx.fillStyle = sub;
+  if (meta) ctx.fillText(meta, cx + nw + hs * 0.35, hy);
+  ctx.restore();
+  // 본문
+  ctx.textBaseline = 'top';
+  let y = bodyTop;
+  lines.forEach((ls, i) => {
+    if (i) y += lh;
+    for (const l of ls) { paintLine(ctx, l, cx, y, lh, fs, fontOf, st.hl, ink); y += lh; }
+  });
+  // 아이콘 줄 — 답글 · 리트윗 · 마음 · 조회수 … 북마크 · 공유
+  ctx.textBaseline = 'middle'; ctx.font = `${cs}px ${family}`;
+  const step = cw * 0.215;
+  (['rp', 'rt', 'lk', 'vw'] as const).forEach((k, i) => {
+    const x = cx + i * step;
+    drawIcon(ctx, TW_ICONS[k], x, actTop, ic, sub);
+    const n = (tw.n[i] ?? '').trim();
+    if (n) { ctx.fillStyle = sub; ctx.fillText(n, x + ic + cs * 0.3, actTop + ic / 2 + 1); }
+  });
+  drawIcon(ctx, TW_ICONS.bm, cx + cw - ic * 2.9, actTop, ic, sub);
+  drawIcon(ctx, TW_ICONS.sh, cx + cw - ic, actTop, ic, sub);
+}
+
 /** 카드를 캔버스에 그린다 — 높이는 글 길이에 맞추되 정사각형보다 작아지지 않게.
  *  scale: 실제 픽셀 배율 — 미리보기는 1, 저장은 2(고화질, 사용자 요청). 좌표는 전부 1배 기준으로 쓰고 변환으로 키운다 */
-async function draw(canvas: HTMLCanvasElement, paras: Run[][], source: string, st: CardStyle, family: string, scale = 1, talk: (Talk | undefined)[] = []) {
+async function draw(canvas: HTMLCanvasElement, paras: Run[][], source: string, st: CardStyle, family: string, scale = 1, talk: (Talk | undefined)[] = [], title = '') {
+  if (st.kind === 'tweet') return drawTweet(canvas, paras, title || source, st, family, scale);
   const ctx = canvas.getContext('2d')!;
+  const hud = st.deco === 'hud';
   const font = `${st.size}px ${family}`;
   const fontOf = (r: Run) => `${r.i ? 'italic ' : ''}${r.b ? 'bold ' : ''}${st.size}px ${family}`;
   const small = `${Math.round(st.size * 0.62)}px ${family}`;
@@ -214,10 +384,10 @@ async function draw(canvas: HTMLCanvasElement, paras: Run[][], source: string, s
   const lh = st.size * 1.75;
   // 따로 넣는 사진
   let ph: HTMLImageElement | null = null;
-  if (st.photo && st.photoDir && st.photoDir !== 'none') { try { ph = await loadImg(st.photo); } catch { ph = null; } }
+  if (!hud && st.photo && st.photoDir && st.photoDir !== 'none') { try { ph = await loadImg(st.photo); } catch { ph = null; } }
   const vert = !!ph && st.photoDir === 'v';
-  const textX = vert ? PM + PW_V + PGAP_V : PAD;
-  const textW = vert ? W - textX - PAD : W - PAD * 2;
+  const textX = hud ? HUD.padL : vert ? PM + PW_V + PGAP_V : PAD;
+  const textW = hud ? W - HUD.padL - HUD.padR : vert ? W - textX - PAD : W - PAD * 2;
   // 대사 말풍선 — 발화자를 고른 따옴표 문단만
   const speakers = st.speakers ?? DEFAULT_SPEAKERS;
   const bub = paras.map((p, i) => {
@@ -250,7 +420,8 @@ async function draw(canvas: HTMLCanvasElement, paras: Run[][], source: string, s
     photoRect = { x: PM, y: (H - phH) / 2, w: PW_V, h: phH };
     textTop = (H - textH - srcH) / 2;
   } else {
-    H = Math.max(W, Math.ceil(textH + srcH + PAD * 2));
+    const pad = hud ? HUD.padY : PAD;
+    H = Math.max(W, Math.ceil(textH + srcH + pad * 2));
     textTop = (H - textH - srcH) / 2;
   }
   // 아주 긴 글이면 휴대폰 캔버스 한도(약 1,600만 화소)를 넘지 않게 배율을 낮춘다
@@ -262,7 +433,8 @@ async function draw(canvas: HTMLCanvasElement, paras: Run[][], source: string, s
   // 배경
   ctx.fillStyle = st.bg;
   ctx.fillRect(0, 0, W, H);
-  if (st.img) {
+  if (hud) drawHud(ctx, H, st.hud ?? HUD_DEF);
+  else if (st.img) {
     try {
       const im = await loadImg(st.img);
       // 꽉 채우기(cover) — 이미지 크기·위치는 블러와 상관없이 그대로
@@ -309,38 +481,9 @@ async function draw(canvas: HTMLCanvasElement, paras: Run[][], source: string, s
   // 글
   ctx.fillStyle = st.color;
   ctx.textBaseline = 'top';
-  if (st.img) { ctx.shadowColor = 'rgba(0,0,0,.28)'; ctx.shadowBlur = 10 * S; }   // 그림자 흐림은 변환을 따르지 않아 배율을 직접 곱한다
+  if (st.img && !hud) { ctx.shadowColor = 'rgba(0,0,0,.28)'; ctx.shadowBlur = 10 * S; }   // 그림자 흐림은 변환을 따르지 않아 배율을 직접 곱한다
   let y = textTop;
-  /** 한 줄 그리기 — 형광펜 먼저, 그 위에 글자 */
-  const drawLine = (l: Piece[], textX: number, ink: string) => {
-    {
-      // 형광펜 먼저 (글자 아래쪽 2/3쯤만 칠해 손으로 그은 느낌), 그 위에 글자
-      // 이어진 형광펜 조각은 한 번에 칠한다 — 조각마다 칠하면 겹친 곳이 진해져 줄무늬가 생긴다
-      let x = textX, hs: number | null = null;
-      const sh = ctx.shadowBlur;
-      const stroke = (from: number, to: number) => {
-        ctx.shadowBlur = 0; ctx.globalAlpha = 0.6; ctx.fillStyle = st.hl;
-        ctx.fillRect(from - 3, y + lh * 0.38, to - from + 6, lh * 0.46);
-        ctx.globalAlpha = 1; ctx.shadowBlur = sh;
-      };
-      for (const pc of l) {
-        ctx.font = fontOf(pc.r);
-        const w = ctx.measureText(pc.t).width;
-        if (pc.r.h && hs === null) hs = x;
-        if (!pc.r.h && hs !== null) { stroke(hs, x); hs = null; }
-        x += w;
-      }
-      if (hs !== null) stroke(hs, x);
-      x = textX;
-      ctx.fillStyle = ink;
-      for (const pc of l) {
-        ctx.font = fontOf(pc.r);
-        ctx.fillText(pc.t, x, y + (lh - st.size) / 2);
-        x += ctx.measureText(pc.t).width;
-      }
-      y += lh;
-    }
-  };
+  const drawLine = (l: Piece[], textX: number, ink: string) => { paintLine(ctx, l, textX, y, lh, st.size, fontOf, st.hl, ink); y += lh; };
   const lineW = (l: Piece[]) => l.reduce((n, pc) => { ctx.font = fontOf(pc.r); return n + ctx.measureText(pc.t).width; }, 0);
   lines.forEach((ls, i) => {
     y += gapBefore(i);
@@ -369,12 +512,14 @@ async function draw(canvas: HTMLCanvasElement, paras: Run[][], source: string, s
   });
   ctx.font = small;
   ctx.globalAlpha = 0.75;
-  ctx.textAlign = 'right';
-  ctx.fillText(source, textX + textW, y + st.size * 1.2);
+  // HUD는 출처를 왼쪽에 흐린 색으로
+  if (hud) { ctx.fillStyle = HUD.sub; ctx.globalAlpha = 1; }
+  ctx.textAlign = hud ? 'left' : 'right';
+  ctx.fillText(source, hud ? textX : textX + textW, y + st.size * 1.2);
   ctx.globalAlpha = 1; ctx.textAlign = 'left'; ctx.shadowBlur = 0;
 }
 
-export function ExcerptCard({ paras: plain, source, fileName }: { paras: string[]; source: string; fileName: string }) {
+export function ExcerptCard({ paras: plain, source, fileName, title = '' }: { paras: string[]; source: string; fileName: string; title?: string }) {
   // 문단마다 글 조각 — 처음엔 꾸밈 없이 한 조각
   const [paras, setParas] = useState<Run[][]>(() => plain.map(t => [{ t }]));
   const markBox = useRef<HTMLDivElement>(null);
@@ -410,6 +555,7 @@ export function ExcerptCard({ paras: plain, source, fileName }: { paras: string[
   const ref = useRef<HTMLCanvasElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const photoRef = useRef<HTMLInputElement>(null);
+  const avRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => { setSt(loadStyle()); setReady(true); }, []);
@@ -422,7 +568,7 @@ export function ExcerptCard({ paras: plain, source, fileName }: { paras: string[
     if (!ready || !ref.current) return;
     let alive = true;
     const c = document.createElement('canvas');
-    void draw(c, paras, source, st, family, 1, talk).then(() => {
+    void draw(c, paras, source, st, family, 1, talk, title).then(() => {
       // 다 그린 다음에 한 번에 옮긴다 — 그리는 도중의 빈 화면이 깜빡이지 않게
       const v = ref.current;
       if (!alive || !v) return;
@@ -430,23 +576,30 @@ export function ExcerptCard({ paras: plain, source, fileName }: { paras: string[
       v.getContext('2d')!.drawImage(c, 0, 0);
     });
     return () => { alive = false; };
-  }, [ready, paras, source, st, family, talk]);
+  }, [ready, paras, source, st, family, talk, title]);
 
-  const upload = async (f?: File, to: 'img' | 'photo' = 'img') => {
+  const tw = { ...TW_DEF, ...st.tw };
+  const setTw = (p: Partial<TweetConf>) => set({ tw: { ...tw, ...p } });
+  const isTweet = st.kind === 'tweet', isHud = st.deco === 'hud';
+  /** 배경 고르기 — HUD는 어두우니 글씨를 밝게, 다른 배경으로 돌아가면 다시 어둡게 */
+  const pickBg = (p: Partial<CardStyle>) => set({ deco: null, ...(isHud && st.color === HUD_INK ? { color: DEF.color } : {}), ...p });
+  const upload = async (f?: File, to: 'img' | 'photo' | 'av' = 'img') => {
     if (!f) return;
     try {
       // 메타데이터 없이, 긴 변 2160px까지만 — 고화질 저장(2배)에 맞춘 크기. 이 브라우저 안에만 둔다 (서버에 올리지 않음)
       const clean = await stripImageMeta(f);
       const url = URL.createObjectURL(clean);
       const im = await loadImg(url);
-      const k = Math.min(1, 2160 / Math.max(im.width, im.height));
+      const k = Math.min(1, (to === 'av' ? 512 : 2160) / Math.max(im.width, im.height));
       const c = document.createElement('canvas');
       c.width = Math.round(im.width * k); c.height = Math.round(im.height * k);
       const cx = c.getContext('2d')!;
       cx.imageSmoothingQuality = 'high';
       cx.drawImage(im, 0, 0, c.width, c.height);
       URL.revokeObjectURL(url); imgCache.delete(url);
-      set(to === 'img' ? { img: c.toDataURL('image/jpeg', 0.92) } : { photo: c.toDataURL('image/jpeg', 0.92) });
+      const url2 = c.toDataURL('image/jpeg', 0.92);
+      if (to === 'av') setTw({ av: url2 });
+      else set(to === 'img' ? { img: url2, deco: null } : { photo: url2 });
     } catch (e) {
       toast(`이미지를 넣지 못했습니다 — ${e instanceof Error ? e.message : String(e)}`);
     }
@@ -456,7 +609,7 @@ export function ExcerptCard({ paras: plain, source, fileName }: { paras: string[
     setBusy(true);
     try {
       const c = document.createElement('canvas');
-      await draw(c, paras, source, st, family, 2, talk);
+      await draw(c, paras, source, st, family, 2, talk, title);
       const blob = await new Promise<Blob | null>(r => c.toBlob(r, 'image/png'));
       if (!blob) throw new Error('이미지를 만들지 못했습니다');
       const name = `${fileName.replace(/[\\/:*?"<>|]+/g, '').slice(0, 40) || '발췌'}.png`;
@@ -483,6 +636,14 @@ export function ExcerptCard({ paras: plain, source, fileName }: { paras: string[
     <div className="exc">
       <div className="exc-prev"><canvas ref={ref} /></div>
       <div className="exc-ctl">
+        {/* 모양 — 카드 / 트위터식 (사용자 요청) */}
+        <div className="exc-row">
+          <label>모양</label>
+          <div className="mini-seg">
+            <button type="button" className={!isTweet ? 'on' : ''} onClick={() => set({ kind: 'card' })}>카드</button>
+            <button type="button" className={isTweet ? 'on' : ''} onClick={() => set({ kind: 'tweet' })}>트윗</button>
+          </div>
+        </div>
         {/* 문장 꾸미기 — 아래 글에서 드래그한 뒤 버튼 (다시 누르면 꺼짐) */}
         <div className="exc-mark">
           <div className="exc-mark-bar">
@@ -509,7 +670,47 @@ export function ExcerptCard({ paras: plain, source, fileName }: { paras: string[
           <small>꾸밀 부분을 드래그하고 버튼을 눌러요 — 다시 누르면 꺼져요</small>
         </div>
         {/* 대사 말풍선 (사용자 요청) — 앞뒤가 따옴표인 문단마다 발화자와 붙는 쪽을 고른다 */}
-        {paras.some(r => isQuote(r.map(x => x.t).join(''))) && (
+        {isTweet && (
+          <div className="exc-tw">
+            <div className="exc-row">
+              <label>아이디</label>
+              <span className="exc-at">@<input className="k-input" value={tw.handle} maxLength={30} placeholder="아이디"
+                onChange={e => setTw({ handle: e.target.value.replace(/^@+/, '') })} /></span>
+            </div>
+            <div className="exc-row">
+              <label>시간</label>
+              <input className="k-input exc-time" value={tw.time} maxLength={30} placeholder="2시"
+                onChange={e => setTw({ time: e.target.value })} />
+            </div>
+            <div className="exc-row">
+              <label>숫자</label>
+              <div className="exc-nums">
+                {['답글', '리트윗', '마음', '조회수'].map((l, i) => (
+                  <input key={l} className="k-input" value={tw.n[i] ?? ''} maxLength={8} placeholder={l} aria-label={l}
+                    onChange={e => { const n = [...tw.n]; n[i] = e.target.value; setTw({ n }); }} />
+                ))}
+              </div>
+            </div>
+            <div className="exc-row">
+              <label>프로필</label>
+              {!tw.av && <ColorField value={tw.avColor} onChange={avColor => setTw({ avColor })} />}
+              <button type="button" className={`exc-sw exc-up exc-av ${tw.av ? 'on' : ''}`}
+                style={tw.av ? { backgroundImage: `url(${tw.av})` } : undefined}
+                onClick={() => avRef.current?.click()} data-tip={tw.av ? '사진 바꾸기' : '사진 올리기'}>{tw.av ? '' : '＋'}</button>
+              {tw.av && <button type="button" className="ghost exc-txtbtn" onClick={() => setTw({ av: null })}>사진 빼기</button>}
+              <input ref={avRef} type="file" accept="image/*" style={{ display: 'none' }} data-crop="1:1"
+                onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; void upload(f, 'av'); }} />
+            </div>
+            <div className="exc-row">
+              <label>색</label>
+              <div className="mini-seg">
+                <button type="button" className={!tw.dark ? 'on' : ''} onClick={() => setTw({ dark: false })}>밝게</button>
+                <button type="button" className={tw.dark ? 'on' : ''} onClick={() => setTw({ dark: true })}>어둡게</button>
+              </div>
+            </div>
+          </div>
+        )}
+        {!isTweet && paras.some(r => isQuote(r.map(x => x.t).join(''))) && (
           <div className="exc-talk">
             <div className="exc-talk-h">
               <span>대사 · 발화자</span>
@@ -556,23 +757,37 @@ export function ExcerptCard({ paras: plain, source, fileName }: { paras: string[
             })}
           </div>
         )}
+        {!isTweet && (<>
         <div className="exc-row">
           <label>배경</label>
           <div className="exc-bgs">
-            <button type="button" className={`exc-sw ${!st.img ? 'on' : ''}`} style={{ background: st.bg }}
-              onClick={() => set({ img: null })} data-tip="색 배경" />
+            <button type="button" className={`exc-sw ${!st.img && !isHud ? 'on' : ''}`} style={{ background: st.bg }}
+              onClick={() => pickBg({ img: null })} data-tip="색 배경" />
+            {/* 거리측정 HUD (사용자 요청) */}
+            <button type="button" className={`exc-sw exc-hud ${isHud ? 'on' : ''}`} data-tip="거리측정 HUD"
+              onClick={() => set({ deco: 'hud', img: null, color: HUD_INK })}><i /><i /><i /><i /></button>
             {EXCERPT_BGS.map(b => (
-              <button key={b.src} type="button" className={`exc-sw ${st.img === b.src ? 'on' : ''}`}
-                style={{ backgroundImage: `url(${b.thumb})` }} onClick={() => set({ img: b.src })} />
+              <button key={b.src} type="button" className={`exc-sw ${st.img === b.src && !isHud ? 'on' : ''}`}
+                style={{ backgroundImage: `url(${b.thumb})` }} onClick={() => pickBg({ img: b.src })} />
             ))}
-            <button type="button" className={`exc-sw exc-up ${isUp ? 'on' : ''}`}
+            <button type="button" className={`exc-sw exc-up ${isUp && !isHud ? 'on' : ''}`}
               style={isUp ? { backgroundImage: `url(${st.img})` } : undefined}
               onClick={() => fileRef.current?.click()} data-tip="내 이미지 올리기">{isUp ? '' : '＋'}</button>
             <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }}
               onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; void upload(f); }} />
           </div>
         </div>
-        {st.img ? (
+        {isHud ? (
+          <div className="exc-row">
+            <label>글씨</label>
+            <div className="exc-hudtx">
+              {['왼쪽 위', '오른쪽 위', '왼쪽 아래', '오른쪽 아래'].map((l, i) => (
+                <input key={l} className="k-input" value={(st.hud ?? HUD_DEF)[i] ?? ''} maxLength={20} placeholder={`${l} (비우면 숨김)`}
+                  onChange={e => { const h = [...(st.hud ?? HUD_DEF)]; h[i] = e.target.value; set({ hud: h }); }} />
+              ))}
+            </div>
+          </div>
+        ) : st.img ? (
           <>
             <div className="exc-row">
               <label>밝기</label>
@@ -591,7 +806,7 @@ export function ExcerptCard({ paras: plain, source, fileName }: { paras: string[
           <div className="exc-row"><label>배경색</label><ColorField value={st.bg} onChange={bg => set({ bg })} /></div>
         )}
         {/* 사진 따로 넣기 — 가로 띠(글 위) / 세로 띠(글 왼쪽), 비율 2.5:1 */}
-        <div className="exc-row">
+        {!isHud && <div className="exc-row">
           <label>사진</label>
           <div className="mini-seg">
             {([['none', '없음'], ['h', '▭ 가로 띠'], ['v', '▯ 세로 띠']] as const).map(([v, l]) => (
@@ -607,20 +822,21 @@ export function ExcerptCard({ paras: plain, source, fileName }: { paras: string[
           <input ref={photoRef} type="file" accept="image/*" style={{ display: 'none' }}
             data-crop={st.photoDir === 'v' ? '2:5' : '5:2'}
             onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; void upload(f, 'photo'); }} />
-        </div>
+        </div>}
+        </>)}
         <div className="exc-row">
           <label>글씨체</label>
           <KSelect minWidth={170} value={st.fontId} onChange={fontId => set({ fontId })}
             options={[{ value: '', label: '기본' },
               ...fonts.map(f => ({ value: f.id, label: <span style={{ fontFamily: familyOf(f.id) }}>{f.name}</span> }))]} />
         </div>
-        <div className="exc-row">
+        {!isTweet && <div className="exc-row">
           <label>글씨색</label><ColorField value={st.color} onChange={color => set({ color })} />
           <span className="exc-quick">
             <button type="button" style={{ background: '#ffffff' }} onClick={() => set({ color: '#ffffff' })} data-tip="흰색" />
             <button type="button" style={{ background: '#2c3037' }} onClick={() => set({ color: '#2c3037' })} data-tip="검정" />
           </span>
-        </div>
+        </div>}
         <div className="exc-row">
           <label>크기</label>
           <input type="range" className="k-range" min={24} max={64} value={st.size}

@@ -100,7 +100,7 @@ export function ExcerptBody({ html, active, onExit, title, author, style }: {
       )}
       <Modal open={view} onClose={() => setView(false)} title="발췌" desc={`「${title}」에서 고른 ${picked.length}개 문단 — 배경·글씨를 꾸며 이미지로 저장할 수 있어요`}>
         {/* 발췌 카드 — 배경(색·이미지, 밝기·블러)과 글씨체를 골라 이미지로 저장 */}
-        {view && <ExcerptCard paras={snap} source={`— 「${title}」 · ${author}`} fileName={`${title} 발췌`} />}
+        {view && <ExcerptCard paras={snap} source={`— 「${title}」 · ${author}`} fileName={`${title} 발췌`} title={title} />}
         <div className="form-actions" style={{ marginTop: 8 }}>
           <button className="btn btn-ghost" onClick={() => setView(false)}>CLOSE</button>
           <button className="btn btn-ghost" onClick={copy}>글로 복사하기</button>

@@ -2116,6 +2116,20 @@ html.gate-seen .gate{display:none}
 .exc-sw.exc-photo.h{width:80px;height:32px}
 .exc-sw.exc-photo.v{width:26px;height:64px}
 .exc-quick{display:inline-flex;gap:5px}
+.exc-hud{position:relative;background:#1d2124}
+.exc-hud i{position:absolute;width:7px;height:7px;border:0 solid #e4e6e3;opacity:.8}
+.exc-hud i:nth-child(1){left:5px;top:5px;border-left-width:1px;border-top-width:1px}
+.exc-hud i:nth-child(2){right:5px;top:5px;border-right-width:1px;border-top-width:1px}
+.exc-hud i:nth-child(3){left:5px;bottom:5px;border-left-width:1px;border-bottom-width:1px}
+.exc-hud i:nth-child(4){right:5px;bottom:5px;border-right-width:1px;border-bottom-width:1px}
+.exc-hudtx,.exc-nums{flex:1;display:grid;grid-template-columns:1fr 1fr;gap:6px;min-width:0}
+.exc-nums{grid-template-columns:repeat(4,minmax(0,1fr))}
+.exc-hudtx .k-input,.exc-nums .k-input{min-width:0;width:100%}
+.exc-at{flex:1;display:flex;align-items:center;gap:4px;color:var(--sub)}.exc-at .k-input{flex:1;min-width:0}
+.exc-time{flex:1;min-width:0}
+.exc-sw.exc-av{width:38px;height:38px;border-radius:50%}
+.exc-txtbtn{font-size:calc(11px*var(--fs,1));color:var(--sub)}
+.exc-tw{display:grid;gap:12px}
 .exc-quick button{width:22px;height:22px;border-radius:50%;border:1px solid var(--line);cursor:var(--cur-pointer,pointer);padding:0}
 .k-range{flex:1;min-width:120px;accent-color:var(--accent);height:4px;cursor:var(--cur-pointer,pointer)}
 @media (max-width:720px){.exc{grid-template-columns:1fr}.exc-prev canvas{max-height:46vh}}
