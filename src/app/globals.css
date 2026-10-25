@@ -2439,16 +2439,21 @@ body.edit-on .qt-re{pointer-events:none}
 @media (max-width:620px){.wgt.sized .pl-wrap,.pl-wrap{aspect-ratio:4/5 !important;height:auto !important}}
 .pl-card{position:absolute;left:50%;top:50%;width:min(76cqw,60cqh);   /* 위젯을 꽉 채우는 세로로 긴 폴라로이드 (사용자 요청) */
   background:#fff;padding:4.5% 4.5% 0;border-radius:3px;
-  box-shadow:0 6px 18px rgba(0,0,0,.18);transition:transform .38s cubic-bezier(.3,.7,.3,1),opacity .38s;animation:plIn .4s}
+  box-shadow:0 6px 18px rgba(0,0,0,.18);transition:transform .45s cubic-bezier(.22,.8,.3,1),opacity .45s ease;animation:plIn .4s;
+  will-change:transform,opacity;backface-visibility:hidden}
 .pl-card.d0{z-index:3;transform:translate(-50%,-50%) rotate(-2deg)}
 .pl-card.d1{z-index:2;transform:translate(-42%,-51%) rotate(5deg)}
 .pl-card.d2{z-index:1;transform:translate(-58%,-49%) rotate(-6deg)}
-.pl-card.out{transform:translate(-10%,-95%) rotate(16deg);opacity:0}
+/* 뒤에 숨어 기다리는 장 — 3번째 장 자리에서 투명하게, 차례가 오면 그 자리에서 스르르 */
+.pl-card.dh{z-index:0;transform:translate(-58%,-49%) rotate(-6deg);opacity:0;pointer-events:none}
+.pl-card.out{z-index:4;transform:translate(-10%,-95%) rotate(16deg);opacity:0;pointer-events:none}
+/* 테이프는 맨 앞 장에만 — 앞으로 오면 스르르 나타난다 */
+.pl-card:not(.d0) .pl-tape{opacity:0}
 @keyframes plIn{from{opacity:0}to{opacity:1}}
 .pl-img{aspect-ratio:3/4;overflow:hidden;border-radius:1px;background:#eee}
 .pl-img img{width:100%;height:100%;object-fit:cover;display:block;pointer-events:none}
 .pl-cap{display:block;height:min(11cqw,11cqh);line-height:min(11cqw,11cqh);text-align:center;color:#4a4a4a;font-size:min(6.4cqw,6.4cqh);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 4px}
-.pl-tape{position:absolute;left:50%;top:-5%;width:36%;height:10%;transform:translateX(-50%) rotate(-4deg);background:rgba(238,214,156,.78);box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.pl-tape{position:absolute;left:50%;top:-5%;width:36%;height:10%;transform:translateX(-50%) rotate(-4deg);background:rgba(238,214,156,.78);box-shadow:0 1px 2px rgba(0,0,0,.08);transition:opacity .3s}
 .pl-set{position:absolute;right:4px;bottom:4px;z-index:5;opacity:0;transition:opacity .15s;border:none;border-radius:999px;background:var(--dd-bg,#333);color:var(--dd-fg,#fff);font-size:11px;padding:4px 10px;cursor:var(--cur-pointer,pointer)}
 .pl-wrap:hover .pl-set,.pl-set:focus-visible{opacity:1}
 @media (hover:none){.pl-set{opacity:.85}}
