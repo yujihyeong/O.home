@@ -24,3 +24,8 @@ export const ImageIcon = (p: P) => svg(p, <>
   <circle cx="9" cy="9.5" r="1.6" />
   <path d="m4.5 17.5 4.8-4.6 3.4 3.1 2.7-2.4 4.1 3.9" />
 </>);
+
+/** 공유 — 네모에서 위로 나가는 화살표 */
+export const ShareIcon = (p: P) => svg(p, <>
+  <path d="M12 3v12" /><path d="M7.5 7.5 12 3l4.5 4.5" /><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7" />
+</>);
