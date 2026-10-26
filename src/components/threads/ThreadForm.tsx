@@ -130,7 +130,7 @@ export function ThreadForm({ editId }: { editId?: string }) {
                 options={[
                   { value: 'public', label: '전체공개' },
                   { value: 'member', label: '멤버공개' },
-                  { value: 'private', label: '나만보기' },
+                  { value: 'private', label: '비공개 (관리자만)' },
                 ]} />
             </div>
           </div>

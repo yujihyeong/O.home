@@ -125,14 +125,14 @@ function ThreadsPageInner() {
     return () => { alive = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ck, worksRaw.map(w => w.locked?.iv ?? '').join()]);
-  const works = useMemo(() => worksRaw.map(w => (w.locked ? { ...w, posts: plain[pk(w)] ?? [] } : w)),
+  const rows = useMemo(() => worksRaw.map(w => (w.locked ? { ...w, posts: plain[pk(w)] ?? [] } : w)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [worksRaw, plain]);
   /** 저장 — 잠긴 섹션이면 글 목록이 바뀐 작품만 다시 봉한다 (안 바뀐 작품은 봉한 그대로) */
-  const setWorks = (list: ThreadWork[]) => {
+  const setRows = (list: ThreadWork[]) => {
     if (!locked || !ck) { setWorksRaw(list); return; }
     const raw = new Map(worksRaw.map(w => [w.id, w]));
-    const view = new Map(works.map(w => [w.id, w]));
+    const view = new Map(rows.map(w => [w.id, w]));
     void Promise.all(list.map(async w => {
       const r = raw.get(w.id), v = view.get(w.id);
       if (r?.locked && v && v.posts === w.posts) return { ...w, posts: [], locked: r.locked, sealedSec: r.sealedSec };
@@ -140,6 +140,47 @@ function ThreadsPageInner() {
       setPlain(p => ({ ...p, [pk(sealed)]: w.posts }));
       return sealed;
     })).then(setWorksRaw);
+  };
+
+  /* 비공개 글 (사용자 요청) — 관리자만 보는 글. 타래마다 비공개 칸(privOf 행, 나만보기)에 따로 두고
+     관리자 화면에서만 날짜 순으로 합쳐 보여 준다. 아래 코드는 합친 목록(works)만 다룬다 */
+  const works = useMemo(() => {
+    const shadow = new Map(isAdmin ? rows.filter(w => w.privOf).map(w => [w.privOf!, w]) : []);
+    return rows.filter(w => !w.privOf).map(w => {
+      const sh = shadow.get(w.id);
+      if (!sh?.posts.length) return w;
+      const posts = [...w.posts, ...sh.posts.map(p => ({ ...p, priv: true }))]
+        .sort((a, b) => a.date.localeCompare(b.date));
+      return { ...w, posts };
+    });
+  }, [rows, isAdmin]);
+  const setWorks = (list: ThreadWork[]) => {
+    const shadowOf = new Map(rows.filter(w => w.privOf).map(w => [w.privOf!, w]));
+    const shown = new Map(works.map(w => [w.id, w]));
+    const orig = new Map(rows.map(w => [w.id, w]));
+    const out: ThreadWork[] = [];
+    for (const w of list) {
+      const sh = shadowOf.get(w.id);
+      // 글을 건드리지 않은 타래는 원래 행 그대로 — 잠긴 섹션에서 다시 봉하지 않게
+      if (shown.get(w.id)?.posts === w.posts) {
+        const o = orig.get(w.id);
+        out.push(o ? { ...w, posts: o.posts } : w);
+        if (sh) out.push(sh);
+        continue;
+      }
+      const pub = w.posts.filter(p => !p.priv);
+      const priv = w.posts.filter(p => p.priv).map(p => { const c = { ...p }; delete c.priv; return c; });
+      out.push({ ...w, posts: pub });
+      if (priv.length) {
+        out.push({
+          ...(sh ?? { id: newId(), title: '', author: '', catId: '', ph: w.ph, created: new Date().toISOString() }),
+          privOf: w.id, visibility: 'private', posts: priv,
+        });
+      }
+    }
+    // 관리자가 아니면 비공개 칸은 애초에 받지 못한다 — 남은 것은 그대로 (지우지 않는다)
+    if (!isAdmin) for (const sh of shadowOf.values()) if (list.some(w => w.id === sh.privOf)) out.push(sh);
+    setRows(out);
   };
   const [lockAsk, setLockAsk] = useState(false);
   const [lockBusy, setLockBusy] = useState(false);
@@ -156,7 +197,7 @@ function ThreadsPageInner() {
       k = await ensurePostContentKey();
       if (!k) { toast('이 기기에서 프롬프트 게시판을 한 번 열어 주세요 (비밀번호 입력)'); return false; }
     }
-    setWorksRaw(await Promise.all(works.map(w => sealWork(k!, w))));
+    setWorksRaw(await Promise.all(rows.map(w => sealWork(k!, w))));
     patchSettings({ locks: { ...settings.locks, [sec.id]: lockOwn ? { own: lockOwn } : {} } });
     if (own) await rememberBoardKey({ id: target.id, lockOwn }, k);
     setCk(k); setGate('open');
@@ -210,7 +251,8 @@ function ThreadsPageInner() {
     return m ? { w: Number(m[1]), p: m[2] ? Number(m[2]) : null } : null;
   }, [pathname]);
   const workNoMap = useMemo(() => {
-    const order = [...works].sort((a, b) => a.created.localeCompare(b.created) || a.id.localeCompare(b.id));
+    // 모두에게 보이는 타래만 센다 — 비공개·멤버공개 타래가 끼면 보는 사람마다 번호가 달라진다
+    const order = works.filter(w => w.visibility === 'public').sort((a, b) => a.created.localeCompare(b.created) || a.id.localeCompare(b.id));
     return new Map(order.map((w, i) => [w.id, i + 1]));
   }, [works]);
   const pathApplied = useRef(false);
@@ -272,8 +314,9 @@ function ThreadsPageInner() {
   const pendingPNo = useRef<number | null>(null);   // 깔끔한 주소의 글 번호
   useEffect(() => {
     // 주소로 고른 타래가 실제로 선택된 뒤에 (선택이 바뀌면 보기가 목록으로 돌아가므로 그다음에 연다)
-    if (pendingPNo.current && sel && sel.id === selId && sel.posts.length >= pendingPNo.current) {
-      pendingP.current = sel.posts[pendingPNo.current - 1].id;
+    const pubPosts = sel ? sel.posts.filter(p => !p.priv) : [];
+    if (pendingPNo.current && sel && sel.id === selId && pubPosts.length >= pendingPNo.current) {
+      pendingP.current = pubPosts[pendingPNo.current - 1].id;
       pendingPNo.current = null;
     }
     const pid = pendingP.current;
@@ -288,6 +331,8 @@ function ThreadsPageInner() {
     const u = setTimeout(() => setFocusPid(null), 2200);
     return () => { clearTimeout(t); clearTimeout(u); };
   }, [pView, focusPid]);
+  /** 공개 글 번호 — 공유 주소(/threads/타래/글)와 같은 번호 */
+  const pubNo = useMemo(() => new Map((sel?.posts ?? []).filter(p => !p.priv).map((p, i) => [p.id, i + 1])), [sel?.posts]);
   /** 목록 한 줄 — 마크다운·HTML 기호를 걷어 낸 첫 줄 */
   const excerptOf = (p: ThreadPost) => {
     const plain = (p.mode === 'html' ? p.text.replace(/<[^>]+>/g, ' ') : p.text)
@@ -318,6 +363,7 @@ function ThreadsPageInner() {
   };
   // 글쓰기와 같은 편집기 (사용자 요청) — 모드·글 전체 글씨체
   const [wMode, setWMode] = useState<WriteMode>('log');
+  const [wPriv, setWPriv] = useState(false);   // 비공개 글 (사용자 요청) — 관리자만 본다
   const [whole, setWhole] = useState<WholeFont>({});
   const post = async () => {
     if (!sel) return;
@@ -328,9 +374,10 @@ function ThreadsPageInner() {
       id: newId(), text: text.trim(), images, date: new Date().toISOString(),
       ...saveModeOf(wMode), fontId: whole.fontId, fontSize: whole.fontSize,
       fold: foldType === 'none' ? undefined : { type: foldType, label: foldType === 'custom' ? foldLabel.trim() || undefined : undefined },
+      ...(wPriv ? { priv: true } : {}),
     };
     setWorks(works.map(w => w.id === sel.id ? { ...w, posts: [...w.posts, p] } : w));
-    setText(''); setFiles([]); setUrls([]); setFoldType('none'); setFoldLabel('');
+    setText(''); setFiles([]); setUrls([]); setFoldType('none'); setFoldLabel(''); setWPriv(false);
   };
 
   // 글 수정 모달 — 텍스트 + 첨부 이미지 관리 (총 4장 제한)
@@ -340,6 +387,7 @@ function ThreadsPageInner() {
   const [epWhole, setEpWhole] = useState<WholeFont>({});
   const [epFoldType, setEpFoldType] = useState<FoldPick>('none');   // 접기 (v2.0)
   const [epFoldLabel, setEpFoldLabel] = useState('');
+  const [epPriv, setEpPriv] = useState(false);
   const [epKeep, setEpKeep] = useState<string[]>([]);   // 유지할 기존 이미지 id
   const [epPh, setEpPh] = useState<string[]>([]);       // 유지할 데모 플레이스홀더 (시드)
   const [epFiles, setEpFiles] = useState<File[]>([]);
@@ -353,6 +401,7 @@ function ThreadsPageInner() {
     setEpMode(p.mode ? modeOf(p.mode, p.authored) : 'md');
     setEpWhole({ fontId: p.fontId, fontSize: p.fontSize });
     setEpFoldType(p.fold?.type ?? 'none'); setEpFoldLabel(p.fold?.label ?? '');
+    setEpPriv(!!p.priv);
     setEpKeep(p.images); setEpPh(p.images.length ? [] : (p.phList ?? []));
     setEpFiles([]); setEpUrls([]);
   };
@@ -376,6 +425,7 @@ function ThreadsPageInner() {
         ...saveModeOf(epMode), fontId: epWhole.fontId, fontSize: epWhole.fontSize,
         phList: [...epKeep, ...added].length ? undefined : (epPh.length ? epPh : undefined),
         fold: epFoldType === 'none' ? undefined : { type: epFoldType, label: epFoldType === 'custom' ? epFoldLabel.trim() || undefined : undefined },
+        priv: epPriv || undefined,
       } : p),
     } : w));
     setEpId(null);
@@ -402,8 +452,9 @@ function ThreadsPageInner() {
     const base = sectionHref('threads', w.secId ?? 'main');
     const q = base.includes('?') ? base.slice(base.indexOf('?')) : '';
     const wno = workNoMap.get(w.id);
-    const pno = post ? w.posts.findIndex(x => x.id === post.id) + 1 : 0;
-    const url = wno
+    // 글 번호도 공개 글만 센다 (비공개 글은 관리자에게만 보인다)
+    const pno = post && !post.priv ? w.posts.filter(x => !x.priv).findIndex(x => x.id === post.id) + 1 : 0;
+    const url = wno && !(post && post.priv)
       ? `${location.origin}/threads/${wno}${pno > 0 ? `/${pno}` : ''}${q}`
       : `${location.origin}${base}${base.includes('?') ? '&' : '?'}w=${encodeURIComponent(w.id)}`
         + (post ? `&p=${encodeURIComponent(post.id)}` : '');
@@ -489,7 +540,7 @@ function ThreadsPageInner() {
                 </span>
               </div>
               <div className="info">
-                <div className="tt" style={{ fontFamily: familyOf(w.titleFontId) }}>{w.title}</div>
+                <div className="tt" style={{ fontFamily: familyOf(w.titleFontId) }}>{w.visibility === 'private' && <><LockMini /> </>}{w.title}</div>
                 {/* Author 칸 내용 — 제목과 글 수 사이, 2줄까지 (v2.0 포크 사용자 요청) */}
                 {w.author && (
                   <div className="row" style={{
@@ -521,7 +572,7 @@ function ThreadsPageInner() {
                     <div className="author">{sel.author}{sel.authorRole && <> <b>{sel.authorRole}</b></>}</div>
                     <small>
                       타래 시작 {fmtMD(sel.created)} · 글 {sel.posts.length}
-                      {sel.visibility !== 'public' && ` · ${sel.visibility === 'member' ? '멤버공개' : '나만보기'}`}
+                      {sel.visibility !== 'public' && ` · ${sel.visibility === 'member' ? '멤버공개' : '비공개'}`}
                     </small>
                     <div style={{ display: 'flex', gap: 6, marginTop: 8, alignItems: 'center' }}>
                       {isAdmin && (
@@ -549,11 +600,12 @@ function ThreadsPageInner() {
                 )}
                 {pView === 'list' ? (
                   <div className="board-list flush thr-plist">
-                    {sel.posts.map((p, i) => (
-                      <div key={p.id} className="brow nocat" onClick={() => { setFocusPid(p.id); setPView('thread'); }}>
+                    {sel.posts.map(p => (
+                      <div key={p.id} className={`brow nocat ${p.priv ? 'priv' : ''}`} onClick={() => { setFocusPid(p.id); setPView('thread'); }}>
                         <div className="tcell">
                           <b>
-                            <span className="thr-pno">{i + 1}</span>
+                            {/* 번호는 공개 글만 — 공유 주소의 글 번호와 같다. 비공개 글은 자물쇠 */}
+                            <span className="thr-pno">{p.priv ? <LockMini /> : pubNo.get(p.id)}</span>
                             {p.fold && !openFolds.has(p.id)
                               ? <span style={{ color: 'var(--faint)' }}>{p.fold.type === 'custom' ? (p.fold.label || '접힌 글') : FOLD_LABEL[p.fold.type]}</span>
                               : (excerptOf(p) || (p.images.length ? '(사진)' : '(빈 글)'))}
@@ -570,7 +622,8 @@ function ThreadsPageInner() {
                   {sel.posts.map(p => {
                     const folded = !!p.fold && !openFolds.has(p.id);
                     return (
-                      <div key={p.id} id={`tp-${p.id}`} className={`thr-post ${focusPid === p.id ? 'focus' : ''}`}>
+                      <div key={p.id} id={`tp-${p.id}`} className={`thr-post ${focusPid === p.id ? 'focus' : ''} ${p.priv ? 'priv' : ''}`}>
+                        {p.priv && <span className="thr-privtag"><LockMini /> 비공개</span>}
                         {folded ? (
                           /* 접기 쿠션 (v2.0 사용자 요청) — 문구만 보이고, 눌러야 내용이 나온다 */
                           <div className="thr-fold" onClick={() => setOpenFolds(s => { const n = new Set(s); n.add(p.id); return n; })}>
@@ -647,6 +700,8 @@ function ThreadsPageInner() {
                         </button>
                         {/* 접기 (v2.0 스포일러 쿠션) — 게시판 글쓰기의 접기와 같은 선택지 */}
                         <KSelect minWidth={122} value={foldType} onChange={v => setFoldType(v as FoldPick)} options={FOLD_OPTIONS} />
+                        <button type="button" className={`thr-privbtn ${wPriv ? 'on' : ''}`} onClick={() => setWPriv(v => !v)}
+                          data-tip="관리자만 볼 수 있어요"><LockMini /> 비공개</button>
                         {foldType === 'custom' && (
                           <KInput placeholder="접기 문구" value={foldLabel} onChange={e => setFoldLabel(e.target.value)}
                             style={{ width: 130 }} />
@@ -671,7 +726,7 @@ function ThreadsPageInner() {
                   <CroppedBlobImg fileRef={w.posterId} crop={w.posterCrop} ph={w.ph} />
                 </div>
                 <div style={{ minWidth: 0 }}>
-                  <b>{w.title}</b>
+                  <b>{w.visibility === 'private' && <><LockMini /> </>}{w.title}</b>
                   <small>{catLabel(cats, w.catId)} · 글 {w.posts.length} · {fmtMD(lastDate(w))}</small>
                 </div>
               </div>
@@ -690,6 +745,8 @@ function ThreadsPageInner() {
           {/* 접기 (v2.0 스포일러 쿠션) — 컴포저와 같은 선택지 */}
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <KSelect minWidth={140} value={epFoldType} onChange={v => setEpFoldType(v as FoldPick)} options={FOLD_OPTIONS} />
+            <button type="button" className={`thr-privbtn ${epPriv ? 'on' : ''}`} onClick={() => setEpPriv(v => !v)}
+              data-tip="관리자만 볼 수 있어요"><LockMini /> 비공개</button>
             {epFoldType === 'custom' && (
               <KInput placeholder="접기 문구" value={epFoldLabel} onChange={e => setEpFoldLabel(e.target.value)} style={{ flex: 1 }} />
             )}
@@ -751,4 +808,14 @@ function ThreadsPageInner() {
 /** ?s= 를 읽으므로 Suspense 경계가 필요하다 (Next App Router) */
 export default function ThreadsPage() {
   return <Suspense fallback={<section className="page" />}><ThreadsPageInner /></Suspense>;
+}
+
+/** 비공개 표시용 작은 자물쇠 */
+function LockMini() {
+  return (
+    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4"
+      strokeLinecap="round" strokeLinejoin="round" aria-hidden style={{ verticalAlign: '-1px' }}>
+      <rect x="5" y="11" width="14" height="10" rx="2" /><path d="M8 11V7a4 4 0 0 1 8 0v4" />
+    </svg>
+  );
 }
