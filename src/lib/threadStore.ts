@@ -21,6 +21,9 @@ export interface ThreadPost {
   authored?: 'editor' | 'log';
   fontId?: string;
   fontSize?: number;
+  /** 비공개 글 (사용자 요청) — 관리자만 본다. 화면에서 합쳐 보일 때만 붙는 표시이고,
+   *  저장은 그 타래의 비공개 칸(privOf 행)에 따로 한다 — 서버가 관리자에게만 내준다 */
+  priv?: boolean;
 }
 
 export interface ThreadWork {
@@ -41,6 +44,9 @@ export interface ThreadWork {
   /** 섹션 비밀번호로 봉한 글 목록 (사용자 요청) — 있으면 posts는 비어 있다 */
   locked?: { iv: string; data: string };
   sealedSec?: boolean;
+  /** 비공개 글 칸 (사용자 요청) — 있으면 이 행은 타래가 아니라 privOf 타래의 비공개 글 모음이다.
+   *  나만보기로 저장돼 관리자가 아니면 행 자체를 받지 못한다 (공개 행 안에 두면 F12로 보인다) */
+  privOf?: string;
 }
 
 /* ---------- 분류 + 기본 보기 설정 (4.17 — 환경설정에서 관리) ---------- */
