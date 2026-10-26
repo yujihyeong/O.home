@@ -224,6 +224,11 @@ function ThreadsPageInner() {
   }, [pathNo, works, workNoMap]);
 
   const linked = !!(routeQ.get('w') || pathNo);
+  /** 타래를 열면 화면 맨 위부터 (사용자 요청) — 스크롤 위치가 남아 글 중간부터 보이지 않게 */
+  const toTop = () => requestAnimationFrame(() => {
+    window.scrollTo(0, 0);
+    const m = document.getElementById('appMain'); if (m) m.scrollTop = 0;
+  });
   // 기본 보기 — 환경설정값 로드 후 1회 적용 (v1.8 확정)
   useEffect(() => {
     // 공유 주소로 들어오면 기본 보기가 리스트여도 그 타래를 연다 (사용자 요청)
@@ -279,7 +284,7 @@ function ThreadsPageInner() {
   }, [sel?.id, sel?.posts.length, selId]);
   useEffect(() => {
     if (pView !== 'thread' || !focusPid) return;
-    const t = setTimeout(() => document.getElementById(`tp-${focusPid}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 60);
+    const t = setTimeout(() => document.getElementById(`tp-${focusPid}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60);
     const u = setTimeout(() => setFocusPid(null), 2200);
     return () => { clearTimeout(t); clearTimeout(u); };
   }, [pView, focusPid]);
@@ -474,7 +479,7 @@ function ThreadsPageInner() {
         <div className="g5">
           {visible.map(w => (
             <div key={w.id} className="panel thr-card"
-              onClick={() => { setSelId(w.id); setView('thread'); }}
+              onClick={() => { setSelId(w.id); setView('thread'); toTop(); }}
               /* 우클릭 → 메뉴 → 삭제 확인 모달 (v2.0 사용자 요청) — 리스트 보기에는 삭제 버튼이 없었다 */
               onContextMenu={e => { if (!isAdmin) return; e.preventDefault(); setWCtx({ x: e.clientX, y: e.clientY, id: w.id }); }}>
               <div className="th">
@@ -659,7 +664,7 @@ function ThreadsPageInner() {
           {/* 우측 작품 리스트 */}
           <div className="panel" style={{ padding: 10 }}>
             {visible.map(w => (
-              <div key={w.id} className={`thr-item ${sel?.id === w.id ? 'on' : ''}`} onClick={() => setSelId(w.id)}
+              <div key={w.id} className={`thr-item ${sel?.id === w.id ? 'on' : ''}`} onClick={() => { setSelId(w.id); toTop(); }}
                 /* 우클릭 → 메뉴 → 삭제 확인 모달 (v2.0 사용자 요청) — 타래 보기의 오른쪽 카드에서도 */
                 onContextMenu={e => { if (!isAdmin) return; e.preventDefault(); setWCtx({ x: e.clientX, y: e.clientY, id: w.id }); }}>
                 <div className="th">
