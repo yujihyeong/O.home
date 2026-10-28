@@ -117,6 +117,8 @@ export default function GuestbookPage() {
       id: newId(), target: 'guest', targetId: target.id,
       text: replyText.trim(), date: new Date().toISOString(),
       author: user ? user.nickname : replyName.trim(), authorId: user?.id ?? '',
+      /* 비밀글에 단 답글도 비밀로 (사용자 요청) — 서버가 답글 쓴 사람·관리자·그 방명록 글쓴이에게만 내준다 */
+      ...(target.secret ? { secret: true, readerIds: target.authorId ? [target.authorId] : [] } : {}),
     };
     setCmtRows([...cmtRows, c]);
     setReplyFor(null); setReplyText('');
@@ -177,7 +179,8 @@ export default function GuestbookPage() {
           </div>
         )}
         <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 10, alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
-          <KCheck label={<span style={{ fontSize: 12 }}>비밀글 (관리자만 열람)</span>} checked={secret} onChange={setSecret} />
+          {/* 비밀글 (사용자 요청) — 관리자와 글쓴이만. 손님은 로그인이 없어 다시 볼 수 없으니 관리자만 */}
+          <KCheck label={<span style={{ fontSize: 12 }}>{user ? '비밀글 (관리자와 나만 보기)' : '비밀글 (관리자만 보기)'}</span>} checked={secret} onChange={setSecret} />
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <SearchBar light onSearch={setQ} />
             <button className="btn btn-dark" onClick={leave}>LEAVE</button>
@@ -211,7 +214,7 @@ export default function GuestbookPage() {
               </small>
             </div>
             <p style={!canRead(e) ? { color: 'var(--faint)' } : undefined}>
-              {canRead(e) ? e.body : '관리자만 볼 수 있는 글입니다.'}
+              {canRead(e) ? e.body : '비밀글입니다 — 관리자와 글쓴이만 볼 수 있어요.'}
             </p>
             {/* 예전 방식(글 안에 든 관리자 답글)도 그대로 보여 준다 — 이미 쌓인 데이터 (v2.0) */}
             {e.reply && canRead(e) && (
@@ -274,7 +277,7 @@ export default function GuestbookPage() {
         </>}>
         <div style={{ display: 'grid', gap: 9 }}>
           <KTextarea value={editText} onChange={e => setEditText(e.target.value)} placeholder="방명록 내용" />
-          <KCheck label={<span style={{ fontSize: 12 }}>비밀글 (관리자만 열람)</span>} checked={editSecret} onChange={setEditSecret} />
+          <KCheck label={<span style={{ fontSize: 12 }}>비밀글 (관리자와 나만 보기)</span>} checked={editSecret} onChange={setEditSecret} />
         </div>
       </Modal>
 
