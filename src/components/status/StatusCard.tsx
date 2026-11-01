@@ -20,7 +20,7 @@ const GROUP_KEYS: Record<string, string[]> = {
 };
 
 /** 느슨한 JSON 읽기 — HTML 엔티티, 한 번 더 이스케이프된 따옴표, 날 줄바꿈·역슬래시를 차례로 고쳐 본다 */
-function parseLoose(raw: string): any {
+export function parseLoose(raw: string): any {
   const entities: Record<string, string> = { quot: '"', '#34': '"', '#x22': '"', amp: '&', '#38': '&', lt: '<', gt: '>', apos: "'", '#39': "'", '#x27': "'" };
   const decoded = raw.replace(/&(quot|#34|#x22|amp|#38|lt|gt|apos|#39|#x27);/gi, (_m, e: string) => entities[e.toLowerCase()]);
   const unescapeOnce = (t: string) => t.replace(/\\(["\\/])/g, '$1');
@@ -49,7 +49,50 @@ function parseLoose(raw: string): any {
       return r;
     } catch { /* 다음 후보 */ }
   }
+  // 그래도 안 되면 「"키":값」 쌍만 하나씩 건져 낸다 (사용자 제보 — JSON이 조금만 어긋나도 칸 전체가 비었다)
+  const picked = pickPairs(decoded);
+  if (Object.keys(picked).length) return picked;
   throw new Error('invalid');
+}
+
+/** 어긋난 JSON에서 「"키": "글" / 숫자 / {…}」 쌍만 건지기 — 따옴표 안 줄바꿈·이스케이프도 받는다 */
+function pickPairs(text: string): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  const t = text.replace(/[“”]/g, '"');
+  // 키는 "따옴표" 또는 따옴표 없는 낱말(긴장도:18)
+  const key = /(?:"((?:[^"\\]|\\.)+)"|([\p{L}\p{N}_]+))\s*:\s*/gu;
+  let m: RegExpExecArray | null;
+  while ((m = key.exec(t))) {
+    const k = m[1] ?? m[2];
+    let i = key.lastIndex;
+    if (t[i] === '"') {
+      // 닫는 따옴표 = 뒤에 , } 나 (쉼표를 빠뜨린) 다음 "키": 가 오는 따옴표 — 글 속 따옴표는 건너뛴다
+      let j = i + 1;
+      for (; j < t.length; j++) {
+        if (t[j] === '\\') { j++; continue; }
+        if (t[j] === '"' && /^\s*(,|}|$|"[^"\n]{1,30}"\s*:)/.test(t.slice(j + 1))) break;
+      }
+      const raw = t.slice(i + 1, j);
+      let v = raw;
+      try { v = JSON.parse(`"${raw.replace(/\n/g, '\\n').replace(/\r/g, '').replace(/\t/g, '\\t')}"`); }
+      catch { v = raw.replace(/\\n/g, '\n').replace(/\\"/g, '"'); }
+      out[k] = v;
+      i = j + 1;
+    } else if (t[i] === '{') {
+      let depth = 0, j = i;
+      for (; j < t.length; j++) {
+        if (t[j] === '{') depth++;
+        else if (t[j] === '}' && --depth === 0) break;
+      }
+      out[k] = pickPairs(t.slice(i + 1, j));
+      i = j + 1;
+    } else {
+      const n = /^-?\d+(?:\.\d+)?/.exec(t.slice(i));
+      if (n) { out[k] = Number(n[0]); i += n[0].length; }
+    }
+    key.lastIndex = i;
+  }
+  return out;
 }
 
 export function StatusCard(props: StatusCardProps) {
