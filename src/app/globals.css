@@ -1575,6 +1575,20 @@ body.edit-on .main-grid.gridlines .wgt{outline-offset:0}
 .brow .tags i{font-style:normal;color:color-mix(in srgb,var(--accent) 65%,var(--faint));margin-left:7px}
 .brow .tags i:first-child{margin-left:0}
 @media (max-width:640px){.brow .tags{display:none}} /* 좁은 화면에서는 제목 우선 */
+/* 휴대폰 — 제목이 한 줄을 다 쓰고 작성자·날짜는 아래 줄로 (사용자 요청: 제목이 잘렸다) */
+@media (max-width:640px){
+  .board-list .brow.nocat{grid-template-columns:1fr auto;row-gap:3px}
+  .board-list .brow.nocat>.tcell{grid-column:1/-1}
+  .board-list .brow.nocat>.who{text-align:left}
+}
+/* 글 본문 제목 줄 — 휴대폰에서는 발췌·공유 버튼을 아래 줄로 내려 제목이 한 줄을 다 쓴다 */
+.post-titlerow{display:flex;align-items:flex-start;gap:10px}
+.post-title{font-size:19px;margin-bottom:4px;flex:1}
+@media (max-width:640px){
+  .post-titlerow{flex-wrap:wrap}
+  .post-title{flex:1 1 100%}
+  .post-title+button{margin-left:auto}
+}
 /* 메타 줄에 섞어 쓰는 태그 표기 (v2.0 — 갤러리 카드·리스트·상세) */
 .tag-in{font-style:normal;color:color-mix(in srgb,var(--accent) 65%,var(--faint));margin-left:7px}
 .brow:last-child{border-bottom:none}
