@@ -432,9 +432,12 @@ export function StatusCard(props: StatusCardProps) {
                   return (
                     <div key={lb + p} className={'gp-cell is-' + p + (row === 1 ? ' is-bot' : '')}>
                       {row === 0 && <div className="gp-mini">식사 · 청결</div>}
-                      <div className="gp-care-row">
-                        <b>{ic} {lb}</b>
-                        {m.state && <em className={'is-' + m.state}>{m.state === 'done' ? '했어요' : '아직'}</em>}
+                      {/* 식사·청결 — 항목명 아래에 상태 뱃지, 설명은 오른쪽 (사용자 수정본) */}
+                      <div className="gp-care-row is-stack">
+                        <div className="gp-care-key">
+                          <b>{ic} {lb}</b>
+                          {m.state && <em className={'is-' + m.state}>{m.state === 'done' ? '했어요' : '아직'}</em>}
+                        </div>
                         <span>{m.detail}</span>
                       </div>
                     </div>
@@ -761,6 +764,10 @@ font:12px/1.6 'Noto Sans KR','Apple SD Gothic Neo','Malgun Gothic',sans-serif;co
 .gp-care-row em.is-done{background:var(--leaf);color:#fff}
 .gp-care-row em.is-not{background:var(--lav-l);color:var(--lav-d)}
 .gp-care-row span{min-width:0;color:#5f6b60;overflow-wrap:anywhere}
+.gp-care-row.is-stack{align-items:flex-start;gap:7px}
+.gp-care-key{flex-shrink:0;display:flex;flex-direction:column;align-items:flex-start;gap:3px}
+.gp-care-key b{font-weight:700;white-space:nowrap}
+.gp-care-row.is-stack>span{flex:1;padding-top:1px;line-height:1.55}
 .gp-touch{display:flex;align-items:flex-start;gap:9px;margin-top:8px;padding:9px 11px;border-radius:10px;background:linear-gradient(100deg,var(--lav-l),#f3f8f0)}
 .gp-touch i{font-style:normal;font-size:15px;color:var(--lav)}
 .gp-touch div{flex:1;min-width:0}
