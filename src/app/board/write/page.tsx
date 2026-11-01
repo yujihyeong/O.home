@@ -66,7 +66,11 @@ function WriteInner() {
     history.replaceState(history.state, '', window.location.pathname + window.location.search);
   }, []);
   const sharedParam = (k: string) => hashQ?.get(k) ?? params.get(k);
-  const shared = !editPid && (params.get('share') === '1' || !!sharedParam('text') || !!sharedParam('url'));
+  /* 클립보드로 받기 (사용자 제보 — 긴 로그는 단축어가 주소로 못 바꿔 「URL 열기」가 실패했다).
+     단축어가 글을 클립보드에 복사하고 ?share=clip 으로 열면, 버튼 한 번으로 붙여 넣는다.
+     아이폰은 버튼을 눌렀을 때만 클립보드를 읽게 해 줘서 자동으로는 못 넣는다 */
+  const clipMode = !editPid && params.get('share') === 'clip';
+  const shared = !editPid && (params.get('share') === '1' || clipMode || !!sharedParam('text') || !!sharedParam('url'));
   const [pickB, setPickB] = useState<string | null>(null);
   const bid = pickB ?? editing?.boardId ?? params.get('b') ?? MAIN_BOARD_ID;
   const { boards, patchBoard } = useBoards();
@@ -288,6 +292,19 @@ function WriteInner() {
         <div className="panel" style={{ padding: 24 }}>
           {/* 게시판 고르기 — 새 글·수정 모두 (사용자 요청). 공유로 들어온 글은 글 게시판만,
               수정하는 글은 같은 종류(글/갤러리) 게시판으로만 옮길 수 있다 */}
+          {clipMode && !body.trim() && (
+            <button type="button" className="btn btn-accent" style={{ width: '100%', marginBottom: 14, padding: '12px 0' }}
+              onClick={async () => {
+                try {
+                  const t = (await navigator.clipboard.readText()).trim();
+                  if (!t) { toast('클립보드가 비어 있어요'); return; }
+                  setBody(t);
+                  toast('공유한 글을 붙여 넣었어요');
+                } catch {
+                  toast('본문 칸을 길게 눌러 붙여넣기 해 주세요');
+                }
+              }}>공유한 로그 붙여넣기</button>
+          )}
           {(!editPid || editing) && (
             <div className="form-row">
               <label className="k-label" style={{ width: 60 }}>게시판</label>
