@@ -18,7 +18,7 @@ export interface ThreadPost {
   fold?: { type: 'spoiler' | 'adult' | 'custom'; label?: string } | null;
   /** 글쓰기와 같은 편집기로 쓴 글 (사용자 요청) — 렌더 방식·작성 도구·글 전체 글씨체/크기. 없으면 예전 그냥 글 */
   mode?: 'md' | 'html';
-  authored?: 'editor' | 'log';
+  authored?: 'editor' | 'log' | 'teapot';
   fontId?: string;
   fontSize?: number;
   /** 비공개 글 (사용자 요청) — 관리자만 본다. 화면에서 합쳐 보일 때만 붙는 표시이고,

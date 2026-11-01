@@ -12,6 +12,7 @@ import { stripImageMetaInfo } from '@/lib/imageMeta';
 import { useBoards, boardHref, MAIN_BOARD_ID } from '@/lib/boardStore';
 import { renderBody } from '@/lib/sanitize';
 import { withStatusTemplate, dropEmptyTemplates } from '@/lib/statusCard';
+import { saveModeOf, modeOf, type WriteMode } from '@/components/ui/BodyEditor';
 import { KInput, KTextarea, KCheck, KSelect } from '@/components/ui/Kit';
 import { CropEditor, CropImg, CropValue } from '@/components/ui/CropEditor';
 import { ConfirmModal } from '@/components/ui/Modal';
@@ -65,14 +66,15 @@ function WriteInner() {
   const [catNew, setCatNew] = useState('');
   const [title, setTitle] = useState('');
   // 에디터가 기본 · log = 로그 정리 모드 (마크다운 + 앞뒤에 마크다운이 없는 문장을 ""로) — 저장은 마크다운으로
-  const [writeMode, setWriteMode] = useState<'editor' | 'md' | 'html' | 'log'>('log');
+  const [writeMode, setWriteMode] = useState<WriteMode>('log');
   // 글 종류 — 게시판을 만들 때 정한 형태(갤러리/로그)를 따른다. 고치는 글은 원래 종류 그대로
   const kind: PostKind = editing ? kindOf(editing) : (board.kind ?? 'log');
   const [images, setImages] = useState<string[]>([]);
   const [caption, setCaption] = useState('');
   const [upBusy, setUpBusy] = useState(false);
   const imgRef = useRef<HTMLInputElement>(null);
-  const isMd = writeMode === 'md' || writeMode === 'log';
+  const isLog = writeMode === 'log' || writeMode === 'teapot';
+  const isMd = writeMode === 'md' || isLog;
   const [body, setBody] = useState('');
   // HTML 모드 안의 보기 (v2.0 사용자 요청) — 코드 그대로 / 미리보기에서 바로 편집
   const [htmlView, setHtmlView] = useState<'code' | 'preview'>('code');
@@ -131,7 +133,7 @@ function WriteInner() {
     setImages(p.images ?? []); setCaption(p.caption ?? '');
     // 에디터로 쓴 글은 에디터로 다시 연다 — 예전에는 무조건 HTML 소스가 떠서
     // 에디터로 쓴 글을 수정하면 갑자기 태그가 보였다 (authored 없는 옛 글은 지금까지대로 HTML)
-    setWriteMode(p.mode === 'md' ? (p.authored === 'log' ? 'log' : 'md') : (p.authored === 'editor' ? 'editor' : 'html'));
+    setWriteMode(modeOf(p.mode, p.authored));
     setSecret(p.secret); setPinned(!!p.notice);
     setWhole({ fontId: p.fontId, fontSize: p.fontSize });
     setFoldType(p.fold?.type ?? 'none'); setFoldLabel(p.fold?.label ?? '');
@@ -202,7 +204,7 @@ function WriteInner() {
       ? { body: galleryBody(images, caption), mode: 'html' as const, authored: undefined, images, caption }
       : {
         body, mode: (isMd ? 'md' : 'html') as 'md' | 'html',
-        authored: writeMode === 'editor' ? 'editor' as const : writeMode === 'log' ? 'log' as const : undefined,
+        authored: saveModeOf(writeMode).authored,
         images: undefined, caption: undefined,
       };
     // 비밀번호 글 — 본문·이미지·설명을 암호화해 locked에 넣고 겉에는 비워 둔다 (대표 썸네일도 숨김)
@@ -357,12 +359,14 @@ function WriteInner() {
                 setWriteMode('editor');
               }}>에디터</button>
               <button className={writeMode === 'md' ? 'on' : ''} onClick={() => { setWriteMode('md'); setHtmlView('code'); }}>Markdown</button>
-              <button className={writeMode === 'log' ? 'on' : ''} onClick={() => {
-                setWriteMode('log'); setHtmlView('code');
-                // 상태창 (사용자 요청) — 로그 정리를 누르면 맨 밑에 빈 상태창을 미리 넣어 둔다
+              <button className={writeMode === 'log' ? 'on' : ''} onClick={() => { setWriteMode('log'); setHtmlView('code'); }}
+                data-tip="로그를 붙여넣고 [로그 정리] — 마크다운으로 저장">로그 정리</button>
+              <button className={writeMode === 'teapot' ? 'on' : ''} onClick={() => {
+                setWriteMode('teapot'); setHtmlView('code');
+                // 티팟 상태창 (사용자 요청) — 누르면 맨 밑에 빈 상태창을 미리 넣어 둔다. 플랫폼마다 상태창이 달라 따로 둔다
                 setBody(b => withStatusTemplate(b));
               }}
-                data-tip="로그를 붙여넣고 [로그 정리] — 마크다운으로 저장">로그 정리</button>
+                data-tip="로그 정리 + 맨 밑에 티팟 상태창 — 상태창 태그를 붙여넣으면 칸마다 채워져요">티팟 로그 정리</button>
               <button className={writeMode === 'html' ? 'on' : ''} onClick={() => setWriteMode('html')}>HTML</button>
             </div>
             {/* HTML 모드 안 보기 전환 (v2.0 사용자 요청) — 코드 그대로 / 미리보기에서 바로 편집 */}
@@ -385,17 +389,17 @@ function WriteInner() {
                 const ta = (
                   <KTextarea
                     style={{ minHeight: 220, fontFamily: writeMode === 'html' ? 'ui-monospace, Consolas, monospace' : undefined }}
-                    placeholder={writeMode === 'log'
+                    placeholder={isLog
                       ? '로그를 붙여넣고 [로그 정리]를 누르세요 — *지문*처럼 마크다운이 있는 줄은 그대로, 나머지 문장은 ""로 감쌉니다'
                       : writeMode === 'md' ? '마크다운으로 작성...' : '<div>HTML 코드를 작성/붙여넣기...</div>'}
                     value={body}
                     // 채워진 상태창을 붙여 넣으면 미리 넣어 둔 빈 상태창은 빠진다 (사용자 요청)
-                    onChange={e => setBody(writeMode === 'log' ? dropEmptyTemplates(e.target.value) : e.target.value)}
+                    onChange={e => setBody(writeMode === 'teapot' ? dropEmptyTemplates(e.target.value) : e.target.value)}
                   />
                 );
                 // HTML 코드에는 맞춤법 검사를 걸지 않는다 — 태그가 걸린다 (미리보기 편집은 에디터 쪽 검사를 쓴다)
                 return isMd
-                  ? <TextTools value={body} onChange={setBody} log={writeMode === 'log'} font={font} upload={uploadImages}>{ta}</TextTools>
+                  ? <TextTools value={body} onChange={setBody} log={isLog} font={font} upload={uploadImages}>{ta}</TextTools>
                   : <TextTools value={body} onChange={setBody} spell={false} font={{ ...font, html: true }}>{ta}</TextTools>;
               })()}
               <div className="preview-box" style={{ marginTop: 14 }}>
