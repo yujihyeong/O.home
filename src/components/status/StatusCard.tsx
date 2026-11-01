@@ -2,7 +2,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // 상태창 카드 (사용자 요청) — 글 속 <JISUNWOO scene='{…}' npc='{…}' … /> 를 이 카드로 그린다.
 // 사용자가 준 JSX 상태창을 그대로 옮긴 것: 각 칸(scene·npc·pc·life·heart·plans·records)의 JSON을 느슨하게 읽어 항목별로 채운다.
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+
+/** 원래 쓰던 사이트(휴대폰)에서 카드가 보이던 너비 — 이보다 좁은 자리에서는 이 너비로 그린 뒤 통째로 줄인다 (사용자 요청) */
+const FIT_W = 360;
 
 export type StatusCardProps = Partial<Record<'scene' | 'npc' | 'pc' | 'life' | 'heart' | 'plans' | 'records', string>>;
 
@@ -245,8 +248,25 @@ export function StatusCard(props: StatusCardProps) {
   const lyric = song.line;
   const clock = (n: number) => Math.floor(n / 60) + ':' + String(n % 60).padStart(2, '0');
 
+  /* 글 본문 안쪽은 원래 사이트보다 좁아 카드가 꽉 끼어 보였다 (사용자 제보) —
+     칸을 좁히지 않고 원래 너비로 그린 다음 전체를 비율대로 줄여, 원본과 같은 모양으로 보이게 한다 */
+  const fitRef = useRef<HTMLDivElement>(null);
+  const [fitW, setFitW] = useState(0);
+  useEffect(() => {
+    const el = fitRef.current;
+    if (!el) return undefined;
+    const ro = new ResizeObserver(() => setFitW(el.clientWidth));
+    ro.observe(el);
+    setFitW(el.clientWidth);
+    return () => ro.disconnect();
+  }, []);
+  const fit: React.CSSProperties | undefined = fitW > 0 && fitW < FIT_W
+    ? { width: FIT_W, maxWidth: 'none', zoom: fitW / FIT_W }
+    : undefined;
+
   return (
-    <div className="gp">
+    <div ref={fitRef} className="gp-fit">
+    <div className="gp" style={fit}>
       <style>{CSS}</style>
       {invalidGroups.length > 0 && <div className="gp-err">입력 형식을 확인해 주세요: {invalidGroups.join(', ')} (JSON 객체 문자열)</div>}
 
@@ -552,6 +572,7 @@ export function StatusCard(props: StatusCardProps) {
         )}
       </div>
     </div>
+    </div>
   );
 }
 
@@ -561,6 +582,7 @@ const CSS = `
 box-sizing:border-box;width:100%;max-width:520px;margin:12px auto;overflow:hidden;padding:14px 12px;border-radius:18px;
 background:radial-gradient(circle at 18% 12%,#f6f2fd 0,transparent 45%),radial-gradient(circle at 90% 90%,#e4efe0 0,transparent 50%),#ebe6f4;
 font:12px/1.6 'Noto Sans KR','Apple SD Gothic Neo','Malgun Gothic',sans-serif;color:var(--ink);text-align:left;color-scheme:light}
+.gp-fit{width:100%}
 .gp *,.gp *:before,.gp *:after{box-sizing:border-box}
 .gp button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer;-webkit-tap-highlight-color:transparent;text-align:left}
 .gp button:focus-visible{outline:2px solid var(--lav);outline-offset:2px}
