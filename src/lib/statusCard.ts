@@ -6,7 +6,11 @@ export const STATUS_GROUPS = ['scene', 'npc', 'pc', 'life', 'heart', 'plans', 'r
 /** 로그 정리를 누르면 맨 밑에 미리 넣어 두는 빈 상태창 */
 export const STATUS_TEMPLATE = `<JISUNWOO ${STATUS_GROUPS.map(g => `${g}='{}'`).join(' ')} />`;
 
-interface Found { start: number; end: number; attrs: Record<string, string> }
+interface Found {
+  start: number; end: number; attrs: Record<string, string>;
+  /** 빈 상태창 속에 들어간 태그였으면 안쪽 태그 글 — 고쳐 쓸 때 이것만 남긴다 */
+  inner?: string;
+}
 
 /** 글 속 상태창 태그 찾기 — 값 안에 '나 >가 있어도 다음 속성·닫는 괄호 앞의 따옴표에서만 끊는다 */
 export function findStatusTags(text: string): Found[] {
@@ -51,7 +55,26 @@ export function findStatusTags(text: string): Found[] {
         i = j + 1;
       } else break;
     }
-    if (ok) { out.push({ start: m.index, end: i, attrs }); open.lastIndex = i; }
+    if (ok) {
+      /* 미리 넣어 둔 빈 상태창 「안」에 붙여 넣은 경우 (사용자 제보 — scene 칸만 형식 오류) —
+         커서가 scene=' 뒤에 있으면 새 태그가 빈 태그 속으로 들어간다. 안쪽 태그를 쓰고,
+         바깥 빈 태그의 남은 조각({}' npc='{}' … />)까지 한 덩어리로 묶는다 */
+      const inner = text.slice(m.index + 1, i).search(/<JISUNWOO\b/i);
+      if (inner >= 0) {
+        const found = findStatusTags(text.slice(m.index + 1 + inner));
+        if (found.length) {
+          const t = found[0];
+          const innerEnd = m.index + 1 + inner + t.end;
+          const junk = /^\s*\{?\}?['"]?(?:\s+[\w-]+\s*=\s*(['"])\{\}\1)*\s*\/?>/.exec(text.slice(innerEnd));
+          const end = innerEnd + (junk ? junk[0].length : 0);
+          out.push({ start: m.index, end, attrs: t.attrs, inner: text.slice(m.index + 1 + inner + t.start, innerEnd) });
+          open.lastIndex = end;
+          continue;
+        }
+      }
+      out.push({ start: m.index, end: i, attrs });
+      open.lastIndex = i;
+    }
   }
   return out;
 }
@@ -66,6 +89,9 @@ export function withStatusTemplate(text: string): string {
 
 /** 채워진 상태창을 붙여 넣으면 미리 넣어 둔 빈 상태창은 빼 준다 */
 export function dropEmptyTemplates(text: string): string {
+  // 빈 상태창 속으로 붙여 넣어졌으면 안쪽 태그만 남긴다
+  const nested = findStatusTags(text).filter(t => t.inner);
+  for (const t of [...nested].reverse()) text = text.slice(0, t.start) + t.inner + text.slice(t.end);
   const tags = findStatusTags(text);
   if (tags.length < 2 || !tags.some(t => !isEmptyTag(t))) return text;
   let out = text;

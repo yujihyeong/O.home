@@ -34,7 +34,9 @@ function parseLoose(raw: string): any {
     return res;
   };
   const candidates: string[] = [];
-  [raw, decoded].forEach(base => {
+  // 휴대폰 둥근 따옴표(“ ” ‘ ’)·끝 쉼표({…, })도 받아 준다
+  const tidy = (t: string) => t.replace(/[“”]/g, '"').replace(/[‘’]/g, "'").replace(/,\s*([}\]])/g, '$1');
+  [raw, decoded, tidy(raw), tidy(decoded)].forEach(base => {
     [base, unescapeOnce(base)].forEach(t => candidates.push(t, fixBackslash(t), fixNewline(t), fixBackslash(fixNewline(t))));
   });
   for (const c of candidates) {
