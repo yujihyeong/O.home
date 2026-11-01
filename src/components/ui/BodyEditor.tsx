@@ -12,6 +12,7 @@ import { useFonts } from '@/lib/fontStore';
 import { renderBody } from '@/lib/sanitize';
 import { putBlob } from '@/lib/blobStore';
 import { stripImageMetaInfo } from '@/lib/imageMeta';
+import { withStatusTemplate, dropEmptyTemplates } from '@/lib/statusCard';
 
 export type WriteMode = 'editor' | 'md' | 'html' | 'log';
 
@@ -110,7 +111,7 @@ export function BodyEditor({ value, onChange, mode, onMode, whole, onWhole, minH
   };
   const font = { whole, setWhole: onWhole };
   const isMd = mode === 'md' || mode === 'log';
-  const html = useMemo(() => (preview ? renderBody(isMd ? 'md' : 'html', value) : ''), [preview, isMd, value]);
+  const html = useMemo(() => (preview ? renderBody(isMd ? 'md' : 'html', value, true) : ''), [preview, isMd, value]);
 
   /** 이미지 올리기 — 메타데이터를 지우고, 지웠으면 위쪽에 짧게 알린다 */
   const upload = async (files: File[]) => {
@@ -132,7 +133,9 @@ export function BodyEditor({ value, onChange, mode, onMode, whole, onWhole, minH
       placeholder={mode === 'log'
         ? '로그를 붙여넣고 [로그 정리]를 누르세요 — *지문*처럼 마크다운이 있는 줄은 그대로, 나머지 문장은 ""로 감쌉니다'
         : mode === 'md' ? '마크다운으로 작성...' : '<div>HTML 코드를 작성/붙여넣기...</div>'}
-      value={value} onChange={e => onChange(e.target.value)}
+      value={value}
+      // 채워진 상태창을 붙여 넣으면 미리 넣어 둔 빈 상태창은 빠진다 (사용자 요청)
+      onChange={e => onChange(mode === 'log' ? dropEmptyTemplates(e.target.value) : e.target.value)}
     />
   );
   return (
@@ -144,7 +147,12 @@ export function BodyEditor({ value, onChange, mode, onMode, whole, onWhole, minH
             onMode('editor');
           }}>에디터</button>
           <button type="button" className={mode === 'md' ? 'on' : ''} onClick={() => { onMode('md'); setHtmlView('code'); }}>Markdown</button>
-          <button type="button" className={mode === 'log' ? 'on' : ''} onClick={() => { onMode('log'); setHtmlView('code'); }}
+          <button type="button" className={mode === 'log' ? 'on' : ''} onClick={() => {
+            onMode('log'); setHtmlView('code');
+            // 상태창 (사용자 요청) — 로그 정리를 누르면 맨 밑에 빈 상태창을 미리 넣어 둔다
+            const next = withStatusTemplate(value);
+            if (next !== value) onChange(next);
+          }}
             data-tip="로그를 붙여넣고 [로그 정리] — 마크다운으로 저장">로그 정리</button>
           <button type="button" className={mode === 'html' ? 'on' : ''} onClick={() => onMode('html')}>HTML</button>
         </div>

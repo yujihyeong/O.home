@@ -1,5 +1,6 @@
 // 글쓰기 도구 — 로그 정리 · 맞춤법 검사
 // 둘 다 「범위」를 받는다: 드래그로 고른 부분이 있으면 그 부분만, 없으면 글 전체 (호출하는 쪽이 정한다).
+import { splitStatusTags } from './statusCard';
 
 /* ==========================================================
    로그 정리 — 마크다운 + 앞뒤에 마크다운이 없는 문장은 ""로 감싼다
@@ -74,6 +75,15 @@ function tidyLine(raw: string): string {
  * · 코드 블록(```) 안은 손대지 않는다
  */
 export function tidyLog(text: string): string {
+  // 상태창 태그(<JISUNWOO …/>)는 손대지 않고 제 문단으로 둔다 (사용자 요청)
+  const parts = splitStatusTags(text);
+  if (parts.some(p => p.tag)) {
+    return parts.map(p => (p.tag ? p.text.trim() : tidyLogLines(p.text))).filter(Boolean).join('\n\n');
+  }
+  return tidyLogLines(text);
+}
+
+function tidyLogLines(text: string): string {
   // <br>은 지운다 (사용자 요청)
   const lines = text.replace(/\r\n?/g, '\n').replace(/[ \t]*<br\s*\/?>[ \t]*/gi, ' ').split('\n');
   const out: string[] = [];
