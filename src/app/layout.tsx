@@ -5,6 +5,7 @@ import { AuthProvider } from '@/lib/auth';
 import { MainStoreProvider } from '@/lib/mainStore';
 import { BgmStoreProvider } from '@/lib/bgmStore';
 import { FontProvider } from '@/lib/fontStore';
+import { StatusCardMounter } from '@/components/status/StatusCardMounter';
 import { ToastProvider } from '@/components/ui/Toast';
 import { TopBar } from '@/components/shell/TopBar';
 import { BgmPlayer } from '@/components/shell/BgmPlayer';
@@ -124,6 +125,8 @@ if(navigator.userAgent.indexOf('Whale/')>-1){document.documentElement.style.colo
                   <GameDock />
                   <BgTone />
                   <ImageCropHost />
+                  {/* 글 속 상태창(<JISUNWOO …/>) 카드 띄우기 (사용자 요청) */}
+                  <StatusCardMounter />
                   {/* 전역 커스텀 툴팁 — data-tip 요소 공통 (7장) */}
                   <TipLayer />
                   {/* 커스텀 마우스 커서 (5.1) */}

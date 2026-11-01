@@ -2,6 +2,7 @@
 // <script>·인라인 이벤트(onclick 등)·javascript: 링크 제거. DOMPurify 사용.
 import DOMPurify from 'dompurify';
 import { marked } from 'marked';
+import { embedStatusCards } from './statusCard';
 
 export type PostMode = 'md' | 'html';
 
@@ -15,8 +16,10 @@ export function sanitizeHtml(html: string): string {
   });
 }
 
-/** MD/HTML 본문 → 렌더 가능한 안전한 HTML */
-export function renderBody(mode: PostMode, body: string): string {
-  const raw = mode === 'md' ? (marked.parse(body, { async: false }) as string) : body;
+/** MD/HTML 본문 → 렌더 가능한 안전한 HTML.
+ *  상태창 태그(<JISUNWOO …/>)는 카드 자리표시로 바뀐다 — keepEmpty면 빈 상태창도 (글쓰기 미리보기) */
+export function renderBody(mode: PostMode, body: string, keepEmpty = false): string {
+  const src = embedStatusCards(body, keepEmpty);
+  const raw = mode === 'md' ? (marked.parse(src, { async: false }) as string) : src;
   return sanitizeHtml(raw);
 }

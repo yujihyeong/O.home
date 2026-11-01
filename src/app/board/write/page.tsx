@@ -11,6 +11,7 @@ import { putBlob } from '@/lib/blobStore';
 import { stripImageMetaInfo } from '@/lib/imageMeta';
 import { useBoards, boardHref, MAIN_BOARD_ID } from '@/lib/boardStore';
 import { renderBody } from '@/lib/sanitize';
+import { withStatusTemplate, dropEmptyTemplates } from '@/lib/statusCard';
 import { KInput, KTextarea, KCheck, KSelect } from '@/components/ui/Kit';
 import { CropEditor, CropImg, CropValue } from '@/components/ui/CropEditor';
 import { ConfirmModal } from '@/components/ui/Modal';
@@ -155,7 +156,7 @@ function WriteInner() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editPid, postsLoaded, posts]);
 
-  const preview = useMemo(() => renderBody(isMd ? 'md' : 'html', body), [isMd, body]);
+  const preview = useMemo(() => renderBody(isMd ? 'md' : 'html', body, true), [isMd, body]);
 
   if (!user) {
     return (
@@ -356,7 +357,11 @@ function WriteInner() {
                 setWriteMode('editor');
               }}>에디터</button>
               <button className={writeMode === 'md' ? 'on' : ''} onClick={() => { setWriteMode('md'); setHtmlView('code'); }}>Markdown</button>
-              <button className={writeMode === 'log' ? 'on' : ''} onClick={() => { setWriteMode('log'); setHtmlView('code'); }}
+              <button className={writeMode === 'log' ? 'on' : ''} onClick={() => {
+                setWriteMode('log'); setHtmlView('code');
+                // 상태창 (사용자 요청) — 로그 정리를 누르면 맨 밑에 빈 상태창을 미리 넣어 둔다
+                setBody(b => withStatusTemplate(b));
+              }}
                 data-tip="로그를 붙여넣고 [로그 정리] — 마크다운으로 저장">로그 정리</button>
               <button className={writeMode === 'html' ? 'on' : ''} onClick={() => setWriteMode('html')}>HTML</button>
             </div>
@@ -383,7 +388,9 @@ function WriteInner() {
                     placeholder={writeMode === 'log'
                       ? '로그를 붙여넣고 [로그 정리]를 누르세요 — *지문*처럼 마크다운이 있는 줄은 그대로, 나머지 문장은 ""로 감쌉니다'
                       : writeMode === 'md' ? '마크다운으로 작성...' : '<div>HTML 코드를 작성/붙여넣기...</div>'}
-                    value={body} onChange={e => setBody(e.target.value)}
+                    value={body}
+                    // 채워진 상태창을 붙여 넣으면 미리 넣어 둔 빈 상태창은 빠진다 (사용자 요청)
+                    onChange={e => setBody(writeMode === 'log' ? dropEmptyTemplates(e.target.value) : e.target.value)}
                   />
                 );
                 // HTML 코드에는 맞춤법 검사를 걸지 않는다 — 태그가 걸린다 (미리보기 편집은 에디터 쪽 검사를 쓴다)
