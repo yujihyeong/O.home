@@ -53,9 +53,20 @@ function WriteInner() {
   const editPid = params.get('edit');
   const [posts, setPosts, postsLoaded] = useLocalList<Post>('ohome.board.v1', BOARD_SEED);
   const editing = editPid ? posts.find(p => p.id === editPid) : undefined;
-  // 공유로 들어온 글 (사용자 요청) — 사파리에서 글을 드래그 → 공유 → 단축어가 ?share=1&text=… 로 연다.
+  // 공유로 들어온 글 (사용자 요청) — 사파리에서 글을 드래그 → 공유 → 단축어가 ?share=1#text=… 로 연다.
   // 게시판은 여기서 고른다 (pickB)
-  const shared = !editPid && (params.get('share') === '1' || !!params.get('text') || !!params.get('url'));
+  /* 글은 주소의 # 뒤로 받는다 (사용자 제보 — 긴 로그를 공유하면 URI_TOO_LONG).
+     ?text= 로 보내면 주소 전체가 서버로 가서 길이 제한(약 14KB, 한글은 글자당 9바이트)에 걸려 페이지가 아예 안 열린다.
+     # 뒤는 서버로 가지 않고 브라우저 안에서만 읽히니 길어도 된다. 예전 ?text= 주소도 짧으면 그대로 받는다 */
+  const [hashQ, setHashQ] = useState<URLSearchParams | null>(null);
+  useEffect(() => {
+    if (!/(^|[#&])(text|url|title)=/.test(window.location.hash)) return;
+    setHashQ(new URLSearchParams(window.location.hash.slice(1)));
+    // 긴 주소가 남아 있지 않게 # 뒤를 지운다
+    history.replaceState(history.state, '', window.location.pathname + window.location.search);
+  }, []);
+  const sharedParam = (k: string) => hashQ?.get(k) ?? params.get(k);
+  const shared = !editPid && (params.get('share') === '1' || !!sharedParam('text') || !!sharedParam('url'));
   const [pickB, setPickB] = useState<string | null>(null);
   const bid = pickB ?? editing?.boardId ?? params.get('b') ?? MAIN_BOARD_ID;
   const { boards, patchBoard } = useBoards();
@@ -114,13 +125,14 @@ function WriteInner() {
   const sharedIn = useRef(false);
   useEffect(() => {
     if (editPid || sharedIn.current) return;
-    const text = [params.get('text'), params.get('url')].filter(Boolean).join('\n').trim();
-    const t = params.get('title')?.trim();
+    const text = [sharedParam('text'), sharedParam('url')].filter(Boolean).join('\n').trim();
+    const t = sharedParam('title')?.trim();
     if (!text && !t) return;
     sharedIn.current = true;
     if (text) setBody(text);
     if (t && t !== text) setTitle(t);
-  }, [editPid, params]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editPid, params, hashQ]);
 
   // 수정 모드 — 저장본 로드가 끝나면 폼을 한 번 채움 (본문은 저장 모드 그대로: md→Markdown, html→HTML)
   const hydrated = useRef(false);
