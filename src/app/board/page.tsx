@@ -23,6 +23,7 @@ import type { Board } from '@/lib/boardStore';
 import { SearchBar, Pager } from '@/components/ui/Kit';
 import { CropImg } from '@/components/ui/CropEditor';
 import { EditableDesc, PageTitle } from '@/components/ui/PageText';
+import { FitLine } from '@/components/ui/FitLine';
 
 const PER_PAGE = 10;
 
@@ -295,11 +296,12 @@ function BoardInner() {
                   칸을 따로 만들면 행마다 그리드가 독립이라 작성자 열이 태그 길이만큼 어긋난다 */}
               <div className="tcell">
                 {canRead(p) ? (
-                  <b>
+                  // 제목은 잘리지 않게 — 넘치면 글씨를 줄여 한 줄에 (사용자 요청)
+                  <FitLine as="b">
                     {pinMark(p)}{(p.secret || (p.locked && !p.boardSealed)) && <LockIcon className="ic-gap" />}<PostHead cat={p.category} />{p.title}
                     {cmtCount(p) > 0 && <span className="cmt">{cmtCount(p)}</span>}
                     {p.fold && <span style={{ ...boardBadgeStyle(boardSet.system[2]), marginLeft: 6 }}>{boardSet.system[2].label}</span>}
-                  </b>
+                  </FitLine>
                 ) : (
                   <b style={{ color: 'var(--faint)' }}><LockIcon className="ic-gap" />비밀글입니다</b>
                 )}

@@ -25,6 +25,7 @@ import { pushNotif } from '@/lib/notifStore';
 import { postContentKey, openBody } from '@/lib/promptStore';
 import { boardKey } from '@/lib/boardLock';
 import { LockScreen } from '@/components/ui/LockScreen';
+import { FitLine } from '@/components/ui/FitLine';
 
 const FOLD_LABEL = { spoiler: '스포일러 주의', adult: '수위 주의' };
 
@@ -233,10 +234,11 @@ export default function BoardDetailPage() {
       </div>
 
       <div className="panel" style={{ padding: '26px 28px' }}>
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-          <h2 style={{ fontSize: 19, marginBottom: 4, flex: 1 }}>
+        {/* 제목은 한 줄로 (사용자 요청) — 휴대폰에서는 버튼을 아래 줄로 내리고, 그래도 길면 글씨를 줄인다 */}
+        <div className="post-titlerow">
+          <FitLine as="h2" className="post-title">
             {(post.secret || (post.locked && !post.boardSealed)) && <LockIcon className="ic-gap" />}<PostHead cat={post.category} />{post.title}
-          </h2>
+          </FitLine>
           {/* 로그 글 — 원하는 문단을 눌러 골라 발췌 (로그인한 사람만 — 사용자 요청) */}
           {!!user && post.kind !== 'gallery' && (!post.fold || open) && (
             <button className={`btn ${exOn ? 'btn-dark' : 'btn-ghost'}`} style={{ padding: '6px 13px', fontSize: 11.5, flexShrink: 0 }}
