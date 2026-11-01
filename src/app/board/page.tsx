@@ -291,7 +291,7 @@ function BoardInner() {
         /* 기본형 스킨 — 리스트 행 (글씨색은 게시판 관리에서 지정 가능, v1.9) */
         <div className="panel board-list flush" style={board.fg ? { color: board.fg } : undefined}>
           {pageList.map(p => (
-            <div className={`brow nocat ${p.notice ? 'pinned' : ''}`} key={p.id} onClick={() => { if (canRead(p)) router.push(postHref(p)); }}>
+            <div className={`brow nocat noauthor ${p.notice ? 'pinned' : ''}`} key={p.id} onClick={() => { if (canRead(p)) router.push(postHref(p)); }}>
               {/* 제목 칸 안에서 태그를 오른쪽 끝(=작성자 바로 왼쪽)에 정렬 (v2.0 사용자 요청) —
                   칸을 따로 만들면 행마다 그리드가 독립이라 작성자 열이 태그 길이만큼 어긋난다 */}
               <div className="tcell">
@@ -310,7 +310,7 @@ function BoardInner() {
                   <span className="tags">{(p.tags ?? []).map(t => <i key={t}>#{t}</i>)}</span>
                 )}
               </div>
-              <span className="who">{p.author}</span>
+              {/* 작성자 칸은 목록에서 뺐다 (사용자 요청) — 글 안에서 보인다 */}
               <span className="dt">{fmtDate(p.date)}</span>
             </div>
           ))}
