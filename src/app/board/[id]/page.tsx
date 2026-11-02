@@ -262,10 +262,6 @@ export default function BoardDetailPage() {
         </div>
         <p style={{ fontSize: 11, color: 'var(--faint)', marginBottom: 18 }}>
           {post.author} · {fmtDate(post.date)} · {post.kind === 'gallery' ? '갤러리' : '로그'}
-          {/* 태그 (v2.0 사용자 요청) — 목록과 같은 표기 */}
-          {(post.tags ?? []).map(t => (
-            <span key={t} style={{ marginLeft: 7, color: 'color-mix(in srgb,var(--accent) 65%,var(--faint))' }}>#{t}</span>
-          ))}
         </p>
 
         {/* 접기 (6.2) — 흐림 커버, 클릭 시 표시 */}
@@ -284,6 +280,12 @@ export default function BoardDetailPage() {
               ...(post.fold && !open ? { minHeight: 120, filter: 'blur(6px)' } : {}),
             }} />
         </div>
+        {/* 태그 — 글 맨 밑에 #단어 (사용자 요청) */}
+        {(post.tags ?? []).length > 0 && (!post.fold || open) && (
+          <div className="post-tags">
+            {(post.tags ?? []).map(t => <span key={t}>#{t}</span>)}
+          </div>
+        )}
       </div>
 
       {/* 댓글 + 대댓글 */}
