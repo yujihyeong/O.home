@@ -102,10 +102,11 @@ function WriteInner() {
   const [whole, setWhole] = useState<WholeFont>({});
   const { familyOf } = useFonts();
   const font = { whole, setWhole };
-  // 태그 (v2.0 사용자 요청) — 쉼표로 구분해 입력, 저장할 때 배열로
+  // 태그 (v2.0 사용자 요청) — 「#단어 #단어」 또는 쉼표로 구분해 입력, 저장할 때 배열로
   const [tagsText, setTagsText] = useState('');
   const parseTags = (s: string) =>
-    [...new Set(s.split(',').map(t => t.trim().replace(/^#/, '')).filter(Boolean))];
+    [...new Set((s.includes('#') ? s.split('#') : s.split(','))
+      .map(t => t.replace(/,/g, ' ').trim()).filter(Boolean))];
   const [foldType, setFoldType] = useState<FoldType | 'none'>('none');
   const [foldLabel, setFoldLabel] = useState('');
   // 티켓 스킨 대표 이미지 (v1.9) — 본문에 삽입한 이미지 중 선택 + 16:9 썸네일 크롭
@@ -153,7 +154,7 @@ function WriteInner() {
     setSecret(p.secret); setPinned(!!p.notice);
     setWhole({ fontId: p.fontId, fontSize: p.fontSize });
     setFoldType(p.fold?.type ?? 'none'); setFoldLabel(p.fold?.label ?? '');
-    setTagsText((p.tags ?? []).join(', '));
+    setTagsText((p.tags ?? []).map(t => `#${t}`).join(' '));
     setCat(p.category ?? '');
     setThumbSrc(p.thumbSrc); setThumbCrop(p.thumbCrop);
     if (p.locked) {
@@ -473,7 +474,7 @@ function WriteInner() {
             <div className="form-row">
               <label className="k-label" style={{ width: 60 }}>태그</label>
               <KInput value={tagsText} onChange={e => setTagsText(e.target.value)}
-                placeholder="쉼표로 구분" style={{ flex: 1 }} />
+                placeholder="#단어 #단어 (쉼표로 나눠도 돼요)" style={{ flex: 1 }} />
             </div>
             <div style={{ display: 'grid', gap: 9 }}>
               <KCheck label="비밀글 (관리자와 나만 열람)" checked={secret} onChange={setSecret} />
