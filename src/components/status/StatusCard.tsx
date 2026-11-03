@@ -13,7 +13,7 @@ const GROUP_KEYS: Record<string, string[]> = {
   scene: ['턴', '날짜', '시간', '날씨', '위치M', '위치S', '긴장도', '행복도', 'nowPlaying'],
   npc: ['C본명', 'C나이', 'C성별', 'C직업', 'C복장', 'C자세', 'C소지품', 'C식사', 'C청결'],
   pc: ['U본명', 'U나이', 'U성별', 'U직업', 'U복장', 'U자세', 'U소지품', 'U식사', 'U청결'],
-  life: ['스킨십', '벌금', '샤샤사료', '샤샤건강', '샤샤속마음'],
+  life: ['스킨십', '벌금', '모은돈', '샤샤사료', '샤샤건강', '샤샤속마음'],
   heart: ['심중', 'TMI', 'QNA'],
   plans: ['약속', '일정'],
   records: ['MD', 'LD', '키스', 'NSFW'],
@@ -239,6 +239,24 @@ export function StatusCard(props: StatusCardProps) {
     return a ? (/^\d+$/.test(a) ? a + '세' : a) : '';
   };
 
+  // 스킨십 — 5개가 넘으면 최근 5개만, 나머지는 「더 보기」 (사용자 수정본)
+  const touches = lines(s.스킨십);
+  const [touchOpen, setTouchOpen] = useState(false);
+  const touchFold = touches.length > 5;
+  const shownTouches = touchFold && !touchOpen ? touches.slice(-5) : touches;
+  // 이사 자금 — 「총합/잔액」「목표」 줄을 따로 읽어 목표 대비 막대 (사용자 수정본)
+  const saveLines = lines(s.모은돈);
+  const saveTotalLine = saveLines.find(l => /^(총합|합계|총액|잔액)/.test(l)) || '';
+  const saveTotal = saveTotalLine.replace(/^(총합|합계|총액|잔액)\s*[:：·]?\s*/, '');
+  const saveGoalLine = saveLines.find(l => /^목표/.test(l)) || '';
+  const saveGoal = saveGoalLine.replace(/^목표\s*[:：·]?\s*/, '');
+  const saves = saveLines.filter(l => l !== saveTotalLine && l !== saveGoalLine).slice(-3);
+  const won = (t: string) => {
+    const m = String(t || '').replace(/,/g, '').match(/(\d+(?:\.\d+)?)\s*(억|만|천)?/);
+    if (!m) return 0;
+    return Number(m[1]) * (({ 억: 1e8, 만: 1e4, 천: 1e3 } as Record<string, number>)[m[2]] || 1);
+  };
+  const savePct = saveGoal && won(saveGoal) > 0 ? Math.min(100, Math.round((won(saveTotal) / won(saveGoal)) * 100)) : null;
   const fineLines = lines(s.벌금);
   const fineTotalLine = fineLines.find(l => /^(총합|합계|총액)/.test(l)) || '';
   const fineTotal = fineTotalLine.replace(/^(총합|합계|총액)\s*[:：·]?\s*/, '');
@@ -445,14 +463,36 @@ export function StatusCard(props: StatusCardProps) {
                 }),
               )}
             </div>
+            <div className="gp-cat">
+              <div className="gp-cat-head">
+                <span className="gp-cat-stamp" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M5 9.5V4l4 3.2a8.6 8.6 0 0 1 6 0L19 4v5.5a8 8 0 0 1 1 3.9C20 17.6 16.4 20 12 20s-8-2.4-8-6.6a8 8 0 0 1 1-3.9Z" /><path d="M9 12.5h.01M15 12.5h.01M11 15.2l1 .8 1-.8M3 14.5l3 .3M21 14.5l-3 .3" /></svg>
+                </span>
+                <div><small>OUR CAT</small><b>샤샤</b></div>
+              </div>
+              <div className="gp-care">
+                <div className="gp-care-row">
+                  <b>🐟 사료</b>
+                  {catFood.state && <em className={'is-' + catFood.state}>{catFood.state === 'done' ? '먹었어요' : '아직'}</em>}
+                  <span>{catFood.detail}</span>
+                </div>
+                <div className="gp-care-row"><b>🩺 건강</b><span>{s.샤샤건강}</span></div>
+              </div>
+              <p className="gp-cat-mind"><span>샤샤의 속마음</span>{s.샤샤속마음}</p>
+            </div>
             <div className="gp-touch">
               <i aria-hidden="true">♡</i>
               <div>
                 <small>오늘의 스킨십</small>
-                {lines(s.스킨십).length > 0 && (
+                {touches.length > 0 && (
                   <ul className="gp-touch-list">
-                    {lines(s.스킨십).map((t, i) => <li key={i}>{t}</li>)}
+                    {shownTouches.map((t, i) => <li key={i}>{t}</li>)}
                   </ul>
+                )}
+                {touchFold && (
+                  <button type="button" className="gp-more" aria-expanded={touchOpen} onClick={() => setTouchOpen(v => !v)}>
+                    {touchOpen ? '접기 ▴' : '이전 ' + (touches.length - 5) + '개 더 보기 ▾'}
+                  </button>
                 )}
               </div>
             </div>
@@ -470,22 +510,27 @@ export function StatusCard(props: StatusCardProps) {
                 )}
               </div>
             </div>
-            <div className="gp-cat">
-              <div className="gp-cat-head">
-                <span className="gp-cat-stamp" aria-hidden="true">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M5 9.5V4l4 3.2a8.6 8.6 0 0 1 6 0L19 4v5.5a8 8 0 0 1 1 3.9C20 17.6 16.4 20 12 20s-8-2.4-8-6.6a8 8 0 0 1 1-3.9Z" /><path d="M9 12.5h.01M15 12.5h.01M11 15.2l1 .8 1-.8M3 14.5l3 .3M21 14.5l-3 .3" /></svg>
-                </span>
-                <div><small>OUR CAT</small><b>샤샤</b></div>
+            <div className="gp-save">
+              <span className="gp-save-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M4 11.5 12 5l8 6.5M6.5 10v9h11v-9M10 19v-4.5h4V19" /></svg>
+              </span>
+              <div>
+                <div className="gp-fine-head"><small>이사 자금 · 둘이 모은 돈</small></div>
+                {saves.length > 0 && (
+                  <ul className="gp-touch-list">
+                    {saves.map((t, i) => <li key={i}>{t}</li>)}
+                  </ul>
+                )}
+                {(saveTotal || saveGoal) && (
+                  <div className="gp-fine-total gp-save-total">
+                    <span>모은 돈</span>
+                    <b>{saveTotal}{saveGoal && <em> / {saveGoal}</em>}</b>
+                  </div>
+                )}
+                {savePct !== null && (
+                  <span className="gp-save-bar" role="meter" aria-label="목표 달성" aria-valuemin={0} aria-valuemax={100} aria-valuenow={savePct}><i style={{ width: savePct + '%' }} /></span>
+                )}
               </div>
-              <div className="gp-care">
-                <div className="gp-care-row">
-                  <b>🐟 사료</b>
-                  {catFood.state && <em className={'is-' + catFood.state}>{catFood.state === 'done' ? '먹었어요' : '아직'}</em>}
-                  <span>{catFood.detail}</span>
-                </div>
-                <div className="gp-care-row"><b>🩺 건강</b><span>{s.샤샤건강}</span></div>
-              </div>
-              <p className="gp-cat-mind"><span>샤샤의 속마음</span>{s.샤샤속마음}</p>
             </div>
           </>,
         )}
@@ -773,6 +818,18 @@ font:12px/1.6 'Noto Sans KR','Apple SD Gothic Neo','Malgun Gothic',sans-serif;co
 .gp-touch div{flex:1;min-width:0}
 .gp-touch small{display:block;font-size:8px;font-weight:700;letter-spacing:.14em;color:var(--lav-d)}
 .gp-touch p{margin:0;font-size:11px;line-height:1.55;overflow-wrap:anywhere}
+.gp-more{display:block;margin-top:4px;font-size:9px!important;font-weight:700;color:var(--lav-d)!important}
+.gp-save{display:flex;align-items:flex-start;gap:9px;margin-top:8px;padding:9px 11px;border-radius:10px;background:linear-gradient(100deg,#f6f3fc,#eef6ea);border:1px solid #d9cff0}
+.gp-save-icon{flex-shrink:0;display:grid;place-items:center;width:20px;height:20px;border-radius:50%;background:var(--lav);color:#fff}
+.gp-save-icon svg{width:13px;height:13px}
+.gp-save>div{flex:1;min-width:0}
+.gp-save .gp-fine-head small{color:var(--lav-d)}
+.gp-save .gp-touch-list li:before{background:var(--lav)}
+.gp-save-total{border-top-color:#d9cff0!important}
+.gp-save-total span,.gp-save-total b{color:var(--lav-d)!important}
+.gp-save-total em{font-style:normal;font-size:10px;font-weight:600;color:var(--muted)}
+.gp-save-bar{position:relative;display:block;height:5px;margin-top:5px;border-radius:999px;background:#ece6f7;overflow:hidden}
+.gp-save-bar i{position:absolute;left:0;top:0;bottom:0;border-radius:999px;background:linear-gradient(90deg,var(--leaf),var(--lav));transition:width .6s ease}
 .gp-fine{display:flex;align-items:flex-start;gap:9px;margin-top:8px;padding:9px 11px;border-radius:10px;background:linear-gradient(100deg,#eef6ea,#f6f3fc);border:1px solid #d6e8c8}
 .gp-fine>i{flex-shrink:0;display:grid;place-items:center;width:20px;height:20px;border-radius:50%;font-style:normal;font-size:10px;font-weight:900;background:var(--leaf);color:#fff}
 .gp-fine>div{flex:1;min-width:0}

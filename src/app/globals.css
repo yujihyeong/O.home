@@ -1715,8 +1715,9 @@ body.edit-on .main-grid.gridlines .wgt{outline-offset:0}
 /* 선택 칩 = 진한 버튼 3색 연동 (v1.9 사용자 확정 — 체크박스와 동일 토큰) */
 .seg button.on{background:var(--btn-dark,var(--panel-solid));color:var(--btn-dark-fg,var(--ink))}
 .seg.in-panel{border-color:transparent}
-.mini-seg{display:inline-flex;background:var(--seg-bg,#f0f1f3);border-radius:7px;padding:2px}
-.mini-seg button{padding:4px 9px;font-size:calc(10px*var(--fs,1));border-radius:5px;color:var(--seg-fg,#8a8f98);transition:.13s}
+/* 버튼 이름은 한 줄로 — 버튼이 많으면 줄을 바꿔 두 줄이 된다 (사용자 요청: 글쓰기 모드 이름이 꺾였다) */
+.mini-seg{display:inline-flex;flex-wrap:wrap;max-width:100%;background:var(--seg-bg,#f0f1f3);border-radius:7px;padding:2px}
+.mini-seg button{white-space:nowrap;padding:4px 9px;font-size:calc(10px*var(--fs,1));border-radius:5px;color:var(--seg-fg,#8a8f98);transition:.13s}
 .mini-seg button.on{background:var(--btn-dark,var(--ink));color:var(--btn-dark-fg,#fff)}
 .mini-seg.icon-seg button{padding:4px 7px}
 .mini-seg.icon-seg svg{width:12px;height:12px;display:block;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round}
