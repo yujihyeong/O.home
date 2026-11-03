@@ -102,15 +102,53 @@ export function dropEmptyTemplates(text: string): string {
   return out.replace(/^\n+/, '');
 }
 
+/* ---------- 도브(본서사) 트래커 (사용자 요청) ----------
+   로판 AI의 트래커는 「항목 이름 / 내용」이 줄줄이 나오는 목록이라, 복사한 글을 <DOVE> … </DOVE> 사이에
+   그대로 넣어 두고 보여 줄 때 항목별로 나눠 DOVSI ARCHIVE 카드로 그린다. 글 자체는 복사한 그대로 남는다 */
+export const DOVE_OPEN = '<DOVE>';
+export const DOVE_CLOSE = '</DOVE>';
+const DOVE_RE = /<DOVE>([\s\S]*?)<\/DOVE>/gi;
+
+interface Block { start: number; end: number; data: Record<string, string>; empty: boolean }
+
+function findDoveBlocks(text: string): Block[] {
+  const out: Block[] = [];
+  for (const m of text.matchAll(DOVE_RE)) {
+    out.push({ start: m.index!, end: m.index! + m[0].length, data: { kind: 'dove', text: m[1] }, empty: !m[1].trim() });
+  }
+  return out;
+}
+
+/** 글 속 상태창 전부 — 티팟(JISUNWOO)과 도브(DOVE)를 앞에서부터 차례로 */
+function findBlocks(text: string): Block[] {
+  const dove = findDoveBlocks(text);
+  // 도브 트래커 안의 글은 티팟 태그로 보지 않는다
+  const inDove = (i: number) => dove.some(d => i >= d.start && i < d.end);
+  const tea = findStatusTags(text).filter(t => !inDove(t.start))
+    .map(t => ({ start: t.start, end: t.end, data: t.attrs, empty: isEmptyTag(t) }));
+  return [...tea, ...dove].sort((a, b) => a.start - b.start);
+}
+
+/** 트래커를 붙여 넣는다 — 이미 있으면 그 자리를 바꾸고, 없으면 글 맨 밑에 */
+export function withDoveTracker(text: string, tracker: string): string {
+  const block = `${DOVE_OPEN}\n${tracker.trim()}\n${DOVE_CLOSE}`;
+  const found = findDoveBlocks(text);
+  if (found.length) {
+    const last = found[found.length - 1];
+    return text.slice(0, last.start) + block + text.slice(last.end);
+  }
+  return text.replace(/\s*$/, '') + (text.trim() ? '\n\n' : '') + block;
+}
+
 /** 렌더용 — 태그를 카드 자리표시로. keepEmpty가 아니면 빈 상태창은 지운다 (글쓰기 미리보기에서만 보인다) */
 export function embedStatusCards(text: string, keepEmpty = false): string {
-  const tags = findStatusTags(text);
+  const tags = findBlocks(text);
   if (!tags.length) return text;
   let out = '', at = 0;
   for (const t of tags) {
     out += text.slice(at, t.start);
-    if (keepEmpty || !isEmptyTag(t)) {
-      out += `\n\n<div class="jsw-mount" data-jsw="${encodeURIComponent(JSON.stringify(t.attrs))}"></div>\n\n`;
+    if (keepEmpty || !t.empty) {
+      out += `\n\n<div class="jsw-mount" data-jsw="${encodeURIComponent(JSON.stringify(t.data))}"></div>\n\n`;
     }
     at = t.end;
   }
@@ -119,7 +157,7 @@ export function embedStatusCards(text: string, keepEmpty = false): string {
 
 /** 로그 정리 등 줄 단위 손질에서 상태창 태그를 건드리지 않게 — 태그와 나머지를 나눈다 */
 export function splitStatusTags(text: string): { text: string; tag: boolean }[] {
-  const tags = findStatusTags(text);
+  const tags = findBlocks(text);
   const parts: { text: string; tag: boolean }[] = [];
   let at = 0;
   for (const t of tags) {

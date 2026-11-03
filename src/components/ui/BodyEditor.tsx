@@ -13,18 +13,24 @@ import { renderBody } from '@/lib/sanitize';
 import { putBlob } from '@/lib/blobStore';
 import { stripImageMetaInfo } from '@/lib/imageMeta';
 import { withStatusTemplate, dropEmptyTemplates } from '@/lib/statusCard';
+import { DovePaste } from '@/components/status/DovePaste';
 
-/** teapot = 티팟 로그 정리 (사용자 요청) — 로그 정리와 같고, 맨 밑에 티팟 상태창이 붙는다. 플랫폼마다 상태창이 달라 따로 둔다 */
-export type WriteMode = 'editor' | 'md' | 'html' | 'log' | 'teapot';
+/** teapot = 티팟 로그 정리 (사용자 요청) — 로그 정리와 같고, 맨 밑에 티팟 상태창이 붙는다. 플랫폼마다 상태창이 달라 따로 둔다
+ *  dove = 도브(본서사) 정리 (사용자 요청) — 로그 정리 + 로판 AI 트래커를 붙여 넣는 칸 */
+export type WriteMode = 'editor' | 'md' | 'html' | 'log' | 'teapot' | 'dove';
+/** 로그를 다듬는 모드들 — 마크다운으로 저장하고, 작성 도구 표시로 다시 그 모드로 연다 */
+const LOG_MODES = ['log', 'teapot', 'dove'] as const;
+type LogMode = typeof LOG_MODES[number];
+const isLogMode = (m?: string): m is LogMode => (LOG_MODES as readonly string[]).includes(m ?? '');
 
 /** 저장할 렌더 방식·작성 도구 */
 export const saveModeOf = (m: WriteMode) => ({
-  mode: (m === 'md' || m === 'log' || m === 'teapot' ? 'md' : 'html') as 'md' | 'html',
-  authored: m === 'editor' ? 'editor' as const : m === 'log' ? 'log' as const : m === 'teapot' ? 'teapot' as const : undefined,
+  mode: (m === 'md' || isLogMode(m) ? 'md' : 'html') as 'md' | 'html',
+  authored: m === 'editor' ? 'editor' as const : isLogMode(m) ? m : undefined,
 });
 /** 저장된 글을 다시 열 모드 */
-export const modeOf = (mode?: 'md' | 'html', authored?: 'editor' | 'log' | 'teapot'): WriteMode =>
-  (mode === 'md' ? (authored === 'log' || authored === 'teapot' ? authored : 'md') : authored === 'editor' ? 'editor' : 'html');
+export const modeOf = (mode?: 'md' | 'html', authored?: 'editor' | LogMode): WriteMode =>
+  (mode === 'md' ? (isLogMode(authored) ? authored : 'md') : authored === 'editor' ? 'editor' : 'html');
 
 /** 에디터가 다루지 못해 정리될 만한 태그·속성이 있는가 — 전환 경고 판단 */
 const hasRichHtml = (html: string) =>
@@ -111,7 +117,7 @@ export function BodyEditor({ value, onChange, mode, onMode, whole, onWhole, minH
     requestAnimationFrame(() => { ta.focus(); ta.setSelectionRange(a, a + hidden.length); });
   };
   const font = { whole, setWhole: onWhole };
-  const isLog = mode === 'log' || mode === 'teapot';
+  const isLog = isLogMode(mode);
   const isMd = mode === 'md' || isLog;
   const html = useMemo(() => (preview ? renderBody(isMd ? 'md' : 'html', value, true) : ''), [preview, isMd, value]);
 
@@ -158,6 +164,8 @@ export function BodyEditor({ value, onChange, mode, onMode, whole, onWhole, minH
             if (next !== value) onChange(next);
           }}
             data-tip="로그 정리 + 맨 밑에 티팟 상태창 — 상태창 태그를 붙여넣으면 칸마다 채워져요">티팟 로그 정리</button>
+          <button type="button" className={mode === 'dove' ? 'on' : ''} onClick={() => { onMode('dove'); setHtmlView('code'); }}
+            data-tip="로그 정리 + 로판 트래커를 붙여 넣으면 맨 밑에 DOVSI ARCHIVE 상태창">도브(본서사) 정리</button>
           <button type="button" className={mode === 'html' ? 'on' : ''} onClick={() => onMode('html')}>HTML</button>
         </div>
         {mode === 'html' && (
@@ -186,6 +194,7 @@ export function BodyEditor({ value, onChange, mode, onMode, whole, onWhole, minH
             data-tip="드래그한 부분을 글자 수만큼 검은 상자로"><span aria-hidden>▇▇</span> 검게 가리기</button>
         </div>
       )}
+      {mode === 'dove' && <DovePaste value={value} onChange={onChange} />}
       {mode === 'editor' || (mode === 'html' && htmlView === 'preview') ? (
         <RichEditor value={value} onChange={onChange} font={font} placeholder="내용을 작성하세요 — 이미지 삽입 가능"
           onReady={e => { edRef.current = e; }} />

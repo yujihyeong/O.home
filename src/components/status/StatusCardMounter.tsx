@@ -5,6 +5,7 @@
 import { useEffect } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { StatusCard, type StatusCardProps } from './StatusCard';
+import { DoveCard } from './DoveCard';
 
 export function StatusCardMounter() {
   useEffect(() => {
@@ -14,14 +15,15 @@ export function StatusCardMounter() {
       queued = false;
       document.querySelectorAll<HTMLElement>('.jsw-mount[data-jsw]').forEach(el => {
         if (roots.has(el)) return;
-        let props: StatusCardProps = {};
+        let props: StatusCardProps & { kind?: string; text?: string } = {};
         try { props = JSON.parse(decodeURIComponent(el.dataset.jsw ?? '')); } catch { /* 빈 카드 */ }
         // 그림자 DOM에 띄운다 — 글 본문 스타일(.post-body ul 등)이 카드에 스며들지 않게
         const shadow = el.shadowRoot ?? el.attachShadow({ mode: 'open' });
         const box = document.createElement('div');
         shadow.appendChild(box);
         const root = createRoot(box);
-        root.render(<StatusCard {...props} />);
+        // 종류별 카드 — 도브(본서사) 트래커 / 티팟 상태창
+        root.render(props.kind === 'dove' ? <DoveCard text={props.text ?? ''} /> : <StatusCard {...props} />);
         roots.set(el, root);
       });
       for (const [el, root] of roots) {
