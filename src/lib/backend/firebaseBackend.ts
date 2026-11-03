@@ -452,6 +452,7 @@ export async function createFirebaseBackend(cfg: FirebaseCfg): Promise<Backend> 
     // 회원 전용 비밀값은 Supabase에서만 — Firebase는 예전처럼 비밀번호로 연다
     async getMemberSecret() { return null; },
     async setMemberSecret() { /* 없음 */ },
+    async getWriteIps() { return {}; },   // Firebase는 요청 IP를 받을 방법이 없다
 
     // 가입 승인은 Supabase에서만 — Firebase는 가입 즉시 회원 (승인 단계 없음)
     async approveMember() { /* 없음 */ },

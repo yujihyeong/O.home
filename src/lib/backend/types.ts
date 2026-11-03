@@ -58,6 +58,8 @@ export interface Backend {
   /** 회원 전용 비밀값 (사용자 요청 — 자동 비밀번호 열쇠) — 승인된 회원만 읽고, 관리자만 쓴다 */
   getMemberSecret(key: string): Promise<string | null>;
   setMemberSecret(key: string, value: string): Promise<void>;
+  /** 방명록 글·답글 작성 IP (사용자 요청) — 관리자만. 행 id → { ip, at } */
+  getWriteIps(coll: 'guestbook' | 'comments', ids: string[]): Promise<Record<string, { ip: string; at: string }>>;
   signOut(): Promise<void>;
   resetPassword(email: string): Promise<{ ok: boolean; error?: string }>;
   updateProfile(patch: { nickname?: string; avatarUrl?: string | null; avatarColor?: string | null; currentPassword?: string; newPassword?: string }): Promise<{ ok: boolean; error?: string }>;
