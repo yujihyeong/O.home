@@ -324,6 +324,44 @@ begin
   end loop;
 end $$;
 
+-- ── 9-0. 방명록 작성 IP 기록 (사용자 요청) ──────────────────────
+-- 방명록 글·답글을 쓸 때 보낸 사람의 IP와 시각을 따로 적어 둔다 — 악성 글 신고(법적 대응) 자료용.
+-- · 관리자만 읽는다. 쓰기 정책은 일부러 두지 않았다 — 아래 트리거(security definer)만 적을 수 있다.
+-- · IP는 서버가 받은 요청 머리글에서 읽는다 (화면에서 보낸 값은 믿지 않는다).
+-- · 6개월이 지난 기록은 새 기록이 들어올 때 지운다.
+create table if not exists public.write_ips (
+  id          bigserial primary key,
+  coll        text not null,
+  row_id      text not null,
+  ip          text,
+  ua          text,
+  created_at  timestamptz not null default now()
+);
+create index if not exists write_ips_row on public.write_ips (coll, row_id);
+alter table public.write_ips enable row level security;
+drop policy if exists "write_ips_admin" on public.write_ips;
+create policy "write_ips_admin" on public.write_ips for select to authenticated using (public.is_admin());
+
+create or replace function public.log_write_ip() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare h json; ip text;
+begin
+  -- 댓글 테이블은 방명록 답글만
+  if tg_table_name = 'comments' and coalesce(new.data->>'target', '') <> 'guest' then return new; end if;
+  begin h := nullif(current_setting('request.headers', true), '')::json; exception when others then h := null; end;
+  ip := coalesce(h->>'cf-connecting-ip', nullif(trim(split_part(coalesce(h->>'x-forwarded-for', ''), ',', 1)), ''), h->>'x-real-ip');
+  insert into public.write_ips (coll, row_id, ip, ua) values (tg_table_name, new.id, ip, left(h->>'user-agent', 300));
+  delete from public.write_ips where created_at < now() - interval '6 months';
+  return new;
+end $$;
+
+drop trigger if exists guestbook_write_ip on public.guestbook;
+create trigger guestbook_write_ip after insert on public.guestbook
+  for each row execute function public.log_write_ip();
+drop trigger if exists comments_write_ip on public.comments;
+create trigger comments_write_ip after insert on public.comments
+  for each row execute function public.log_write_ip();
+
 -- ── 9-1. API 접근 권한 (Supabase 2026-10-30 변경 대응) ─────────
 -- 10월 30일부터 public 스키마에 새로 만든 테이블은 API(supabase-js) 권한이 자동으로 붙지 않는다.
 -- 새 프로젝트에 이 스크립트를 처음 돌릴 때도 예전과 똑같이 쓸 수 있도록 직접 붙여 둔다.

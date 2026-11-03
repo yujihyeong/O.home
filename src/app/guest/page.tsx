@@ -13,6 +13,7 @@ import { Modal, useConfirmDelete } from '@/components/ui/Modal';
 import { EditableDesc, PageTitle } from '@/components/ui/PageText';
 import { useToast } from '@/components/ui/Toast';
 import { pushNotif, notifyAdmins } from '@/lib/notifStore';
+import { backend } from '@/lib/backend';
 
 export default function GuestbookPage() {
   const { user, isAdmin } = useAuth();
@@ -91,6 +92,28 @@ export default function GuestbookPage() {
       title: '방명록에 새 글이 달렸습니다',
       body: `${e.author} — ${e.secret ? '비밀글' : e.body.slice(0, 50)}`,
     });
+  };
+
+  /* 작성 IP (사용자 요청 — 악성 글 신고용) — 서버가 따로 적어 두고 관리자만 읽는다. 관리자 화면에만 작게 */
+  const [ips, setIps] = useState<Record<string, { ip: string; at: string }>>({});
+  const replyIds = cmtRows.filter(c => c.target === 'guest').map(c => c.id).join(',');
+  const entryIds = entries.map(e => e.id).join(',');
+  useEffect(() => {
+    const be = backend();
+    if (!isAdmin || !be) return;
+    let alive = true;
+    void Promise.all([
+      be.getWriteIps('guestbook', entryIds ? entryIds.split(',') : []),
+      be.getWriteIps('comments', replyIds ? replyIds.split(',') : []),
+    ]).then(([a, b]) => { if (alive) setIps({ ...a, ...b }); }).catch(() => {});
+    return () => { alive = false; };
+  }, [isAdmin, entryIds, replyIds]);
+  const ipLine = (id: string) => {
+    const r = ips[id];
+    if (!isAdmin || !r) return null;
+    const d = new Date(r.at);
+    const t = `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+    return <span className="gb-ip" data-tip="관리자만 보여요">IP {r.ip} · {t}</span>;
   };
 
   const canRead = (e: GuestEntry) => !e.secret || isAdmin || (e.authorId && e.authorId === user?.id);
@@ -186,6 +209,8 @@ export default function GuestbookPage() {
             <button className="btn btn-dark" onClick={leave}>LEAVE</button>
           </div>
         </div>
+        {/* 작성 IP 기록 안내 (사용자 요청 — 문구 그대로) */}
+        <p className="gb-notice">글 작성 시 IP 및 작성 시간이 기록됩니다. 악의적인 내용은 삭제될 수 있으며 법적 대응을 위한 자료로 쓰일 수 있습니다.</p>
       </div>
 
       {/* 목록 */}
@@ -216,6 +241,7 @@ export default function GuestbookPage() {
             <p style={!canRead(e) ? { color: 'var(--faint)' } : undefined}>
               {canRead(e) ? e.body : '비밀글입니다 — 관리자와 글쓴이만 볼 수 있어요.'}
             </p>
+            {ipLine(e.id)}
             {/* 예전 방식(글 안에 든 관리자 답글)도 그대로 보여 준다 — 이미 쌓인 데이터 (v2.0) */}
             {e.reply && canRead(e) && (
               <div className="reply"><b>↳ {e.reply.author}</b>{e.reply.text}
@@ -228,6 +254,7 @@ export default function GuestbookPage() {
             {canRead(e) && repliesOf(e.id).map(c => (
               <div className="reply" key={c.id}>
                 <b>↳ {c.author}</b>{c.text}
+                {ipLine(c.id)}
                 {!!user && !!c.authorId && c.authorId === user.id && (
                   <span style={{ cursor: 'var(--cur-pointer,pointer)', marginLeft: 8, fontSize: 10.5, color: 'var(--faint)' }}
                     onClick={() => { setREdit({ rowId: c.id }); setREditText(c.text); }}>수정</span>
@@ -255,6 +282,7 @@ export default function GuestbookPage() {
         <div style={{ display: 'grid', gap: 9 }}>
           {!user && <KInput placeholder="닉네임" value={replyName} onChange={e => setReplyName(e.target.value)} />}
           <KTextarea value={replyText} onChange={e => setReplyText(e.target.value)} placeholder="답글 내용" />
+          <p className="gb-notice" style={{ margin: 0 }}>글 작성 시 IP 및 작성 시간이 기록됩니다. 악의적인 내용은 삭제될 수 있으며 법적 대응을 위한 자료로 쓰일 수 있습니다.</p>
         </div>
       </Modal>
       {del.element}

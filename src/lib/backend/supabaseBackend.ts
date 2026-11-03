@@ -132,6 +132,19 @@ export async function createSupabaseBackend(
       if (error) throw error;
     },
 
+    async getWriteIps(coll, ids) {
+      const out: Record<string, { ip: string; at: string }> = {};
+      for (let i = 0; i < ids.length; i += 200) {
+        const { data, error } = await sb.from('write_ips').select('row_id, ip, created_at')
+          .eq('coll', coll).in('row_id', ids.slice(i, i + 200));
+        if (error) return out;   // 표가 아직 없으면(SQL 미실행) 조용히 비운다
+        for (const r of (data ?? []) as { row_id: string; ip: string | null; created_at: string }[]) {
+          out[r.row_id] = { ip: r.ip ?? '알 수 없음', at: r.created_at };
+        }
+      }
+      return out;
+    },
+
     async signOut() { await sb.auth.signOut(); },
 
     async resetPassword(email) {
