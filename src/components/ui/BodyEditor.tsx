@@ -15,7 +15,7 @@ import { stripImageMetaInfo } from '@/lib/imageMeta';
 import { withStatusTemplate, dropEmptyTemplates } from '@/lib/statusCard';
 import { DovePaste } from '@/components/status/DovePaste';
 
-/** teapot = 티팟 로그 정리 (사용자 요청) — 로그 정리와 같고, 맨 밑에 티팟 상태창이 붙는다. 플랫폼마다 상태창이 달라 따로 둔다
+/** teapot = 지선우(티팟, 본서사) 정리 (사용자 요청 — 예전 이름 「티팟 로그 정리」) — 로그 정리와 같고, 맨 밑에 티팟 상태창이 붙는다. 플랫폼마다 상태창이 달라 따로 둔다
  *  dove = 도브(본서사) 정리 (사용자 요청) — 로그 정리 + 로판 AI 트래커를 붙여 넣는 칸 */
 export type WriteMode = 'editor' | 'md' | 'html' | 'log' | 'teapot' | 'dove';
 /** 로그를 다듬는 모드들 — 마크다운으로 저장하고, 작성 도구 표시로 다시 그 모드로 연다 */
@@ -163,7 +163,7 @@ export function BodyEditor({ value, onChange, mode, onMode, whole, onWhole, minH
             const next = withStatusTemplate(value);
             if (next !== value) onChange(next);
           }}
-            data-tip="로그 정리 + 맨 밑에 티팟 상태창 — 상태창 태그를 붙여넣으면 칸마다 채워져요">티팟 로그 정리</button>
+            data-tip="로그 정리 + 맨 밑에 지선우 상태창 — 티팟 상태창 태그를 붙여넣으면 칸마다 채워져요">지선우(티팟, 본서사) 정리</button>
           <button type="button" className={mode === 'dove' ? 'on' : ''} onClick={() => { onMode('dove'); setHtmlView('code'); }}
             data-tip="로그 정리 + 로판 트래커를 붙여 넣으면 맨 밑에 DOVSI ARCHIVE 상태창">도브(본서사) 정리</button>
           <button type="button" className={mode === 'html' ? 'on' : ''} onClick={() => onMode('html')}>HTML</button>

@@ -397,7 +397,7 @@ function WriteInner() {
                 // 티팟 상태창 (사용자 요청) — 누르면 맨 밑에 빈 상태창을 미리 넣어 둔다. 플랫폼마다 상태창이 달라 따로 둔다
                 setBody(b => withStatusTemplate(b));
               }}
-                data-tip="로그 정리 + 맨 밑에 티팟 상태창 — 상태창 태그를 붙여넣으면 칸마다 채워져요">티팟 로그 정리</button>
+                data-tip="로그 정리 + 맨 밑에 지선우 상태창 — 티팟 상태창 태그를 붙여넣으면 칸마다 채워져요">지선우(티팟, 본서사) 정리</button>
               <button className={writeMode === 'dove' ? 'on' : ''} onClick={() => { setWriteMode('dove'); setHtmlView('code'); }}
                 data-tip="로그 정리 + 로판 트래커를 붙여 넣으면 맨 밑에 DOVSI ARCHIVE 상태창">도브(본서사) 정리</button>
               <button className={writeMode === 'html' ? 'on' : ''} onClick={() => setWriteMode('html')}>HTML</button>
