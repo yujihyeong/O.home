@@ -1586,6 +1586,9 @@ body.edit-on .main-grid.gridlines .wgt{outline-offset:0}
 /* 글 본문 제목 줄 — 휴대폰에서는 발췌·공유 버튼을 아래 줄로 내려 제목이 한 줄을 다 쓴다 */
 .post-titlerow{display:flex;align-items:flex-start;gap:10px}
 .post-title{font-size:19px;margin-bottom:4px;flex:1}
+/* 도브(본서사) 정리 — 트래커 붙여넣기 줄 */
+.dove-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:8px 0 10px}
+.dove-bar span{font-size:calc(11.5px*var(--fs,1));color:var(--faint)}
 /* 글 맨 밑 태그 (사용자 요청) */
 .post-tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:22px;padding-top:14px;border-top:1px dashed var(--line)}
 .post-tags span{padding:3px 10px;border-radius:999px;font-size:calc(11.5px*var(--fs,1));color:var(--accent);background:color-mix(in srgb,var(--accent) 9%,transparent)}

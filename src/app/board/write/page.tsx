@@ -12,6 +12,7 @@ import { stripImageMetaInfo } from '@/lib/imageMeta';
 import { useBoards, boardHref, MAIN_BOARD_ID } from '@/lib/boardStore';
 import { renderBody } from '@/lib/sanitize';
 import { withStatusTemplate, dropEmptyTemplates } from '@/lib/statusCard';
+import { DovePaste } from '@/components/status/DovePaste';
 import { saveModeOf, modeOf, type WriteMode } from '@/components/ui/BodyEditor';
 import { KInput, KTextarea, KCheck, KSelect } from '@/components/ui/Kit';
 import { CropEditor, CropImg, CropValue } from '@/components/ui/CropEditor';
@@ -88,7 +89,7 @@ function WriteInner() {
   const [caption, setCaption] = useState('');
   const [upBusy, setUpBusy] = useState(false);
   const imgRef = useRef<HTMLInputElement>(null);
-  const isLog = writeMode === 'log' || writeMode === 'teapot';
+  const isLog = writeMode === 'log' || writeMode === 'teapot' || writeMode === 'dove';
   const isMd = writeMode === 'md' || isLog;
   const [body, setBody] = useState('');
   // HTML 모드 안의 보기 (v2.0 사용자 요청) — 코드 그대로 / 미리보기에서 바로 편집
@@ -397,6 +398,8 @@ function WriteInner() {
                 setBody(b => withStatusTemplate(b));
               }}
                 data-tip="로그 정리 + 맨 밑에 티팟 상태창 — 상태창 태그를 붙여넣으면 칸마다 채워져요">티팟 로그 정리</button>
+              <button className={writeMode === 'dove' ? 'on' : ''} onClick={() => { setWriteMode('dove'); setHtmlView('code'); }}
+                data-tip="로그 정리 + 로판 트래커를 붙여 넣으면 맨 밑에 DOVSI ARCHIVE 상태창">도브(본서사) 정리</button>
               <button className={writeMode === 'html' ? 'on' : ''} onClick={() => setWriteMode('html')}>HTML</button>
             </div>
             {/* HTML 모드 안 보기 전환 (v2.0 사용자 요청) — 코드 그대로 / 미리보기에서 바로 편집 */}
@@ -411,6 +414,7 @@ function WriteInner() {
               </div>
             )}
           </div>
+          {writeMode === 'dove' && <DovePaste value={body} onChange={setBody} />}
           {writeMode === 'editor' || (writeMode === 'html' && htmlView === 'preview') ? (
             <RichEditor value={body} onChange={setBody} font={font} placeholder='내용을 작성하세요 — 이미지 삽입 가능 (스크립트 불허 6.3)' />
           ) : (
