@@ -13,7 +13,7 @@ const GROUP_KEYS: Record<string, string[]> = {
   scene: ['턴', '날짜', '시간', '날씨', '위치M', '위치S', '긴장도', '행복도', 'nowPlaying'],
   npc: ['C본명', 'C나이', 'C성별', 'C직업', 'C복장', 'C자세', 'C소지품', 'C식사', 'C청결'],
   pc: ['U본명', 'U나이', 'U성별', 'U직업', 'U복장', 'U자세', 'U소지품', 'U식사', 'U청결'],
-  life: ['스킨십', '벌금', '모은돈', '샤샤사료', '샤샤건강', '샤샤속마음'],
+  life: ['스킨십', '벌금', 'C청약', 'U청약', '샤샤사료', '샤샤건강', '샤샤속마음'],
   heart: ['심중', 'TMI', 'QNA'],
   plans: ['약속', '일정'],
   records: ['MD', 'LD', '키스', 'NSFW'],
@@ -244,19 +244,19 @@ export function StatusCard(props: StatusCardProps) {
   const [touchOpen, setTouchOpen] = useState(false);
   const touchFold = touches.length > 5;
   const shownTouches = touchFold && !touchOpen ? touches.slice(-5) : touches;
-  // 이사 자금 — 「총합/잔액」「목표」 줄을 따로 읽어 목표 대비 막대 (사용자 수정본)
-  const saveLines = lines(s.모은돈);
-  const saveTotalLine = saveLines.find(l => /^(총합|합계|총액|잔액)/.test(l)) || '';
-  const saveTotal = saveTotalLine.replace(/^(총합|합계|총액|잔액)\s*[:：·]?\s*/, '');
-  const saveGoalLine = saveLines.find(l => /^목표/.test(l)) || '';
-  const saveGoal = saveGoalLine.replace(/^목표\s*[:：·]?\s*/, '');
-  const saves = saveLines.filter(l => l !== saveTotalLine && l !== saveGoalLine).slice(-3);
-  const won = (t: string) => {
-    const m = String(t || '').replace(/,/g, '').match(/(\d+(?:\.\d+)?)\s*(억|만|천)?/);
-    if (!m) return 0;
-    return Number(m[1]) * (({ 억: 1e8, 만: 1e4, 천: 1e3 } as Record<string, number>)[m[2]] || 1);
+  // 청약통장 — 두 사람 각자. 「잔액/총합」 줄은 아래 합계로, 나머지는 최근 3줄 (사용자 수정본)
+  const bankOf = (raw: string) => {
+    const all = lines(raw);
+    const totalLine = all.find(l => /^(잔액|총합|합계|총액)/.test(l)) || '';
+    return {
+      total: totalLine.replace(/^(잔액|총합|합계|총액)\s*[:：·]?\s*/, ''),
+      items: all.filter(l => l !== totalLine).slice(-3),
+    };
   };
-  const savePct = saveGoal && won(saveGoal) > 0 ? Math.min(100, Math.round((won(saveTotal) / won(saveGoal)) * 100)) : null;
+  const banks = [
+    { p: 'C', who: '선우', rule: '매달 15일 · 25만 원', ...bankOf(s.C청약) },
+    { p: 'U', who: '열망', rule: '매달 20일 · 50만 원', ...bankOf(s.U청약) },
+  ];
   const fineLines = lines(s.벌금);
   const fineTotalLine = fineLines.find(l => /^(총합|합계|총액)/.test(l)) || '';
   const fineTotal = fineTotalLine.replace(/^(총합|합계|총액)\s*[:：·]?\s*/, '');
@@ -511,25 +511,30 @@ export function StatusCard(props: StatusCardProps) {
               </div>
             </div>
             <div className="gp-save">
-              <span className="gp-save-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M4 11.5 12 5l8 6.5M6.5 10v9h11v-9M10 19v-4.5h4V19" /></svg>
-              </span>
-              <div>
-                <div className="gp-fine-head"><small>이사 자금 · 둘이 모은 돈</small></div>
-                {saves.length > 0 && (
-                  <ul className="gp-touch-list">
-                    {saves.map((t, i) => <li key={i}>{t}</li>)}
-                  </ul>
-                )}
-                {(saveTotal || saveGoal) && (
-                  <div className="gp-fine-total gp-save-total">
-                    <span>모은 돈</span>
-                    <b>{saveTotal}{saveGoal && <em> / {saveGoal}</em>}</b>
+              <div className="gp-save-head">
+                <span className="gp-save-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M4 11.5 12 5l8 6.5M6.5 10v9h11v-9M10 19v-4.5h4V19" /></svg>
+                </span>
+                <small>청약통장</small>
+              </div>
+              <div className="gp-banks">
+                {banks.map(bk => (
+                  <div key={bk.p} className={'gp-bank is-' + bk.p}>
+                    <div className="gp-bank-top">
+                      <b>{bk.who}</b>
+                      <span>{bk.rule}</span>
+                    </div>
+                    {bk.items.length > 0 && (
+                      <ul className="gp-touch-list">
+                        {bk.items.map((t, i) => <li key={i}>{t}</li>)}
+                      </ul>
+                    )}
+                    <div className="gp-bank-total">
+                      <span>잔액</span>
+                      <b>{bk.total}</b>
+                    </div>
                   </div>
-                )}
-                {savePct !== null && (
-                  <span className="gp-save-bar" role="meter" aria-label="목표 달성" aria-valuemin={0} aria-valuemax={100} aria-valuenow={savePct}><i style={{ width: savePct + '%' }} /></span>
-                )}
+                ))}
               </div>
             </div>
           </>,
@@ -819,17 +824,26 @@ font:12px/1.6 'Noto Sans KR','Apple SD Gothic Neo','Malgun Gothic',sans-serif;co
 .gp-touch small{display:block;font-size:8px;font-weight:700;letter-spacing:.14em;color:var(--lav-d)}
 .gp-touch p{margin:0;font-size:11px;line-height:1.55;overflow-wrap:anywhere}
 .gp-more{display:block;margin-top:4px;font-size:9px!important;font-weight:700;color:var(--lav-d)!important}
-.gp-save{display:flex;align-items:flex-start;gap:9px;margin-top:8px;padding:9px 11px;border-radius:10px;background:linear-gradient(100deg,#f6f3fc,#eef6ea);border:1px solid #d9cff0}
-.gp-save-icon{flex-shrink:0;display:grid;place-items:center;width:20px;height:20px;border-radius:50%;background:var(--lav);color:#fff}
+.gp-save{margin-top:8px;padding:9px 11px 11px;border-radius:10px;background:linear-gradient(100deg,#eef6ea,#f6f3fc);border:1px solid #d9cff0}
+.gp-save-head{display:flex;align-items:center;gap:7px;margin-bottom:7px}
+.gp-save-head small{font-size:8px;font-weight:700;letter-spacing:.14em;color:var(--ink)}
+.gp-save-icon{flex-shrink:0;display:grid;place-items:center;width:20px;height:20px;border-radius:50%;background:linear-gradient(135deg,var(--leaf),var(--lav));color:#fff}
 .gp-save-icon svg{width:13px;height:13px}
-.gp-save>div{flex:1;min-width:0}
-.gp-save .gp-fine-head small{color:var(--lav-d)}
-.gp-save .gp-touch-list li:before{background:var(--lav)}
-.gp-save-total{border-top-color:#d9cff0!important}
-.gp-save-total span,.gp-save-total b{color:var(--lav-d)!important}
-.gp-save-total em{font-style:normal;font-size:10px;font-weight:600;color:var(--muted)}
-.gp-save-bar{position:relative;display:block;height:5px;margin-top:5px;border-radius:999px;background:#ece6f7;overflow:hidden}
-.gp-save-bar i{position:absolute;left:0;top:0;bottom:0;border-radius:999px;background:linear-gradient(90deg,var(--leaf),var(--lav));transition:width .6s ease}
+.gp-banks{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+.gp-bank{display:flex;flex-direction:column;min-width:0;padding:8px 9px;border-radius:8px;background:var(--paper);border:1px solid #cfe2c9}
+.gp-bank.is-U{border-color:#ddd3f3}
+.gp-bank-top{display:flex;flex-direction:column;gap:1px;margin-bottom:4px}
+.gp-bank-top b{font:700 12px/1.35 'Noto Serif KR',serif;color:var(--leaf-d)}
+.gp-bank.is-U .gp-bank-top b{color:var(--lav-d)}
+.gp-bank-top span{font-size:8.5px;color:var(--muted)}
+.gp-bank .gp-touch-list li{font-size:10px}
+.gp-bank.is-C .gp-touch-list li:before{background:var(--leaf)}
+.gp-bank.is-U .gp-touch-list li:before{background:var(--lav)}
+.gp-bank-total{display:flex;align-items:baseline;justify-content:space-between;gap:6px;margin-top:auto;padding-top:5px;border-top:1px solid #d6e8c8}
+.gp-bank.is-U .gp-bank-total{border-top-color:#d9cff0}
+.gp-bank-total span{font-size:8.5px;font-weight:700;color:var(--leaf-d)}
+.gp-bank-total b{min-width:0;font-size:11.5px;font-weight:800;color:var(--leaf-d);font-variant-numeric:tabular-nums;overflow-wrap:anywhere;text-align:right}
+.gp-bank.is-U .gp-bank-total span,.gp-bank.is-U .gp-bank-total b{color:var(--lav-d)}
 .gp-fine{display:flex;align-items:flex-start;gap:9px;margin-top:8px;padding:9px 11px;border-radius:10px;background:linear-gradient(100deg,#eef6ea,#f6f3fc);border:1px solid #d6e8c8}
 .gp-fine>i{flex-shrink:0;display:grid;place-items:center;width:20px;height:20px;border-radius:50%;font-style:normal;font-size:10px;font-weight:900;background:var(--leaf);color:#fff}
 .gp-fine>div{flex:1;min-width:0}
