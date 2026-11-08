@@ -3,7 +3,7 @@
 // 배경: 색 또는 이미지(기본 8장 + 직접 올리기) · 이미지는 밝기·블러 조절 / 글씨: 글씨체·색·크기.
 // 미리보기도 저장본과 같은 캔버스로 그린다 — 보이는 그대로 저장된다.
 // 고른 꾸밈은 이 브라우저에 기억해 두고 다음 발췌에도 쓴다.
-// 사진 따로 넣기 (사용자 요청): 배경과 별개로 2.5:1 사진 한 장 — 가로 띠는 글 위에, 세로 띠는 글 왼쪽에.
+// 사진 따로 넣기 (사용자 요청): 배경과 별개로 사진 한 장 (가로 띠 3.4:1 · 세로 띠 1:2.5) — 가로 띠는 글 위에, 세로 띠는 글 왼쪽에.
 // 배경 이미지와 같이 쓰면 흐린 배경 위에 사진과 글이 올라간다 (시안 B · E).
 // 거리측정 HUD 배경 (사용자 요청 — 저격수 테마, 어두운 색) · 트위터식 발췌 (한 트윗에 길게, 사용자 요청)
 import React, { useEffect, useRef, useState } from 'react';
@@ -120,8 +120,10 @@ function toggleMark(runs: Run[], from: number, to: number, m: Mark): Run[] {
 const KEY = 'ohome.excerptCard.v1';
 const W = 1080;
 const PAD = 96;
-/* 따로 넣는 사진 — 비율 2.5:1(가로 띠) / 1:2.5(세로 띠) */
+/* 따로 넣는 사진 — 가로 띠 3.4:1 / 세로 띠 1:2.5.
+   가로 띠는 글 위를 너무 많이 차지해 납작하게 줄였다 (사용자 요청, 예전 2.5:1) */
 const PHOTO_RATIO = 2.5;
+const PHOTO_RATIO_H = 3.4;
 const PM = 72;          // 사진 바깥 여백
 const PGAP_H = 64;      // 가로 띠와 글 사이
 const PGAP_V = 56;      // 세로 띠와 글 사이
@@ -407,7 +409,7 @@ async function draw(canvas: HTMLCanvasElement, paras: Run[][], source: string, s
   let H: number, textTop: number, photoRect: { x: number; y: number; w: number; h: number } | null = null;
   if (ph && !vert) {
     // 가로 띠 — 사진 + 글을 한 덩어리로 가운데
-    const pw = W - PM * 2, phH = Math.round(pw / PHOTO_RATIO);
+    const pw = W - PM * 2, phH = Math.round(pw / PHOTO_RATIO_H);
     const total = phH + PGAP_H + textH + srcH;
     H = Math.max(W, Math.ceil(total + PM + PAD));
     const top = Math.max(PM, (H - total) / 2);
@@ -805,7 +807,7 @@ export function ExcerptCard({ paras: plain, source, fileName, title = '' }: { pa
         ) : (
           <div className="exc-row"><label>배경색</label><ColorField value={st.bg} onChange={bg => set({ bg })} /></div>
         )}
-        {/* 사진 따로 넣기 — 가로 띠(글 위) / 세로 띠(글 왼쪽), 비율 2.5:1 */}
+        {/* 사진 따로 넣기 — 가로 띠(글 위) / 세로 띠(글 왼쪽), 비율 가로 3.4:1 · 세로 1:2.5 */}
         {!isHud && <div className="exc-row">
           <label>사진</label>
           <div className="mini-seg">
@@ -820,7 +822,7 @@ export function ExcerptCard({ paras: plain, source, fileName, title = '' }: { pa
               onClick={() => photoRef.current?.click()} data-tip={st.photo ? '사진 바꾸기' : '사진 올리기'}>{st.photo ? '' : '＋'}</button>
           )}
           <input ref={photoRef} type="file" accept="image/*" style={{ display: 'none' }}
-            data-crop={st.photoDir === 'v' ? '2:5' : '5:2'}
+            data-crop={st.photoDir === 'v' ? '2:5' : '17:5'}
             onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; void upload(f, 'photo'); }} />
         </div>}
         </>)}
