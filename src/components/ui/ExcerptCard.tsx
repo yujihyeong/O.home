@@ -30,10 +30,13 @@ interface CardStyle {
   photoDir?: 'none' | 'h' | 'v';   // 따로 넣는 사진 — 없음 / 가로 띠(글 위) / 세로 띠(글 옆)
   photo?: string | null;   // 그 사진 (올린 이미지 data URL)
   speakers?: Speaker[];    // 대사 말풍선의 발화자 (사용자 요청)
-  kind?: 'card' | 'tweet'; // 모양 — 카드 / 트위터식
+  kind?: 'card' | 'tweet' | 'book' | 'lyric' | 'letter'; // 모양 — 카드 / 트위터식 / 책 / 가사 / 편지
   deco?: 'hud' | null;     // 그려 넣는 꾸밈 배경 — 거리측정 HUD
   hud?: string[];          // HUD 네 귀퉁이 작은 글씨 (왼쪽 위 · 오른쪽 위 · 왼쪽 아래 · 오른쪽 아래, 비우면 숨김)
   tw?: Partial<TweetConf>;
+  book?: Partial<BookConf>;
+  lyric?: Partial<LyricConf>;
+  letter?: Partial<LetterConf>;
 }
 /** 트위터식 발췌 — 이름 자리는 글 제목, 나머지는 직접 고친다 */
 interface TweetConf {
@@ -147,7 +150,7 @@ const loadStyle = (): CardStyle => {
 const saveStyle = (s: CardStyle) => {
   try { localStorage.setItem(KEY, JSON.stringify(s)); } catch {
     // 올린 이미지가 커서 못 담으면 이미지만 빼고 기억한다
-    try { localStorage.setItem(KEY, JSON.stringify({ ...s, img: s.img?.startsWith('data:') ? null : s.img, photo: null, tw: { ...s.tw, av: null } })); } catch { /* 무시 */ }
+    try { localStorage.setItem(KEY, JSON.stringify({ ...s, img: s.img?.startsWith('data:') ? null : s.img, photo: null, tw: { ...s.tw, av: null }, lyric: { ...s.lyric, art: null } })); } catch { /* 무시 */ }
   }
 };
 
@@ -368,10 +371,289 @@ async function drawTweet(canvas: HTMLCanvasElement, paras: Run[][], name: string
   drawIcon(ctx, TW_ICONS.sh, cx + cw - ic, actTop, ic, sub);
 }
 
+/* ---------- 새 모양 세 가지 (사용자 확정 시안) — 책 한 페이지 · 가사 카드 · 편지 ----------
+   셋 다 높이가 글 길이에 맞춰 늘고 준다. 좌표는 1080px 폭 기준 */
+const SERIF = '"Noto Serif KR", "Nanum Myeongjo", serif';
+const PEN = '"Nanum Pen Script", cursive';
+const CORMORANT = '"Cormorant Garamond", serif';
+/** 손글씨 글꼴 — 편지에서만 쓰여 처음 쓸 때 불러온다 */
+function ensurePenFont() {
+  if (typeof document === 'undefined' || document.getElementById('exc-pen-font')) return;
+  const l = document.createElement('link');
+  l.id = 'exc-pen-font'; l.rel = 'stylesheet';
+  l.href = 'https://fonts.googleapis.com/css2?family=Nanum+Pen+Script&display=swap';
+  document.head.appendChild(l);
+}
+async function loadFonts(specs: string[], text: string) {
+  try { await Promise.all(specs.map(f => document.fonts.load(f, text))); } catch { /* 기본 글꼴로 */ }
+}
+const setLS = (ctx: CanvasRenderingContext2D, px: number) => {
+  try { (ctx as CanvasRenderingContext2D & { letterSpacing: string }).letterSpacing = `${px}px`; } catch { /* 무시 */ }
+};
+/** 캔버스 크기를 정하고 배율을 건다 */
+function sizeCanvas(canvas: HTMLCanvasElement, H: number, scale: number) {
+  const ctx = canvas.getContext('2d')!;
+  const S = Math.max(1, Math.min(scale, Math.sqrt(16_000_000 / (W * H))));
+  canvas.width = Math.round(W * S); canvas.height = Math.round(H * S);
+  ctx.setTransform(S, 0, 0, S, 0, 0);
+  ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
+  return ctx;
+}
+/** 문단 첫 줄 들여쓰기 — 전각 공백 하나. 줄 앞 공백은 줄바꿈에서 잘려 나가므로 보이지 않는 글자(ZWJ)를 앞에 둔다 */
+const indent = (p: Run[]): Run[] => (p.length ? [{ ...p[0], t: `\u200D\u3000${p[0].t.trimStart()}` }, ...p.slice(1)] : p);
+
+/* 1. 책 한 페이지 — 장 번호 · 제목 · 본문(형광펜) · 가운데 쪽수. 낮(크림) / 밤(남색) */
+export interface BookConf { night: boolean; ch: string; page: string }
+const BOOK_DEF: BookConf = { night: false, ch: 'Chapter 1', page: '1' };
+async function drawBook(canvas: HTMLCanvasElement, paras: Run[][], title: string, st: CardStyle, family: string, scale: number) {
+  const cf = { ...BOOK_DEF, ...st.book };
+  const fam = st.fontId ? family : SERIF;
+  const fs = Math.round(st.size * 1.1), lh = fs * 2.05;
+  const fontOf = (r: Run) => `${r.i ? 'italic ' : ''}${r.b ? 'bold ' : '500 '}${fs}px ${fam}`;
+  const all = paras.map(p => p.map(r => r.t).join('')).join('');
+  await loadFonts([`500 ${fs}px ${fam}`, `bold ${fs}px ${fam}`, `bold 44px ${SERIF}`, `italic 500 36px ${CORMORANT}`], all + title + cf.ch);
+  const ink = cf.night ? '#e6e1d4' : '#2d2a24', sub = cf.night ? '#8b8676' : '#a0927a';
+  const hl = cf.night ? 'rgba(201,163,92,.75)' : st.hl;
+  const L = 132, R = 116, T = 118;
+  const tmp = canvas.getContext('2d')!;
+  const lines = paras.map(p => wrap(tmp, indent(p), W - L - R, fontOf));
+  const bodyH = lines.reduce((n, l) => n + l.length * lh, 0) + (lines.length - 1) * fs * 0.15;
+  const headH = (cf.ch.trim() ? 56 : 0) + 64 + 96;
+  const footH = cf.page.trim() ? 150 : 70;
+  const H = Math.ceil(Math.max(W * 0.8, T + headH + bodyH + footH));
+  const ctx = sizeCanvas(canvas, H, scale);
+  ctx.fillStyle = cf.night ? '#1f2430' : '#f7f2e7'; ctx.fillRect(0, 0, W, H);
+  if (!cf.night) {   // 종이 빛 — 오른쪽 위가 살짝 밝게
+    const g = ctx.createRadialGradient(W * 0.85, 0, 0, W * 0.85, 0, W * 0.7);
+    g.addColorStop(0, 'rgba(255,255,255,.7)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  }
+  // 펼친 책 안쪽 그림자
+  const sg = ctx.createLinearGradient(0, 0, 76, 0);
+  sg.addColorStop(0, `rgba(0,0,0,${cf.night ? 0.35 : 0.14})`); sg.addColorStop(0.4, `rgba(0,0,0,${cf.night ? 0.1 : 0.035})`); sg.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = sg; ctx.fillRect(0, 0, 76, H);
+  ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  let y = T;
+  if (cf.ch.trim()) {
+    ctx.font = `italic 500 36px ${CORMORANT}`; ctx.fillStyle = sub; setLS(ctx, 9);
+    ctx.fillText(cf.ch.trim(), W / 2, y); setLS(ctx, 0); y += 56;
+  }
+  ctx.font = `bold 44px ${SERIF}`; ctx.fillStyle = ink; setLS(ctx, 2.5);
+  ctx.fillText(title, W / 2, y, W - L - R); setLS(ctx, 0); y += 64 + 30;
+  ctx.globalAlpha = 0.35; ctx.fillRect(W / 2 - 37, y, 74, 2.5); ctx.globalAlpha = 1;
+  y += 66;
+  ctx.textAlign = 'left';
+  lines.forEach((ls, i) => {
+    if (i) y += fs * 0.15;
+    for (const l of ls) { paintLine(ctx, l, L, y, lh, fs, fontOf, hl, ink); y += lh; }
+  });
+  if (cf.page.trim()) {
+    ctx.textAlign = 'center'; ctx.font = `30px ${SERIF}`; ctx.fillStyle = sub;
+    ctx.fillText(`— ${cf.page.trim()} —`, W / 2, H - 100);
+  }
+}
+
+/* 2. 가사 카드 — 앨범 사진 · 제목 · 부제 · 가사(굵게 고른 문단만 진하게) · 재생 막대 */
+export interface LyricConf { color: string; art: string | null; sub: string; foot: string }
+const LYRIC_DEF: LyricConf = { color: '#58744f', art: null, sub: '', foot: 'O.HOME' };
+async function drawLyric(canvas: HTMLCanvasElement, paras: Run[][], title: string, st: CardStyle, family: string, scale: number) {
+  const cf = { ...LYRIC_DEF, ...st.lyric };
+  const fs = Math.round(st.size * 1.55), lh = fs * 1.42;
+  const fontOf = (r: Run) => `${r.i ? 'italic ' : ''}800 ${fs}px ${family}`;
+  const all = paras.map(p => p.map(r => r.t).join('')).join('');
+  await loadFonts([`800 ${fs}px ${family}`, `bold 40px ${family}`, `32px ${family}`], all + title + cf.sub + cf.foot);
+  let art: HTMLImageElement | null = null;
+  if (cf.art) { try { art = await loadImg(cf.art); } catch { art = null; } }
+  const P = 68, AR = 132;
+  const tmp = canvas.getContext('2d')!;
+  const lines = paras.map(p => wrap(tmp, p, W - P * 2, fontOf));
+  // 굵게(또는 형광펜) 고른 문단이 있으면 그 문단만 진하게, 나머지는 흐리게
+  const marked = paras.map(p => p.some(r => r.b || r.h));
+  const anyMark = marked.some(Boolean);
+  const gap = fs * 0.5;
+  const bodyH = lines.reduce((n, l) => n + l.length * lh, 0) + (lines.length - 1) * gap;
+  const H = Math.ceil(P + AR + 76 + bodyH + 70 + 120 + (cf.foot.trim() ? 70 : 0) + P * 0.6);
+  const ctx = sizeCanvas(canvas, H, scale);
+  // 둥근 카드 + 색 번짐
+  const R = 52;
+  ctx.save();
+  ctx.beginPath(); ctx.roundRect(0, 0, W, H, R); ctx.clip();
+  ctx.fillStyle = cf.color; ctx.fillRect(0, 0, W, H);
+  const g1 = ctx.createRadialGradient(W * 0.15, 0, 0, W * 0.15, 0, W * 0.75);
+  g1.addColorStop(0, mix(cf.color, 255, 0.32)); g1.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = g1; ctx.fillRect(0, 0, W, H);
+  const g2 = ctx.createRadialGradient(W, H, 0, W, H, W * 0.8);
+  g2.addColorStop(0, mix(cf.color, 0, 0.3)); g2.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = g2; ctx.fillRect(0, 0, W, H);
+  // 앨범 사진
+  ctx.save(); ctx.shadowColor = 'rgba(0,0,0,.22)'; ctx.shadowBlur = 30; ctx.shadowOffsetY = 10;
+  if (art) drawCover(ctx, art, P, P, AR, AR, 20);
+  else {
+    const ag = ctx.createLinearGradient(P, P, P + AR, P + AR);
+    ag.addColorStop(0, '#f3e6c9'); ag.addColorStop(0.6, '#d9c2e8'); ag.addColorStop(1, '#9fbf98');
+    ctx.fillStyle = ag; ctx.beginPath(); ctx.roundRect(P, P, AR, AR, 20); ctx.fill();
+  }
+  ctx.restore();
+  ctx.fillStyle = '#fff'; ctx.textBaseline = 'middle';
+  const tx = P + AR + 32, tw = W - tx - P;
+  ctx.font = `bold 40px ${family}`;
+  ctx.fillText(title, tx, P + (cf.sub.trim() ? AR * 0.34 : AR / 2), tw);
+  if (cf.sub.trim()) { ctx.globalAlpha = 0.78; ctx.font = `32px ${family}`; ctx.fillText(cf.sub.trim(), tx, P + AR * 0.7, tw); ctx.globalAlpha = 1; }
+  // 가사
+  ctx.textBaseline = 'top';
+  let y = P + AR + 76;
+  lines.forEach((ls, i) => {
+    if (i) y += gap;
+    ctx.globalAlpha = anyMark && !marked[i] ? 0.42 : 1;
+    for (const l of ls) {
+      let x = P;
+      for (const pc of l) { ctx.font = fontOf(pc.r); ctx.fillText(pc.t, x, y + (lh - fs) / 2); x += ctx.measureText(pc.t).width; }
+      y += lh;
+    }
+  });
+  ctx.globalAlpha = 1;
+  // 재생 막대
+  y += 70;
+  const bw = W - P * 2, pos = 0.38;
+  ctx.fillStyle = 'rgba(255,255,255,.28)'; ctx.beginPath(); ctx.roundRect(P, y, bw, 8, 4); ctx.fill();
+  ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.roundRect(P, y, bw * pos, 8, 4); ctx.fill();
+  ctx.beginPath(); ctx.arc(P + bw * pos, y + 4, 13, 0, Math.PI * 2); ctx.fill();
+  ctx.font = `28px ${family}`; ctx.globalAlpha = 0.7;
+  ctx.fillText('1:24', P, y + 30);
+  ctx.textAlign = 'right'; ctx.fillText('-2:13', W - P, y + 30); ctx.textAlign = 'left';
+  ctx.globalAlpha = 1;
+  if (cf.foot.trim()) {
+    const fy = y + 120;
+    ctx.textBaseline = 'middle'; ctx.globalAlpha = 0.88;
+    ctx.font = `bold 31px ${family}`; setLS(ctx, 2);
+    ctx.fillText(cf.foot.trim(), P, fy); setLS(ctx, 0);
+    // 음표
+    ctx.save(); ctx.translate(W - P - 44, fy - 22); ctx.scale(44 / 24, 44 / 24);
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.lineCap = 'round';
+    ctx.stroke(new Path2D('M9 18V5l12-2v13')); ctx.beginPath(); ctx.arc(6, 18, 3, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath(); ctx.arc(18, 16, 3, 0, Math.PI * 2); ctx.stroke();
+    ctx.restore(); ctx.globalAlpha = 1;
+  }
+  ctx.restore();
+}
+
+/* 3. 편지 — 항공우편 테두리 · 우표 · 물결 소인 · To · 줄 편지지 · 손글씨 서명 · (선택) 봉랍 */
+export interface LetterConf { paper: 'cream' | 'blue'; to: string; from: string; date: string; seal: string }
+const LETTER_DEF: LetterConf = { paper: 'cream', to: '', from: '', date: '', seal: '' };
+const STAMP_ART = {
+  cream: 'M12 21s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 11c0 5.6-7 10-7 10Z',
+  blue: 'M12 3v18M5 8c3 0 4 2 7 2s4-2 7-2M5 14c3 0 4 2 7 2s4-2 7-2',
+};
+async function drawLetter(canvas: HTMLCanvasElement, paras: Run[][], title: string, st: CardStyle, family: string, scale: number) {
+  ensurePenFont();
+  const cf = { ...LETTER_DEF, ...st.letter };
+  const blue = cf.paper === 'blue';
+  const fam = st.fontId ? family : SERIF;
+  const fs = Math.round(st.size * 1.05), lh = Math.round(fs * 2.3);
+  const fontOf = (r: Run) => `${r.i ? 'italic ' : ''}${r.b ? 'bold ' : '500 '}${fs}px ${fam}`;
+  const all = paras.map(p => p.map(r => r.t).join('')).join('');
+  await loadFonts([`500 ${fs}px ${fam}`, `bold ${fs}px ${fam}`, `66px ${PEN}`, `36px ${SERIF}`], all + cf.to + cf.from + '가나다To.');
+  const ink = blue ? '#2c3446' : '#3a332a', sub = blue ? '#7581a0' : '#8b7d68';
+  const rule = blue ? 'rgba(110,130,180,.25)' : 'rgba(150,130,100,.24)';
+  const L = 96, R = 96, top = 300;
+  const tmp = canvas.getContext('2d')!;
+  const lines = paras.map(p => wrap(tmp, p, W - L - R, fontOf));
+  const nLines = lines.reduce((n, l) => n + l.length, 0);
+  const bodyH = nLines * lh;
+  const signH = cf.from.trim() ? 110 : 30;
+  const H = Math.ceil(Math.max(W * 0.75, top + bodyH + signH + 130));
+  const ctx = sizeCanvas(canvas, H, scale);
+  ctx.fillStyle = blue ? '#f3f5fa' : '#fbf7ee'; ctx.fillRect(0, 0, W, H);
+  // 항공우편 줄무늬
+  ctx.save(); ctx.beginPath(); ctx.rect(0, 0, W, 22); ctx.clip();
+  for (let x = -40, i = 0; x < W + 40; x += 51, i++) {
+    ctx.fillStyle = i % 2 ? '#3f5f9a' : '#c6544f';
+    ctx.beginPath(); ctx.moveTo(x, 22); ctx.lineTo(x + 28, 22); ctx.lineTo(x + 50, 0); ctx.lineTo(x + 22, 0); ctx.closePath(); ctx.fill();
+  }
+  ctx.restore();
+  // 우표 (톱니 + 그림)
+  ctx.save();
+  ctx.translate(W - 80 - 82, 70 + 100); ctx.rotate(5 * Math.PI / 180);
+  ctx.shadowColor = 'rgba(0,0,0,.22)'; ctx.shadowBlur = 8; ctx.shadowOffsetY = 3;
+  ctx.fillStyle = '#fff'; ctx.fillRect(-82, -100, 164, 200);
+  ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+  ctx.globalCompositeOperation = 'destination-out';
+  for (let x = -82; x <= 82; x += 16) { ctx.beginPath(); ctx.arc(x, -100, 6, 0, Math.PI * 2); ctx.arc(x, 100, 6, 0, Math.PI * 2); ctx.fill(); }
+  for (let yy = -100; yy <= 100; yy += 16) { ctx.beginPath(); ctx.arc(-82, yy, 6, 0, Math.PI * 2); ctx.arc(82, yy, 6, 0, Math.PI * 2); ctx.fill(); }
+  ctx.globalCompositeOperation = 'source-over';
+  const sg = ctx.createLinearGradient(0, -86, 0, 86);
+  sg.addColorStop(0, blue ? '#c8d6ee' : '#e9d8c7'); sg.addColorStop(1, blue ? '#8ea3cc' : '#c9a3a8');
+  ctx.fillStyle = sg; ctx.fillRect(-68, -86, 136, 172);
+  ctx.strokeStyle = '#fff'; ctx.lineWidth = 5; ctx.strokeRect(-66, -84, 132, 168);
+  ctx.translate(-40, -40); ctx.scale(80 / 24, 80 / 24);
+  ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.6; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  ctx.stroke(new Path2D(STAMP_ART[cf.paper]));
+  ctx.restore();
+  // 물결 소인
+  ctx.save();
+  ctx.translate(W - 80 - 165 - 120, 150); ctx.rotate(-8 * Math.PI / 180);
+  ctx.strokeStyle = 'rgba(90,78,120,.5)'; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.arc(80, 0, 62, 0, Math.PI * 2); ctx.stroke();
+  ctx.setLineDash([6, 7]); ctx.beginPath(); ctx.arc(80, 0, 48, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]);
+  for (const dy of [-28, 0, 28]) {
+    ctx.beginPath(); ctx.moveTo(-120, dy);
+    for (let k = 0; k < 4; k++) ctx.quadraticCurveTo(-120 + k * 28 + 14, dy - 11, -120 + (k + 1) * 28, dy);
+    ctx.stroke();
+  }
+  if (cf.date.trim()) {
+    ctx.fillStyle = 'rgba(90,78,120,.6)'; ctx.font = `20px ${MONO}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    // 소인에는 월.일만 — 「2026. 11. 08」 → 11.08
+    const md = cf.date.match(/(\d{1,2})\D+(\d{1,2})\D*$/);
+    ctx.fillText(md ? `${md[1].padStart(2, '0')}.${md[2].padStart(2, '0')}` : cf.date.trim().slice(0, 5), 80, 0);
+  }
+  ctx.restore();
+  // To.
+  ctx.textBaseline = 'alphabetic'; ctx.textAlign = 'left';
+  ctx.fillStyle = sub; ctx.font = `36px ${SERIF}`;
+  ctx.fillText('To.', L, 196);
+  if (cf.to.trim()) { ctx.fillStyle = ink; ctx.font = `66px ${PEN}`; ctx.fillText(cf.to.trim(), L + 76, 200, W - L - 480); }
+  // 본문 + 줄
+  ctx.textBaseline = 'top';
+  let y = top;
+  for (const ls of lines) for (const l of ls) {
+    ctx.fillStyle = rule; ctx.fillRect(L, y + lh - 3, W - L - R, 2.5);
+    paintLine(ctx, l, L, y, lh, fs, fontOf, st.hl, ink);
+    y += lh;
+  }
+  // 서명 · 봉랍
+  if (cf.from.trim()) {
+    ctx.textBaseline = 'middle'; ctx.textAlign = 'right';
+    ctx.fillStyle = blue ? '#2c3e7a' : '#4a5a8a'; ctx.font = `72px ${PEN}`;
+    ctx.fillText(`— ${cf.from.trim()}`, W - R, y + 62);
+    ctx.textAlign = 'left';
+  }
+  if (cf.seal.trim()) {
+    const cx = L + 66, cy = y + 62;
+    ctx.save(); ctx.shadowColor = 'rgba(0,0,0,.25)'; ctx.shadowBlur = 10; ctx.shadowOffsetY = 4;
+    const rg = ctx.createRadialGradient(cx - 18, cy - 20, 4, cx, cy, 66);
+    rg.addColorStop(0, '#d86a64'); rg.addColorStop(1, '#9e3a37');
+    ctx.fillStyle = rg; ctx.beginPath(); ctx.arc(cx, cy, 64, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+    ctx.strokeStyle = 'rgba(0,0,0,.1)'; ctx.lineWidth = 10; ctx.beginPath(); ctx.arc(cx, cy, 57, 0, Math.PI * 2); ctx.stroke();
+    ctx.fillStyle = '#f3c9c2'; ctx.font = `bold 46px ${CORMORANT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(cf.seal.trim().slice(0, 2), cx, cy + 2);
+    ctx.textAlign = 'left';
+  }
+  // 아래 — 글 제목 · 날짜
+  ctx.textBaseline = 'alphabetic'; ctx.font = `28px ${SERIF}`; ctx.fillStyle = blue ? '#8a93ab' : '#a3957f';
+  setLS(ctx, 2);
+  ctx.fillText(title, cf.seal.trim() ? L + 160 : L, H - 64, W / 2);
+  if (cf.date.trim()) { ctx.textAlign = 'right'; ctx.fillText(cf.date.trim(), W - R, H - 64); ctx.textAlign = 'left'; }
+  setLS(ctx, 0);
+}
+
 /** 카드를 캔버스에 그린다 — 높이는 글 길이에 맞추되 정사각형보다 작아지지 않게.
  *  scale: 실제 픽셀 배율 — 미리보기는 1, 저장은 2(고화질, 사용자 요청). 좌표는 전부 1배 기준으로 쓰고 변환으로 키운다 */
 async function draw(canvas: HTMLCanvasElement, paras: Run[][], source: string, st: CardStyle, family: string, scale = 1, talk: (Talk | undefined)[] = [], title = '') {
   if (st.kind === 'tweet') return drawTweet(canvas, paras, title || source, st, family, scale);
+  if (st.kind === 'book') return drawBook(canvas, paras, title || source, st, family, scale);
+  if (st.kind === 'lyric') return drawLyric(canvas, paras, title || source, st, family, scale);
+  if (st.kind === 'letter') return drawLetter(canvas, paras, title || source, st, family, scale);
   const ctx = canvas.getContext('2d')!;
   const hud = st.deco === 'hud';
   const font = `${st.size}px ${family}`;
@@ -583,16 +865,23 @@ export function ExcerptCard({ paras: plain, source, fileName, title = '' }: { pa
   const tw = { ...TW_DEF, ...st.tw };
   const setTw = (p: Partial<TweetConf>) => set({ tw: { ...tw, ...p } });
   const isTweet = st.kind === 'tweet', isHud = st.deco === 'hud';
+  // 카드만 배경·사진·글씨색·대사 말풍선을 고른다 — 책·가사·편지는 모양에 색이 정해져 있다
+  const isCard = !st.kind || st.kind === 'card';
+  const book = { ...BOOK_DEF, ...st.book }, lyric = { ...LYRIC_DEF, ...st.lyric }, letter = { ...LETTER_DEF, ...st.letter };
+  const setBook = (p: Partial<BookConf>) => set({ book: { ...book, ...p } });
+  const setLyric = (p: Partial<LyricConf>) => set({ lyric: { ...lyric, ...p } });
+  const setLetter = (p: Partial<LetterConf>) => set({ letter: { ...letter, ...p } });
+  const artRef = useRef<HTMLInputElement>(null);
   /** 배경 고르기 — HUD는 어두우니 글씨를 밝게, 다른 배경으로 돌아가면 다시 어둡게 */
   const pickBg = (p: Partial<CardStyle>) => set({ deco: null, ...(isHud && st.color === HUD_INK ? { color: DEF.color } : {}), ...p });
-  const upload = async (f?: File, to: 'img' | 'photo' | 'av' = 'img') => {
+  const upload = async (f?: File, to: 'img' | 'photo' | 'av' | 'art' = 'img') => {
     if (!f) return;
     try {
       // 메타데이터 없이, 긴 변 2160px까지만 — 고화질 저장(2배)에 맞춘 크기. 이 브라우저 안에만 둔다 (서버에 올리지 않음)
       const clean = await stripImageMeta(f);
       const url = URL.createObjectURL(clean);
       const im = await loadImg(url);
-      const k = Math.min(1, (to === 'av' ? 512 : 2160) / Math.max(im.width, im.height));
+      const k = Math.min(1, (to === 'av' || to === 'art' ? 512 : 2160) / Math.max(im.width, im.height));
       const c = document.createElement('canvas');
       c.width = Math.round(im.width * k); c.height = Math.round(im.height * k);
       const cx = c.getContext('2d')!;
@@ -601,6 +890,7 @@ export function ExcerptCard({ paras: plain, source, fileName, title = '' }: { pa
       URL.revokeObjectURL(url); imgCache.delete(url);
       const url2 = c.toDataURL('image/jpeg', 0.92);
       if (to === 'av') setTw({ av: url2 });
+      else if (to === 'art') setLyric({ art: url2 });
       else set(to === 'img' ? { img: url2, deco: null } : { photo: url2 });
     } catch (e) {
       toast(`이미지를 넣지 못했습니다 — ${e instanceof Error ? e.message : String(e)}`);
@@ -642,8 +932,9 @@ export function ExcerptCard({ paras: plain, source, fileName, title = '' }: { pa
         <div className="exc-row">
           <label>모양</label>
           <div className="mini-seg">
-            <button type="button" className={!isTweet ? 'on' : ''} onClick={() => set({ kind: 'card' })}>카드</button>
-            <button type="button" className={isTweet ? 'on' : ''} onClick={() => set({ kind: 'tweet' })}>트윗</button>
+            {([['card', '카드'], ['tweet', '트윗'], ['book', '책'], ['lyric', '가사'], ['letter', '편지']] as const).map(([k, l]) => (
+              <button key={k} type="button" className={(st.kind ?? 'card') === k ? 'on' : ''} onClick={() => set({ kind: k })}>{l}</button>
+            ))}
           </div>
         </div>
         {/* 문장 꾸미기 — 아래 글에서 드래그한 뒤 버튼 (다시 누르면 꺼짐) */}
@@ -712,7 +1003,89 @@ export function ExcerptCard({ paras: plain, source, fileName, title = '' }: { pa
             </div>
           </div>
         )}
-        {!isTweet && paras.some(r => isQuote(r.map(x => x.t).join(''))) && (
+        {/* 책 한 페이지 (사용자 확정 시안) — 장 · 쪽수 · 낮/밤 */}
+        {st.kind === 'book' && (<>
+          <div className="exc-row">
+            <label>장</label>
+            <input className="k-input exc-time" value={book.ch} maxLength={30} placeholder="Chapter 1 (비우면 숨김)"
+              onChange={e => setBook({ ch: e.target.value })} />
+          </div>
+          <div className="exc-row">
+            <label>쪽수</label>
+            <input className="k-input exc-time" value={book.page} maxLength={8} placeholder="비우면 숨김"
+              onChange={e => setBook({ page: e.target.value })} />
+          </div>
+          <div className="exc-row">
+            <label>종이</label>
+            <div className="mini-seg">
+              <button type="button" className={!book.night ? 'on' : ''} onClick={() => setBook({ night: false })}>낮</button>
+              <button type="button" className={book.night ? 'on' : ''} onClick={() => setBook({ night: true })}>밤</button>
+            </div>
+          </div>
+        </>)}
+        {/* 가사 카드 (사용자 확정 시안) — 굵게·형광펜으로 고른 문단만 진하게 */}
+        {st.kind === 'lyric' && (<>
+          <div className="exc-row">
+            <label>부제</label>
+            <input className="k-input exc-time" value={lyric.sub} maxLength={30} placeholder="예: 지선우 · 춘열망"
+              onChange={e => setLyric({ sub: e.target.value })} />
+          </div>
+          <div className="exc-row">
+            <label>아래</label>
+            <input className="k-input exc-time" value={lyric.foot} maxLength={20} placeholder="비우면 숨김"
+              onChange={e => setLyric({ foot: e.target.value })} />
+          </div>
+          <div className="exc-row">
+            <label>색</label>
+            <span className="exc-quick">
+              {['#58744f', '#7c69b8', '#34405e', '#a85a6a', '#b07a3c'].map(c => (
+                <button key={c} type="button" style={{ background: c }} onClick={() => setLyric({ color: c })} />
+              ))}
+            </span>
+            <ColorField value={lyric.color} onChange={color => setLyric({ color })} />
+          </div>
+          <div className="exc-row">
+            <label>앨범</label>
+            <button type="button" className={`exc-sw exc-up exc-av ${lyric.art ? 'on' : ''}`}
+              style={lyric.art ? { backgroundImage: `url(${lyric.art})` } : undefined}
+              onClick={() => artRef.current?.click()} data-tip={lyric.art ? '사진 바꾸기' : '사진 올리기'}>{lyric.art ? '' : '＋'}</button>
+            {lyric.art && <button type="button" className="ghost exc-txtbtn" onClick={() => setLyric({ art: null })}>사진 빼기</button>}
+            <input ref={artRef} type="file" accept="image/*" style={{ display: 'none' }} data-crop="1:1"
+              onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; void upload(f, 'art'); }} />
+          </div>
+          <small className="exc-hint">굵게나 형광펜으로 고른 문단만 진하게, 나머지는 흐리게 보여요</small>
+        </>)}
+        {/* 편지 (사용자 확정 시안) — 받는 사람 · 서명 · 날짜 · 봉랍 · 편지지 색 */}
+        {st.kind === 'letter' && (<>
+          <div className="exc-row">
+            <label>받는이</label>
+            <input className="k-input exc-time" value={letter.to} maxLength={20} placeholder="예: 열망에게"
+              onChange={e => setLetter({ to: e.target.value })} />
+          </div>
+          <div className="exc-row">
+            <label>서명</label>
+            <input className="k-input exc-time" value={letter.from} maxLength={20} placeholder="예: 선우가"
+              onChange={e => setLetter({ from: e.target.value })} />
+          </div>
+          <div className="exc-row">
+            <label>날짜</label>
+            <input className="k-input exc-time" value={letter.date} maxLength={20} placeholder="예: 2026. 11. 08"
+              onChange={e => setLetter({ date: e.target.value })} />
+          </div>
+          <div className="exc-row">
+            <label>봉랍</label>
+            <input className="k-input exc-time" value={letter.seal} maxLength={2} placeholder="이니셜 (비우면 없음)"
+              onChange={e => setLetter({ seal: e.target.value })} />
+          </div>
+          <div className="exc-row">
+            <label>편지지</label>
+            <div className="mini-seg">
+              <button type="button" className={letter.paper === 'cream' ? 'on' : ''} onClick={() => setLetter({ paper: 'cream' })}>크림</button>
+              <button type="button" className={letter.paper === 'blue' ? 'on' : ''} onClick={() => setLetter({ paper: 'blue' })}>하늘</button>
+            </div>
+          </div>
+        </>)}
+        {isCard && paras.some(r => isQuote(r.map(x => x.t).join(''))) && (
           <div className="exc-talk">
             <div className="exc-talk-h">
               <span>대사 · 발화자</span>
@@ -759,7 +1132,7 @@ export function ExcerptCard({ paras: plain, source, fileName, title = '' }: { pa
             })}
           </div>
         )}
-        {!isTweet && (<>
+        {isCard && (<>
         <div className="exc-row">
           <label>배경</label>
           <div className="exc-bgs">
@@ -832,7 +1205,7 @@ export function ExcerptCard({ paras: plain, source, fileName, title = '' }: { pa
             options={[{ value: '', label: '기본' },
               ...fonts.map(f => ({ value: f.id, label: <span style={{ fontFamily: familyOf(f.id) }}>{f.name}</span> }))]} />
         </div>
-        {!isTweet && <div className="exc-row">
+        {isCard && <div className="exc-row">
           <label>글씨색</label><ColorField value={st.color} onChange={color => set({ color })} />
           <span className="exc-quick">
             <button type="button" style={{ background: '#ffffff' }} onClick={() => set({ color: '#ffffff' })} data-tip="흰색" />

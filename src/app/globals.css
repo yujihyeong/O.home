@@ -2137,6 +2137,7 @@ html.gate-seen .gate{display:none}
 .exc-ctl{display:grid;gap:12px;font-size:calc(12px*var(--fs,1))}
 .exc-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .exc-row>label{width:44px;flex-shrink:0;color:var(--sub);font-weight:600}
+.exc-hint{display:block;font-size:calc(10.5px*var(--fs,1));color:var(--faint)}
 .exc-v{width:40px;text-align:right;color:var(--faint);font-variant-numeric:tabular-nums}
 .exc-bgs{display:flex;flex-wrap:wrap;gap:6px;flex:1}
 .exc-sw{width:38px;height:52px;border-radius:7px;border:1px solid var(--line);background-size:cover;background-position:center;cursor:var(--cur-pointer,pointer);color:var(--sub);font-size:16px;padding:0}
