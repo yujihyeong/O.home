@@ -2278,17 +2278,16 @@ html[data-scene="night"] .gbx{
 .gbx-menu{display:flex;flex-direction:column;align-items:stretch;gap:6px;padding:10px 9px;aspect-ratio:1;justify-content:center;color:var(--gb-lcd-ink)}
 .gbx-menu>b{text-align:center;font-size:13px;letter-spacing:.16em;margin-bottom:2px}
 .gbx-menu>.gbx-press{text-align:center;font-size:9px;letter-spacing:.14em;margin-top:2px}
-.gbx-lv{display:grid;grid-template-columns:auto 1fr auto;grid-template-rows:auto auto;column-gap:9px;align-items:center;text-align:left;
+.gbx-lv{display:grid;grid-template-columns:1fr auto;grid-template-rows:auto auto;column-gap:9px;row-gap:2px;align-items:center;text-align:left;
   padding:6px 9px;border-radius:4px;font-family:inherit;color:var(--gb-lcd-ink);background:var(--gb-tile);
   box-shadow:inset 2px 2px 0 var(--gb-tile-hi),inset -2px -2px 0 var(--gb-tile-lo);cursor:var(--cur-pointer,pointer)}
 .gbx-lv:hover{filter:brightness(1.06)}
 .gbx-lv:active{transform:translateY(1px)}
 .gbx-lv.on{box-shadow:inset 2px 2px 0 var(--gb-tile-hi),inset -2px -2px 0 var(--gb-tile-lo),0 0 0 2px var(--gb-flag)}
-.gbx-lv-ko{grid-row:1/3;font-size:20px;font-weight:700;line-height:1;width:24px;text-align:center}
 .gbx-lv-name{font-size:12px;letter-spacing:.14em;font-weight:700}
 .gbx-lv small{font-size:9.5px;letter-spacing:.06em;display:inline-flex;align-items:center;gap:3px}
 .gbx-lv small .gbx-ico{color:currentColor}
-.gbx-lv-best{grid-column:3;grid-row:1/3;opacity:.75}
+.gbx-lv-best{grid-column:2;grid-row:1/3;opacity:.75}
 .gbx-ctrl{display:flex;align-items:center;justify-content:space-between;padding:12px 6px 4px}
 .gbx-dpad{width:52px;height:54px;display:block}
 .gbx-ab{display:flex;gap:10px;transform:rotate(-18deg)}
