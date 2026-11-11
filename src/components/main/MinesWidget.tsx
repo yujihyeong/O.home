@@ -8,7 +8,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 /* ---------- 도트 그림 ---------- */
 // 글자 하나 = 픽셀 하나. '.'는 비움, 나머지는 팔레트 색
 type Pal = Record<string, string>;
-function Pix({ rows, pal, className }: { rows: string[]; pal: Pal; className?: string }) {
+export function Pix({ rows, pal, className }: { rows: string[]; pal: Pal; className?: string }) {
   const h = rows.length, w = rows[0].length;
   const rects: React.ReactNode[] = [];
   rows.forEach((r, y) => [...r].forEach((c, x) => {
@@ -19,7 +19,7 @@ function Pix({ rows, pal, className }: { rows: string[]; pal: Pal; className?: s
   );
 }
 
-const FLAG = [
+export const FLAG = [
   '..KRR...',
   '..KRRRR.',
   '..KRRRRR',
@@ -29,7 +29,7 @@ const FLAG = [
   '.KKKK...',
   '........',
 ];
-const MINE = [
+export const MINE = [
   '....S.S.',
   '...K.S..',
   '..KKKK..',
@@ -40,7 +40,7 @@ const MINE = [
   '........',
 ];
 // 얼굴은 10×10 좌우 대칭 — 까만 눈 2×2 · 볼터치 · 작은 입
-const FACE_OK = [
+export const FACE_OK = [
   '...YYYY...',
   '.YYYYYYYY.',
   'YYYYYYYYYY',
@@ -52,7 +52,7 @@ const FACE_OK = [
   '.YYYYYYYY.',
   '...YYYY...',
 ];
-const FACE_WIN = [
+export const FACE_WIN = [
   '...YYYY...',
   '.YYYYYYYY.',
   'YYYYYYYYYY',
@@ -64,7 +64,7 @@ const FACE_WIN = [
   '.YYYYYYYY.',
   '...YYYY...',
 ];
-const FACE_LOSE = [
+export const FACE_LOSE = [
   '...YYYY...',
   '.YYYYYYYY.',
   'YKYKYYKYKY',
@@ -76,7 +76,7 @@ const FACE_LOSE = [
   '.YYYYYYYY.',
   '...YYYY...',
 ];
-const HEART = [
+export const HEART = [
   '.RR.RR.',
   'RRRRRRR',
   'RRRRRRR',
@@ -136,11 +136,11 @@ function flood(lv: Level, cells: Cell[], start: number) {
   }
 }
 
-const pad3 = (n: number) => String(Math.max(-99, Math.min(999, n))).padStart(3, '0');
+export const pad3 = (n: number) => String(Math.max(-99, Math.min(999, n))).padStart(3, '0');
 const BEST_KEY = 'ohome.mines.best.v1';
 
 /** 도트 글꼴 — 한 번만 불러온다 */
-function useDotFont() {
+export function useDotFont() {
   useEffect(() => {
     if (document.getElementById('ohome-dotfont')) return;
     const l = document.createElement('link');
@@ -150,7 +150,7 @@ function useDotFont() {
   }, []);
 }
 
-export function MinesWidget() {
+export function MinesWidget({ onHome }: { onHome?: () => void } = {}) {
   useDotFont();
   const [lvIdx, setLvIdx] = useState(0);
   const lv = LEVELS[lvIdx];
@@ -243,7 +243,7 @@ export function MinesWidget() {
   const face = phase === 'win' ? FACE_WIN : phase === 'lose' ? FACE_LOSE : FACE_OK;
 
   return (
-    <div className="gbx" data-lv={phase === 'menu' ? undefined : lv.key} onClick={e => e.stopPropagation()}
+    <div className="gbx" data-wide={phase !== 'menu' && lv.key !== 'easy' ? '' : undefined} onClick={e => e.stopPropagation()}
       style={{ '--gbx-w': `${phase === 'menu' ? LEVELS[0].width : lv.width}px` } as React.CSSProperties}>
       <div className="gbx-top">
         <span className="gbx-led" data-on={phase === 'play' ? '1' : undefined} />
@@ -269,7 +269,9 @@ export function MinesWidget() {
                 <small className="gbx-lv-best">{best[l.key] != null ? `BEST ${pad3(best[l.key])}` : ''}</small>
               </button>
             ))}
-            <small className="gbx-press">PUSH TO START</small>
+            {onHome
+              ? <button type="button" className="gbx-back" onClick={onHome}>◀ GAMES</button>
+              : <small className="gbx-press">PUSH TO START</small>}
           </div>
         ) : (
         <div className={`gbx-lcd ${flagMode ? 'flag-mode' : ''}`}
@@ -326,7 +328,7 @@ export function MinesWidget() {
         </div>
       </div>
       <div className="gbx-sys">
-        <button type="button" onClick={toMenu}><i />SELECT</button>
+        <button type="button" onClick={() => (phase === 'menu' && onHome ? onHome() : toMenu())}><i />SELECT</button>
         <button type="button" onClick={() => (phase === 'menu' ? pick(lvIdx) : reset())}><i />START</button>
       </div>
     </div>

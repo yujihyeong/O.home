@@ -1,8 +1,8 @@
 'use client';
-// 지뢰찾기 팝업 (사용자 요청 — 위젯 대신) — 화면 왼쪽 아래 동그란 게임기 버튼, 누르면 게임기가 뜨고 다시 누르면 닫힌다.
+// 게임기 팝업 (사용자 요청 — 위젯 대신, 지뢰찾기·스도쿠) — 화면 왼쪽 아래 동그란 게임기 버튼, 누르면 게임기가 뜨고 다시 누르면 닫힌다.
 // 오른쪽 아래는 BGM 플레이어 자리라 왼쪽에 둔다. 닫아도 판은 그대로 남아 이어서 할 수 있다(숨김만).
 import React, { useState } from 'react';
-import { MinesWidget } from '@/components/main/MinesWidget';
+import { GameBox } from '@/components/main/GameBox';
 
 export function GameDock() {
   const [open, setOpen] = useState(false);
@@ -10,12 +10,12 @@ export function GameDock() {
   return (
     <>
       {mounted && (
-        <div className={`gdock-pop ${open ? 'on' : ''}`} role="dialog" aria-label="지뢰찾기" aria-hidden={!open}>
-          <MinesWidget />
+        <div className={`gdock-pop ${open ? 'on' : ''}`} role="dialog" aria-label="게임" aria-hidden={!open}>
+          <GameBox />
         </div>
       )}
       <button type="button" className={`gdock-btn ${open ? 'on' : ''}`}
-        aria-label={open ? '지뢰찾기 닫기' : '지뢰찾기 열기'} data-tip={open ? '닫기' : '지뢰찾기'}
+        aria-label={open ? '게임 닫기' : '게임 열기'} data-tip={open ? '닫기' : '게임'}
         onClick={() => { setMounted(true); setOpen(v => !v); }}>
         {/* 게임기 아이콘 — 십자키 + 버튼 두 개 */}
         <svg viewBox="0 0 32 32" aria-hidden>
