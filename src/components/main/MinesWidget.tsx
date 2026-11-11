@@ -88,9 +88,9 @@ const HEART = [
 /* ---------- 판 ---------- */
 // 하 = 원래 판. 중·상은 휴대폰에서 칸이 너무 작아지지 않게 세로로 길게 (게임기도 조금 넓어진다)
 const LEVELS = [
-  { key: 'easy', label: 'EASY', ko: '하', w: 8, h: 8, mines: 10, width: 264 },
-  { key: 'normal', label: 'NORMAL', ko: '중', w: 10, h: 13, mines: 22, width: 304 },
-  { key: 'expert', label: 'HARD', ko: '상', w: 12, h: 16, mines: 38, width: 344 },
+  { key: 'easy', label: 'EASY', w: 8, h: 8, mines: 10, width: 264 },
+  { key: 'normal', label: 'NORMAL', w: 10, h: 13, mines: 22, width: 304 },
+  { key: 'expert', label: 'HARD', w: 12, h: 16, mines: 38, width: 344 },
 ] as const;
 type Level = (typeof LEVELS)[number];
 
@@ -264,7 +264,6 @@ export function MinesWidget() {
             <b>SELECT LEVEL</b>
             {LEVELS.map((l, n) => (
               <button key={l.key} type="button" className={`gbx-lv ${n === lvIdx ? 'on' : ''}`} onClick={() => pick(n)}>
-                <span className="gbx-lv-ko">{l.ko}</span>
                 <span className="gbx-lv-name">{l.label}</span>
                 <small>{l.w}×{l.h} · <Pix rows={MINE} pal={{ K: 'currentColor', W: 'var(--gb-lcd)', S: 'var(--gb-spark)' }} className="gbx-ico" />{l.mines}</small>
                 <small className="gbx-lv-best">{best[l.key] != null ? `BEST ${pad3(best[l.key])}` : ''}</small>
@@ -302,7 +301,7 @@ export function MinesWidget() {
         </div>
         )}
         <div className="gbx-foot">
-          <span>{phase === 'menu' ? 'CHOOSE ONE' : `${lv.label} · ${lv.ko}`}</span>
+          <span>{phase === 'menu' ? 'CHOOSE ONE' : lv.label}</span>
           <span>BEST {best[lv.key] != null ? pad3(best[lv.key]) : '---'}</span>
         </div>
       </div>
