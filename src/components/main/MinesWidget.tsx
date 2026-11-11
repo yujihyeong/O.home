@@ -1,7 +1,7 @@
 'use client';
 // 지뢰찾기 위젯 (사용자 요청) — 도트 그림 · 게임기 모양 · 낮/밤에 어울리게.
 // 화면(LCD)에서 칸을 눌러 열고, 길게 누르기·우클릭(또는 B 버튼으로 깃발 모드)으로 깃발.
-// START = 새 게임, SELECT = 난이도 바꾸기. 첫 칸은 늘 안전하다(첫 클릭 뒤에 지뢰를 깐다).
+// 처음 켜면 난이도(하·중·상)를 고른다. START = 새 게임, SELECT = 난이도 고르기 화면. 첫 칸은 늘 안전하다(첫 클릭 뒤에 지뢰를 깐다).
 // 최고 기록은 이 브라우저에만 기억한다.
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 
@@ -86,14 +86,16 @@ const HEART = [
 ];
 
 /* ---------- 판 ---------- */
+// 하 = 원래 판. 중·상은 휴대폰에서 칸이 너무 작아지지 않게 세로로 길게 (게임기도 조금 넓어진다)
 const LEVELS = [
-  { key: 'easy', label: 'EASY', w: 8, h: 8, mines: 10 },
-  { key: 'hard', label: 'HARD', w: 10, h: 10, mines: 18 },
+  { key: 'easy', label: 'EASY', ko: '하', w: 8, h: 8, mines: 10, width: 264 },
+  { key: 'normal', label: 'NORMAL', ko: '중', w: 10, h: 13, mines: 22, width: 304 },
+  { key: 'expert', label: 'HARD', ko: '상', w: 12, h: 16, mines: 38, width: 344 },
 ] as const;
 type Level = (typeof LEVELS)[number];
 
 interface Cell { mine: boolean; open: boolean; flag: boolean; n: number }
-type Phase = 'ready' | 'play' | 'win' | 'lose';
+type Phase = 'menu' | 'ready' | 'play' | 'win' | 'lose';
 
 const blank = (lv: Level): Cell[] =>
   Array.from({ length: lv.w * lv.h }, () => ({ mine: false, open: false, flag: false, n: 0 }));
@@ -153,7 +155,7 @@ export function MinesWidget() {
   const [lvIdx, setLvIdx] = useState(0);
   const lv = LEVELS[lvIdx];
   const [cells, setCells] = useState<Cell[]>(() => blank(lv));
-  const [phase, setPhase] = useState<Phase>('ready');
+  const [phase, setPhase] = useState<Phase>('menu');
   const [flagMode, setFlagMode] = useState(false);
   const [time, setTime] = useState(0);
   const [boom, setBoom] = useState(-1);
@@ -175,7 +177,8 @@ export function MinesWidget() {
     setCells(blank(LEVELS[idx])); setPhase('ready'); setTime(0); setBoom(-1); setFlagMode(false);
   }, [lvIdx]);
 
-  const nextLevel = () => { const n = (lvIdx + 1) % LEVELS.length; setLvIdx(n); reset(n); };
+  const pick = (n: number) => { setLvIdx(n); reset(n); };
+  const toMenu = () => { reset(); setPhase('menu'); };
 
   const finishIfWon = (next: Cell[]) => {
     if (next.every(c => c.mine || c.open)) {
@@ -240,7 +243,8 @@ export function MinesWidget() {
   const face = phase === 'win' ? FACE_WIN : phase === 'lose' ? FACE_LOSE : FACE_OK;
 
   return (
-    <div className="gbx" onClick={e => e.stopPropagation()}>
+    <div className="gbx" data-lv={phase === 'menu' ? undefined : lv.key} onClick={e => e.stopPropagation()}
+      style={{ '--gbx-w': `${phase === 'menu' ? LEVELS[0].width : lv.width}px` } as React.CSSProperties}>
       <div className="gbx-top">
         <span className="gbx-led" data-on={phase === 'play' ? '1' : undefined} />
         <span className="gbx-brand">DOT MINES</span>
@@ -250,11 +254,25 @@ export function MinesWidget() {
       <div className="gbx-bezel">
         <div className="gbx-hud">
           <span className="gbx-num" data-tip="남은 지뢰"><Pix rows={MINE} pal={{ K: 'currentColor', W: 'var(--gb-lcd)', S: 'var(--gb-spark)' }} className="gbx-ico" />{pad3(left)}</span>
-          <button type="button" className="gbx-face" onClick={() => reset()} aria-label="새 게임">
+          <button type="button" className="gbx-face" onClick={() => (phase === 'menu' ? pick(lvIdx) : reset())} aria-label="새 게임">
             <Pix rows={face} pal={{ Y: 'var(--gb-face)', K: 'var(--gb-face-ink)', P: 'var(--gb-cheek)', W: '#ffffff' }} />
           </button>
           <span className="gbx-num">⏱{pad3(time)}</span>
         </div>
+        {phase === 'menu' ? (
+          <div className="gbx-lcd gbx-menu">
+            <b>SELECT LEVEL</b>
+            {LEVELS.map((l, n) => (
+              <button key={l.key} type="button" className={`gbx-lv ${n === lvIdx ? 'on' : ''}`} onClick={() => pick(n)}>
+                <span className="gbx-lv-ko">{l.ko}</span>
+                <span className="gbx-lv-name">{l.label}</span>
+                <small>{l.w}×{l.h} · <Pix rows={MINE} pal={{ K: 'currentColor', W: 'var(--gb-lcd)', S: 'var(--gb-spark)' }} className="gbx-ico" />{l.mines}</small>
+                <small className="gbx-lv-best">{best[l.key] != null ? `BEST ${pad3(best[l.key])}` : ''}</small>
+              </button>
+            ))}
+            <small className="gbx-press">PUSH TO START</small>
+          </div>
+        ) : (
         <div className={`gbx-lcd ${flagMode ? 'flag-mode' : ''}`}
           style={{ gridTemplateColumns: `repeat(${lv.w}, 1fr)` }}
           onContextMenu={e => e.preventDefault()}>
@@ -278,11 +296,13 @@ export function MinesWidget() {
               <b>{phase === 'win' ? 'CLEAR!' : 'BOOM!'}</b>
               <small>{phase === 'win' ? `TIME ${pad3(time)}` : 'TRY AGAIN?'}</small>
               <small className="gbx-press">PRESS START</small>
+              <button type="button" className="gbx-msg-lv" onClick={e => { e.stopPropagation(); toMenu(); }}>난이도 바꾸기</button>
             </div>
           )}
         </div>
+        )}
         <div className="gbx-foot">
-          <span>{lv.label}</span>
+          <span>{phase === 'menu' ? 'CHOOSE ONE' : `${lv.label} · ${lv.ko}`}</span>
           <span>BEST {best[lv.key] != null ? pad3(best[lv.key]) : '---'}</span>
         </div>
       </div>
@@ -307,8 +327,8 @@ export function MinesWidget() {
         </div>
       </div>
       <div className="gbx-sys">
-        <button type="button" onClick={nextLevel}><i />SELECT</button>
-        <button type="button" onClick={() => reset()}><i />START</button>
+        <button type="button" onClick={toMenu}><i />SELECT</button>
+        <button type="button" onClick={() => (phase === 'menu' ? pick(lvIdx) : reset())}><i />START</button>
       </div>
     </div>
   );

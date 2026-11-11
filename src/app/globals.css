@@ -2272,6 +2272,23 @@ html[data-scene="night"] .gbx{
 .gbx-press{animation:gbx-blink 1s steps(2) infinite}
 @keyframes gbx-blink{50%{opacity:0}}
 .gbx-foot{display:flex;justify-content:space-between;margin-top:6px;font-size:9.5px;letter-spacing:.14em;color:#d9c9e2;opacity:.85}
+.gbx-msg-lv{margin-top:6px;font-family:inherit;font-size:11px;letter-spacing:.06em;color:var(--gb-lcd-ink);padding:3px 9px;border-radius:4px;
+  background:color-mix(in srgb,var(--gb-lcd-ink) 12%,transparent)}
+/* 난이도 고르기 화면 (사용자 요청 — 처음 켜면 하·중·상) */
+.gbx-menu{display:flex;flex-direction:column;align-items:stretch;gap:6px;padding:10px 9px;aspect-ratio:1;justify-content:center;color:var(--gb-lcd-ink)}
+.gbx-menu>b{text-align:center;font-size:13px;letter-spacing:.16em;margin-bottom:2px}
+.gbx-menu>.gbx-press{text-align:center;font-size:9px;letter-spacing:.14em;margin-top:2px}
+.gbx-lv{display:grid;grid-template-columns:auto 1fr auto;grid-template-rows:auto auto;column-gap:9px;align-items:center;text-align:left;
+  padding:6px 9px;border-radius:4px;font-family:inherit;color:var(--gb-lcd-ink);background:var(--gb-tile);
+  box-shadow:inset 2px 2px 0 var(--gb-tile-hi),inset -2px -2px 0 var(--gb-tile-lo);cursor:var(--cur-pointer,pointer)}
+.gbx-lv:hover{filter:brightness(1.06)}
+.gbx-lv:active{transform:translateY(1px)}
+.gbx-lv.on{box-shadow:inset 2px 2px 0 var(--gb-tile-hi),inset -2px -2px 0 var(--gb-tile-lo),0 0 0 2px var(--gb-flag)}
+.gbx-lv-ko{grid-row:1/3;font-size:20px;font-weight:700;line-height:1;width:24px;text-align:center}
+.gbx-lv-name{font-size:12px;letter-spacing:.14em;font-weight:700}
+.gbx-lv small{font-size:9.5px;letter-spacing:.06em;display:inline-flex;align-items:center;gap:3px}
+.gbx-lv small .gbx-ico{color:currentColor}
+.gbx-lv-best{grid-column:3;grid-row:1/3;opacity:.75}
 .gbx-ctrl{display:flex;align-items:center;justify-content:space-between;padding:12px 6px 4px}
 .gbx-dpad{width:52px;height:54px;display:block}
 .gbx-ab{display:flex;gap:10px;transform:rotate(-18deg)}
@@ -2410,13 +2427,30 @@ html[data-scene="night"] .gbx{
 .gdock-btn.on{color:#fff;background:#f4a7b9;box-shadow:inset 0 -3px 0 #d97f97,0 6px 18px rgba(217,127,151,.35)}
 html[data-scene="night"] .gdock-btn{color:#f08fb0;background:#3a3357;box-shadow:inset 0 -3px 0 #1f1a33,0 6px 18px rgba(0,0,0,.4)}
 html[data-scene="night"] .gdock-btn.on{color:#2a2443;background:#f08fb0;box-shadow:inset 0 -3px 0 #b85b80,0 6px 18px rgba(240,143,176,.35)}
-.gdock-pop{position:fixed;left:20px;bottom:calc(82px + env(safe-area-inset-bottom,0px));z-index:72;width:264px;
+.gdock-pop{position:fixed;left:20px;bottom:calc(82px + env(safe-area-inset-bottom,0px));z-index:72;
+  max-height:calc(100dvh - 92px - env(safe-area-inset-bottom,0px));overflow-y:auto;overscroll-behavior:contain;border-radius:22px 22px 46px 22px;
   opacity:0;transform:translateY(12px) scale(.96);transform-origin:left bottom;pointer-events:none;transition:opacity .2s,transform .2s;visibility:hidden}
 .gdock-pop.on{opacity:1;transform:none;pointer-events:auto;visibility:visible}
-.gdock-pop .gbx{margin:0}
+.gdock-pop .gbx{margin:0;width:var(--gbx-w,264px);transition:width .2s}
 @media (max-width:640px){
   .gdock-btn{left:14px;bottom:calc(14px + var(--bgm-h,0px) + env(safe-area-inset-bottom,0px));width:44px;height:44px}
-  .gdock-pop{left:14px;bottom:calc(68px + var(--bgm-h,0px) + env(safe-area-inset-bottom,0px));width:min(264px,calc(100vw - 28px))}
+  .gdock-pop{left:14px;bottom:calc(68px + var(--bgm-h,0px) + env(safe-area-inset-bottom,0px));
+    max-height:calc(100dvh - 78px - var(--bgm-h,0px) - env(safe-area-inset-bottom,0px))}
+  /* 휴대폰에선 중·상 판이 화면 너비를 거의 다 쓴다 — 칸이 작아지지 않게 */
+  .gdock-pop .gbx{width:min(var(--gbx-w,264px),calc(100vw - 28px));min-width:0}
+  /* 중·상 — 판을 크게 두고 아래 버튼은 한 줄로 납작하게 (십자키는 장식이라 뺀다) */
+  .gdock-pop .gbx:is([data-lv="normal"],[data-lv="expert"]){width:calc(100vw - 28px);max-width:420px;
+    display:grid;grid-template-columns:1fr auto;align-items:center;padding:10px 10px 8px;border-radius:20px 20px 34px 20px}
+  .gdock-pop .gbx:is([data-lv="normal"],[data-lv="expert"]) :is(.gbx-top,.gbx-bezel){grid-column:1/-1}
+  .gdock-pop .gbx:is([data-lv="normal"],[data-lv="expert"]) .gbx-top{margin-bottom:6px}
+  .gdock-pop .gbx:is([data-lv="normal"],[data-lv="expert"]) .gbx-dpad{display:none}
+  .gdock-pop .gbx:is([data-lv="normal"],[data-lv="expert"]) .gbx-ctrl{grid-column:2;grid-row:3;padding:6px 4px 0}
+  .gdock-pop .gbx:is([data-lv="normal"],[data-lv="expert"]) .gbx-sys{grid-column:1;grid-row:3;justify-content:flex-start;margin:6px 0 0 6px}
+  .gdock-pop .gbx:is([data-lv="normal"],[data-lv="expert"]) .gbx-ab{transform:none;align-items:center}
+  .gdock-pop .gbx:is([data-lv="normal"],[data-lv="expert"]) .gbx-abw{flex-direction:row;gap:5px}
+  .gdock-pop .gbx:is([data-lv="normal"],[data-lv="expert"]) .gbx-abw.b{margin-top:0}
+  .gdock-pop .gbx:is([data-lv="normal"],[data-lv="expert"]) .gbx-btn{width:32px;height:32px}
+  .gdock-pop .gbx:is([data-lv="normal"],[data-lv="expert"]) .gbx-sys button{transform:none;font-size:7px}
 }
 
 /* 편집모드 — 위젯 오른쪽 위 삭제(✕) 버튼 */
