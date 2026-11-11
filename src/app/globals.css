@@ -2269,8 +2269,10 @@ html[data-scene="night"] .gbx{
   background:color-mix(in srgb,var(--gb-lcd) 82%,transparent);border-radius:5px;color:var(--gb-lcd-ink);cursor:var(--cur-pointer,pointer);animation:fade .3s ease}
 .gbx-msg b{font-size:22px;letter-spacing:.12em;text-shadow:2px 2px 0 color-mix(in srgb,var(--gb-flag) 55%,transparent)}
 .gbx-msg small{font-size:10px;letter-spacing:.14em}
-.gbx-press{animation:gbx-blink 1s steps(2) infinite}
-@keyframes gbx-blink{50%{opacity:0}}
+/* 깜빡임 — 뚝뚝 끊기지 않게 천천히 숨 쉬듯 (사용자 요청) */
+.gbx-press{animation:gbx-blink 2.4s ease-in-out infinite;will-change:opacity}
+@keyframes gbx-blink{0%,100%{opacity:1}50%{opacity:.2}}
+@media (prefers-reduced-motion:reduce){.gbx-press{animation:none}}
 .gbx-foot{display:flex;justify-content:space-between;margin-top:6px;font-size:9.5px;letter-spacing:.14em;color:#d9c9e2;opacity:.85}
 .gbx-msg-lv{margin-top:6px;font-family:inherit;font-size:11px;letter-spacing:.06em;color:var(--gb-lcd-ink);padding:3px 9px;border-radius:4px;
   background:color-mix(in srgb,var(--gb-lcd-ink) 12%,transparent)}
