@@ -1,16 +1,32 @@
 'use client';
 // 게임기 팝업 (사용자 요청 — 위젯 대신, 지뢰찾기·스도쿠) — 화면 왼쪽 아래 동그란 게임기 버튼, 누르면 게임기가 뜨고 다시 누르면 닫힌다.
 // 오른쪽 아래는 BGM 플레이어 자리라 왼쪽에 둔다. 닫아도 판은 그대로 남아 이어서 할 수 있다(숨김만).
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { GameBox } from '@/components/main/GameBox';
 
 export function GameDock() {
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);   // 한 번 연 뒤로는 판을 유지
+  // 휴대폰 자판이 올라오면(끝말잇기) 게임기를 자판 위로 올린다 — iOS는 자판이 화면을 덮기만 해서 직접 잰다
+  const pop = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv || !mounted) return;
+    const fit = () => {
+      const kb = Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop));
+      const el = pop.current;
+      if (!el) return;
+      if (kb > 80) { el.style.setProperty('--kb', `${kb}px`); el.dataset.kb = '1'; }
+      else { el.style.removeProperty('--kb'); delete el.dataset.kb; }
+    };
+    fit();
+    vv.addEventListener('resize', fit); vv.addEventListener('scroll', fit);
+    return () => { vv.removeEventListener('resize', fit); vv.removeEventListener('scroll', fit); };
+  }, [mounted]);
   return (
     <>
       {mounted && (
-        <div className={`gdock-pop ${open ? 'on' : ''}`} role="dialog" aria-label="게임" aria-hidden={!open}>
+        <div ref={pop} className={`gdock-pop ${open ? 'on' : ''}`} role="dialog" aria-label="게임" aria-hidden={!open}>
           <GameBox />
         </div>
       )}

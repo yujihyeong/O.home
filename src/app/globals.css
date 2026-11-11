@@ -2282,6 +2282,32 @@ html[data-scene="night"] .gbx{
   background:color-mix(in srgb,var(--gb-lcd-ink) 12%,transparent)}
 .gbx-lv.gbx-game{grid-template-columns:auto 1fr;column-gap:12px}
 .gbx-game-ico{grid-row:1/3;width:22px;height:22px;display:block}
+/* 끝말잇기 */
+.wc-rules{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:11px;letter-spacing:.02em;margin:2px 0 4px;text-align:center}
+.wc-rules b{color:var(--gb-flag)}
+.gbx-lv.wc-start{display:block;text-align:center;padding:9px}
+.gbx-lv.wc-start:disabled{opacity:.6}
+.wc{display:flex;flex-direction:column;gap:6px;padding:9px 9px 7px;color:var(--gb-lcd-ink)}
+.wc-prev{display:flex;justify-content:center;gap:6px;min-height:14px;font-size:11px;opacity:.55;white-space:nowrap;overflow:hidden}
+.wc-prev span::after{content:' ▸';opacity:.6}
+.wc-word{text-align:center;font-size:clamp(22px,10cqi,30px);line-height:1.15;font-weight:700;letter-spacing:.04em;animation:wc-in .25s ease}
+.wc-word.me{opacity:.6}
+.wc-word em{font-style:normal;color:var(--gb-flag)}
+@keyframes wc-in{from{opacity:0;transform:translateY(6px)}}
+.wc-bar{height:6px;border-radius:3px;background:color-mix(in srgb,var(--gb-lcd-ink) 14%,transparent);overflow:hidden}
+.wc-bar i{display:block;height:100%;width:100%;background:var(--gb-flag);transform-origin:left;transform:scaleX(0)}
+.wc-bar[data-run] i{animation:wc-run linear forwards}
+@keyframes wc-run{from{transform:scaleX(1)}to{transform:scaleX(0)}}
+.wc-form{display:flex;gap:5px}
+.wc-form input{flex:1;min-width:0;height:36px;padding:0 9px;border-radius:4px;border:2px solid color-mix(in srgb,var(--gb-lcd-ink) 55%,transparent);
+  background:color-mix(in srgb,#fff 55%,var(--gb-lcd));color:var(--gb-lcd-ink);font-family:inherit;font-size:16px;outline:none;user-select:text;-webkit-user-select:text}
+html[data-scene="night"] .wc-form input{background:color-mix(in srgb,#000 25%,var(--gb-lcd))}
+.wc-form input:focus{border-color:var(--gb-flag)}
+.wc-form input::placeholder{font-size:11px;color:var(--gb-lcd-ink);opacity:.55}
+.wc-form button{flex:none;height:36px;padding:0 11px;border-radius:4px;font-family:inherit;font-size:12px;font-weight:700;color:var(--gb-lcd-ink);background:var(--gb-tile);
+  box-shadow:inset 2px 2px 0 var(--gb-tile-hi),inset -2px -2px 0 var(--gb-tile-lo)}
+.wc-form button:disabled{opacity:.5}
+.wc-msg{display:block;min-height:13px;text-align:center;font-size:10.5px;color:var(--gb-flag)}
 /* 스도쿠 */
 .sdk{padding:4px;outline:none}
 .sdk-grid{display:grid;grid-template-columns:repeat(9,1fr);border:2px solid color-mix(in srgb,var(--gb-lcd-ink) 70%,transparent);border-radius:3px;overflow:hidden}
@@ -2469,6 +2495,8 @@ html[data-scene="night"] .gdock-btn.on{color:#2a2443;background:#f08fb0;box-shad
     max-height:calc(100dvh - 78px - var(--bgm-h,0px) - env(safe-area-inset-bottom,0px))}
   /* 휴대폰에선 중·상 판이 화면 너비를 거의 다 쓴다 — 칸이 작아지지 않게 */
   .gdock-pop .gbx{width:min(var(--gbx-w,264px),calc(100vw - 28px));min-width:0}
+  /* 자판이 올라와 있으면 자판 바로 위에 붙인다 */
+  .gdock-pop[data-kb]{bottom:calc(var(--kb) + 6px);max-height:calc(100dvh - var(--kb) - 12px)}
   /* 중·상 — 판을 크게 두고 아래 버튼은 한 줄로 납작하게 (십자키는 장식이라 뺀다) */
   .gdock-pop .gbx[data-wide]{width:calc(100vw - 28px);max-width:420px;
     display:grid;grid-template-columns:1fr auto;align-items:center;padding:10px 10px 8px;border-radius:20px 20px 34px 20px}

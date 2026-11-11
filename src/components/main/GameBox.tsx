@@ -4,8 +4,9 @@
 import React, { useState } from 'react';
 import { MinesWidget, Pix, HEART, MINE, FACE_OK, useDotFont } from './MinesWidget';
 import { SudokuWidget } from './SudokuWidget';
+import { WordChainWidget } from './WordChainWidget';
 
-type Game = 'mines' | 'sudoku';
+type Game = 'mines' | 'sudoku' | 'words';
 const SDK_ICON = [
   'KKKKKKK',
   'K.K.K.K',
@@ -15,9 +16,19 @@ const SDK_ICON = [
   'K.K.K.K',
   'KKKKKKK',
 ];
+const WORD_ICON = [
+  'KKK.KKK',
+  'K.K.K.K',
+  'KKK.KKK',
+  '..KKK..',
+  'KKK.KKK',
+  'K.K.K.K',
+  'KKK.KKK',
+];
 const GAMES: { key: Game; label: string; sub: string; icon: string[] }[] = [
   { key: 'mines', label: 'MINES', sub: '지뢰찾기', icon: MINE },
   { key: 'sudoku', label: 'SUDOKU', sub: '스도쿠', icon: SDK_ICON },
+  { key: 'words', label: 'WORD CHAIN', sub: '끝말잇기', icon: WORD_ICON },
 ];
 
 export function GameBox() {
@@ -32,6 +43,7 @@ export function GameBox() {
     <>
       {seen.includes('mines') && <div hidden={game !== 'mines'}><MinesWidget onHome={home} /></div>}
       {seen.includes('sudoku') && <div hidden={game !== 'sudoku'}><SudokuWidget onHome={home} /></div>}
+      {seen.includes('words') && <div hidden={game !== 'words'}><WordChainWidget onHome={home} /></div>}
       {game === null && (
         <div className="gbx" onClick={e => e.stopPropagation()} style={{ '--gbx-w': '264px' } as React.CSSProperties}>
           <div className="gbx-top">
@@ -54,7 +66,6 @@ export function GameBox() {
                   <small>{g.sub}{seen.includes(g.key) ? ' · 이어서 하기' : ''}</small>
                 </button>
               ))}
-              <small className="gbx-press">PUSH TO START</small>
             </div>
             <div className="gbx-foot"><span>CHOOSE ONE</span><span>{GAMES.length} GAMES</span></div>
           </div>
@@ -69,7 +80,7 @@ export function GameBox() {
             </div>
           </div>
           <div className="gbx-sys">
-            <button type="button" onClick={() => setLast(l => (l === 'mines' ? 'sudoku' : 'mines'))}><i />SELECT</button>
+            <button type="button" onClick={() => setLast(l => GAMES[(GAMES.findIndex(g => g.key === l) + 1) % GAMES.length].key)}><i />SELECT</button>
             <button type="button" onClick={() => go(last)}><i />START</button>
           </div>
         </div>
