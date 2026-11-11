@@ -2274,6 +2274,36 @@ html[data-scene="night"] .gbx{
 .gbx-foot{display:flex;justify-content:space-between;margin-top:6px;font-size:9.5px;letter-spacing:.14em;color:#d9c9e2;opacity:.85}
 .gbx-msg-lv{margin-top:6px;font-family:inherit;font-size:11px;letter-spacing:.06em;color:var(--gb-lcd-ink);padding:3px 9px;border-radius:4px;
   background:color-mix(in srgb,var(--gb-lcd-ink) 12%,transparent)}
+/* 게임 고르기 · 돌아가기 */
+.gbx-hud-c{justify-content:center}
+.gbx-back{align-self:center;margin-top:2px;font-family:inherit;font-size:10px;letter-spacing:.14em;color:var(--gb-lcd-ink);padding:3px 10px;border-radius:4px;
+  background:color-mix(in srgb,var(--gb-lcd-ink) 12%,transparent)}
+.gbx-lv.gbx-game{grid-template-columns:auto 1fr;column-gap:12px}
+.gbx-game-ico{grid-row:1/3;width:22px;height:22px;display:block}
+/* 스도쿠 */
+.sdk{padding:4px;outline:none}
+.sdk-grid{display:grid;grid-template-columns:repeat(9,1fr);border:2px solid color-mix(in srgb,var(--gb-lcd-ink) 70%,transparent);border-radius:3px;overflow:hidden}
+.sdk-cell{aspect-ratio:1;min-width:0;padding:0;display:flex;align-items:center;justify-content:center;font-family:inherit;line-height:1;
+  font-size:clamp(11px,5.4cqi,19px);color:var(--n1);background:transparent;cursor:var(--cur-pointer,pointer);
+  border-right:1px solid color-mix(in srgb,var(--gb-lcd-ink) 18%,transparent);border-bottom:1px solid color-mix(in srgb,var(--gb-lcd-ink) 18%,transparent)}
+.sdk-cell:nth-child(9n){border-right:0}
+.sdk-cell:nth-child(n+73){border-bottom:0}
+.sdk-cell.br{border-right:2px solid color-mix(in srgb,var(--gb-lcd-ink) 70%,transparent)}
+.sdk-cell.bb{border-bottom:2px solid color-mix(in srgb,var(--gb-lcd-ink) 70%,transparent)}
+.sdk-cell.given{color:var(--gb-lcd-ink);font-weight:700}
+.sdk-cell.peer{background:color-mix(in srgb,var(--gb-tile) 45%,transparent)}
+.sdk-cell.same{background:color-mix(in srgb,var(--gb-tile) 95%,transparent)}
+.sdk-cell.sel{background:color-mix(in srgb,var(--gb-flag) 30%,transparent)}
+.sdk-cell.wrong{color:var(--gb-flag);background:color-mix(in srgb,var(--gb-flag) 16%,transparent)}
+.sdk-cell.wrong.sel{background:color-mix(in srgb,var(--gb-flag) 34%,transparent)}
+.sdk-notes{display:grid;grid-template-columns:repeat(3,1fr);width:100%;height:100%;padding:1px}
+.sdk-notes i{font-style:normal;font-size:clamp(5px,1.8cqi,8px);line-height:1;display:flex;align-items:center;justify-content:center;color:var(--gb-lcd-ink);opacity:.8}
+.sdk-pad{display:grid;grid-template-columns:repeat(10,1fr);gap:3px;margin-top:6px}
+.sdk-pad button{aspect-ratio:1/1.15;min-width:0;padding:0;font-family:inherit;font-size:clamp(11px,4.6cqi,17px);font-weight:700;line-height:1;
+  color:var(--gb-lcd-ink);background:var(--gb-tile);border-radius:4px;box-shadow:inset 2px 2px 0 var(--gb-tile-hi),inset -2px -2px 0 var(--gb-tile-lo)}
+.sdk-pad button:active{transform:translateY(1px)}
+.sdk-pad button.full{opacity:.35}
+.sdk-pad button.del{color:var(--gb-flag)}
 /* 난이도 고르기 화면 (사용자 요청 — 처음 켜면 하·중·상) */
 .gbx-menu{display:flex;flex-direction:column;align-items:stretch;gap:6px;padding:10px 9px;aspect-ratio:1;justify-content:center;color:var(--gb-lcd-ink)}
 .gbx-menu>b{text-align:center;font-size:13px;letter-spacing:.16em;margin-bottom:2px}
@@ -2438,18 +2468,18 @@ html[data-scene="night"] .gdock-btn.on{color:#2a2443;background:#f08fb0;box-shad
   /* 휴대폰에선 중·상 판이 화면 너비를 거의 다 쓴다 — 칸이 작아지지 않게 */
   .gdock-pop .gbx{width:min(var(--gbx-w,264px),calc(100vw - 28px));min-width:0}
   /* 중·상 — 판을 크게 두고 아래 버튼은 한 줄로 납작하게 (십자키는 장식이라 뺀다) */
-  .gdock-pop .gbx:is([data-lv="normal"],[data-lv="expert"]){width:calc(100vw - 28px);max-width:420px;
+  .gdock-pop .gbx[data-wide]{width:calc(100vw - 28px);max-width:420px;
     display:grid;grid-template-columns:1fr auto;align-items:center;padding:10px 10px 8px;border-radius:20px 20px 34px 20px}
-  .gdock-pop .gbx:is([data-lv="normal"],[data-lv="expert"]) :is(.gbx-top,.gbx-bezel){grid-column:1/-1}
-  .gdock-pop .gbx:is([data-lv="normal"],[data-lv="expert"]) .gbx-top{margin-bottom:6px}
-  .gdock-pop .gbx:is([data-lv="normal"],[data-lv="expert"]) .gbx-dpad{display:none}
-  .gdock-pop .gbx:is([data-lv="normal"],[data-lv="expert"]) .gbx-ctrl{grid-column:2;grid-row:3;padding:6px 4px 0}
-  .gdock-pop .gbx:is([data-lv="normal"],[data-lv="expert"]) .gbx-sys{grid-column:1;grid-row:3;justify-content:flex-start;margin:6px 0 0 6px}
-  .gdock-pop .gbx:is([data-lv="normal"],[data-lv="expert"]) .gbx-ab{transform:none;align-items:center}
-  .gdock-pop .gbx:is([data-lv="normal"],[data-lv="expert"]) .gbx-abw{flex-direction:row;gap:5px}
-  .gdock-pop .gbx:is([data-lv="normal"],[data-lv="expert"]) .gbx-abw.b{margin-top:0}
-  .gdock-pop .gbx:is([data-lv="normal"],[data-lv="expert"]) .gbx-btn{width:32px;height:32px}
-  .gdock-pop .gbx:is([data-lv="normal"],[data-lv="expert"]) .gbx-sys button{transform:none;font-size:7px}
+  .gdock-pop .gbx[data-wide] :is(.gbx-top,.gbx-bezel){grid-column:1/-1}
+  .gdock-pop .gbx[data-wide] .gbx-top{margin-bottom:6px}
+  .gdock-pop .gbx[data-wide] .gbx-dpad{display:none}
+  .gdock-pop .gbx[data-wide] .gbx-ctrl{grid-column:2;grid-row:3;padding:6px 4px 0}
+  .gdock-pop .gbx[data-wide] .gbx-sys{grid-column:1;grid-row:3;justify-content:flex-start;margin:6px 0 0 6px}
+  .gdock-pop .gbx[data-wide] .gbx-ab{transform:none;align-items:center}
+  .gdock-pop .gbx[data-wide] .gbx-abw{flex-direction:row;gap:5px}
+  .gdock-pop .gbx[data-wide] .gbx-abw.b{margin-top:0}
+  .gdock-pop .gbx[data-wide] .gbx-btn{width:32px;height:32px}
+  .gdock-pop .gbx[data-wide] .gbx-sys button{transform:none;font-size:7px}
 }
 
 /* 편집모드 — 위젯 오른쪽 위 삭제(✕) 버튼 */
