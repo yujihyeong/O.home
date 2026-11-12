@@ -6,13 +6,14 @@
 // 사진 따로 넣기 (사용자 요청): 배경과 별개로 사진 한 장 (가로 띠 3.4:1 · 세로 띠 1:2.5) — 가로 띠는 글 위에, 세로 띠는 글 왼쪽에.
 // 배경 이미지와 같이 쓰면 흐린 배경 위에 사진과 글이 올라간다 (시안 B · E).
 // 거리측정 HUD 배경 (사용자 요청 — 저격수 테마, 어두운 색) · 트위터식 발췌 (한 트윗에 길게, 사용자 요청)
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useFonts } from '@/lib/fontStore';
 import { KSelect } from '@/components/ui/Kit';
 import { ColorField } from '@/components/ui/ColorField';
 import { useToast } from '@/components/ui/Toast';
 import { stripImageMeta } from '@/lib/imageMeta';
 import { gaussBlur } from '@/lib/blur';
+import { splitPages, maxPages } from '@/lib/pageSplit';
 
 export const EXCERPT_BGS = [1, 2, 3, 4, 5, 6, 7, 8].map(n => ({
   src: `/excerpt-bg/${n}.webp`, thumb: `/excerpt-bg/t${n}.webp`,
@@ -118,6 +119,18 @@ function toggleMark(runs: Run[], from: number, to: number, m: Mark): Run[] {
     pos += r.t.length;
     return hit ? { ...r, [m]: on || undefined } : r;
   }));
+}
+
+/** 조각 목록에서 from~to 글자만 — 페이지 나누기에서 문단을 문장 끝에서 자를 때 */
+function sliceRuns(runs: Run[], from: number, to: number): Run[] {
+  const out: Run[] = [];
+  let pos = 0;
+  for (const r of splitAt(runs, from, to)) {
+    if (pos >= from && pos + r.t.length <= to && r.t) out.push({ ...r });
+    pos += r.t.length;
+  }
+  if (out.length) { out[0].t = out[0].t.replace(/^\s+/, ''); out[out.length - 1].t = out[out.length - 1].t.replace(/\s+$/, ''); }
+  return merge(out);
 }
 
 const KEY = 'ohome.excerptCard.v1';
@@ -841,6 +854,26 @@ export function ExcerptCard({ paras: plain, source, fileName, title = '' }: { pa
   const photoRef = useRef<HTMLInputElement>(null);
   const avRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
+  /* 페이지 나누기 (사용자 요청) — 적은 장수만큼, 맥락이 끊기지 않는 자리에서 나눈다 (lib/pageSplit) */
+  const [paged, setPaged] = useState(false);
+  const [pageN, setPageN] = useState(2);
+  const [pageAt, setPageAt] = useState(0);
+  const texts = useMemo(() => paras.map(p => p.map(r => r.t).join('')), [paras]);
+  const pageMax = useMemo(() => maxPages(texts), [texts]);
+  const pages = useMemo(() => {
+    if (!paged) return [{ paras, talk }];
+    return splitPages(texts, pageN).map(segs => ({
+      paras: segs.map(g => (g.whole ? paras[g.p] : sliceRuns(paras[g.p], g.from, g.to))),
+      talk: segs.map(g => (g.whole ? talk[g.p] : undefined)),
+    }));
+  }, [paged, pageN, paras, texts, talk]);
+  const cur = Math.min(pageAt, pages.length - 1);
+  /** k번째 장의 꾸밈 — 책 모양은 쪽수가 숫자면 장마다 하나씩 올린다 */
+  const styleOf = (k: number): CardStyle => {
+    const pg = st.book?.page ?? BOOK_DEF.page;
+    if (!paged || st.kind !== 'book' || !/^\d+$/.test(pg.trim())) return st;
+    return { ...st, book: { ...st.book, page: String(Number(pg) + k) } };
+  };
 
   useEffect(() => { setSt(loadStyle()); setReady(true); }, []);
   const set = (p: Partial<CardStyle>) => setSt(s => { const n = { ...s, ...p }; saveStyle(n); return n; });
@@ -852,7 +885,8 @@ export function ExcerptCard({ paras: plain, source, fileName, title = '' }: { pa
     if (!ready || !ref.current) return;
     let alive = true;
     const c = document.createElement('canvas');
-    void draw(c, paras, source, st, family, 1, talk, title).then(() => {
+    const pg = pages[cur];
+    void draw(c, pg.paras, source, styleOf(cur), family, 1, pg.talk, title).then(() => {
       // 다 그린 다음에 한 번에 옮긴다 — 그리는 도중의 빈 화면이 깜빡이지 않게
       const v = ref.current;
       if (!alive || !v) return;
@@ -860,7 +894,8 @@ export function ExcerptCard({ paras: plain, source, fileName, title = '' }: { pa
       v.getContext('2d')!.drawImage(c, 0, 0);
     });
     return () => { alive = false; };
-  }, [ready, paras, source, st, family, talk, title]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready, pages, cur, source, st, family, title]);
 
   const tw = { ...TW_DEF, ...st.tw };
   const setTw = (p: Partial<TweetConf>) => set({ tw: { ...tw, ...p } });
@@ -900,22 +935,28 @@ export function ExcerptCard({ paras: plain, source, fileName, title = '' }: { pa
   const save = async () => {
     setBusy(true);
     try {
-      const c = document.createElement('canvas');
-      await draw(c, paras, source, st, family, 2, talk, title);
-      const blob = await new Promise<Blob | null>(r => c.toBlob(r, 'image/png'));
-      if (!blob) throw new Error('이미지를 만들지 못했습니다');
-      const name = `${fileName.replace(/[\\/:*?"<>|]+/g, '').slice(0, 40) || '발췌'}.png`;
-      const file = new File([blob], name, { type: 'image/png' });
+      const base = fileName.replace(/[\\/:*?"<>|]+/g, '').slice(0, 40) || '발췌';
+      const files: File[] = [];
+      for (let k = 0; k < pages.length; k++) {
+        const c = document.createElement('canvas');
+        await draw(c, pages[k].paras, source, styleOf(k), family, 2, pages[k].talk, title);
+        const blob = await new Promise<Blob | null>(r => c.toBlob(r, 'image/png'));
+        if (!blob) throw new Error('이미지를 만들지 못했습니다');
+        files.push(new File([blob], pages.length > 1 ? `${base}-${k + 1}.png` : `${base}.png`, { type: 'image/png' }));
+      }
       // 휴대폰은 공유 시트로 (사진에 저장), 컴퓨터는 내려받기
       const nav = navigator as Navigator & { canShare?: (d: { files: File[] }) => boolean };
-      if (/iPhone|iPad|Android/i.test(navigator.userAgent) && nav.canShare?.({ files: [file] })) {
-        try { await navigator.share({ files: [file] }); } catch { /* 취소 */ }
+      if (/iPhone|iPad|Android/i.test(navigator.userAgent) && nav.canShare?.({ files })) {
+        try { await navigator.share({ files }); } catch { /* 취소 */ }
       } else {
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob); a.download = name;
-        document.body.appendChild(a); a.click(); a.remove();
-        setTimeout(() => URL.revokeObjectURL(a.href), 4000);
-        toast('이미지로 저장했습니다');
+        for (const f of files) {
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(f); a.download = f.name;
+          document.body.appendChild(a); a.click(); a.remove();
+          setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+          if (files.length > 1) await new Promise(r => setTimeout(r, 250));   // 여러 장을 한꺼번에 받으면 브라우저가 막는다
+        }
+        toast(files.length > 1 ? `이미지 ${files.length}장으로 저장했습니다` : '이미지로 저장했습니다');
       }
     } catch (e) {
       toast(`저장하지 못했습니다 — ${e instanceof Error ? e.message : String(e)}`);
@@ -926,7 +967,16 @@ export function ExcerptCard({ paras: plain, source, fileName, title = '' }: { pa
   const isUp = !!st.img?.startsWith('data:');
   return (
     <div className="exc">
-      <div className="exc-prev"><canvas ref={ref} /></div>
+      <div className="exc-prevwrap">
+        <div className="exc-prev"><canvas ref={ref} /></div>
+        {pages.length > 1 && (
+          <div className="exc-pager">
+            <button type="button" disabled={cur === 0} onClick={() => setPageAt(cur - 1)} aria-label="앞 장">‹</button>
+            <span>{cur + 1} / {pages.length}</span>
+            <button type="button" disabled={cur >= pages.length - 1} onClick={() => setPageAt(cur + 1)} aria-label="다음 장">›</button>
+          </div>
+        )}
+      </div>
       <div className="exc-ctl">
         {/* 모양 — 카드 / 트위터식 (사용자 요청) */}
         <div className="exc-row">
@@ -937,6 +987,20 @@ export function ExcerptCard({ paras: plain, source, fileName, title = '' }: { pa
             ))}
           </div>
         </div>
+        {/* 페이지 나누기 (사용자 요청) — 장수를 적으면 맥락이 끊기지 않는 자리에서 그만큼 나눈다 */}
+        <div className="exc-row">
+          <label>나누기</label>
+          <div className="mini-seg">
+            <button type="button" className={!paged ? 'on' : ''} onClick={() => { setPaged(false); setPageAt(0); }}>한 장</button>
+            <button type="button" className={paged ? 'on' : ''} onClick={() => setPaged(true)}>페이지 나누기</button>
+          </div>
+          {paged && (<>
+            <input className="k-input exc-pagen" type="number" inputMode="numeric" min={1} max={pageMax} value={pageN}
+              onChange={e => { setPageN(Math.max(1, Math.min(pageMax, Math.round(Number(e.target.value)) || 1))); setPageAt(0); }} aria-label="나눌 장수" />
+            <span className="exc-v">장</span>
+          </>)}
+        </div>
+        {paged && <p className="exc-hint">문단·문장이 끝나는 자리에서만, 대사나 이어지는 내용이 갈라지지 않게 나눠요 (최대 {pageMax}장)</p>}
         {/* 문장 꾸미기 — 아래 글에서 드래그한 뒤 버튼 (다시 누르면 꺼짐) */}
         <div className="exc-mark">
           <div className="exc-mark-bar">
@@ -1221,7 +1285,7 @@ export function ExcerptCard({ paras: plain, source, fileName, title = '' }: { pa
       </div>
       <div className="form-actions" style={{ marginTop: 14 }}>
         <button className="btn btn-dark" disabled={busy} onClick={() => { void save(); }}>
-          {busy ? '만드는 중…' : '🖼 이미지로 저장'}
+          {busy ? '만드는 중…' : pages.length > 1 ? `🖼 이미지 ${pages.length}장 저장` : '🖼 이미지로 저장'}
         </button>
       </div>
     </div>
