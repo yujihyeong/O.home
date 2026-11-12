@@ -2134,6 +2134,11 @@ html.gate-seen .gate{display:none}
 .exc{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px;align-items:start}
 .exc-prev{border-radius:var(--radius-s);overflow:hidden;border:1px solid var(--line);background:#00000008;display:flex;justify-content:center}
 .exc-prev canvas{display:block;width:100%;height:auto;max-height:62vh;object-fit:contain}
+.exc-prevwrap{min-width:0}
+.exc-pager{display:flex;align-items:center;justify-content:center;gap:14px;margin-top:8px;font-size:13px;color:var(--sub)}
+.exc-pager button{width:30px;height:30px;border-radius:50%;border:1px solid var(--line);font-size:16px;line-height:1;color:var(--ink)}
+.exc-pager button:disabled{opacity:.3}
+.exc-pagen{width:64px;flex:none;text-align:center}
 .exc-ctl{display:grid;gap:12px;font-size:calc(12px*var(--fs,1))}
 .exc-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .exc-row>label{width:44px;flex-shrink:0;color:var(--sub);font-weight:600}
