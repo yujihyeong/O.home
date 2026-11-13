@@ -4,7 +4,7 @@
  *
  *  · 목록: 캐릭터(글)마다 카드 한 장 — 첫 탭 이미지 · 이름 · 복장 수
  *  · 글:   위쪽 인덱스(복장 탭)를 누르면 아래 「이미지 | 프롬프트」가 그 복장으로 바뀐다
- *          프롬프트는 📋 버튼 하나로 복사
+ *          프롬프트는 복사 아이콘 버튼 하나로 복사
  *  · 관리자는 ✎ EDIT으로 같은 화면에서 탭을 늘리고(＋) 이름·이미지·프롬프트를 채운다
  *  · 목록 위 공지 (사용자 요청) — 관리자는 그 자리에서 고친다
  *  · 게시판 비밀번호 (사용자 요청) — 걸면 글이 암호화돼 저장되고, 비밀번호를 넣어야 열린다 (promptStore 참고)
@@ -49,7 +49,12 @@ function CopyBtn({ text }: { text: string }) {
     <button type="button" className={`pr-copy ${done ? 'done' : ''}`} aria-label="프롬프트 복사" data-tip="복사"
       disabled={!text.trim()}
       onClick={async () => { if (await copyText(text)) setDone(true); else toast('복사하지 못했어요 — 길게 눌러 직접 복사해 주세요'); }}>
-      {done ? '✅' : '📋'}
+      {/* 이모지 대신 선 아이콘 (사용자 요청) — 겹친 종이 두 장, 복사되면 체크 */}
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+        {done
+          ? <path d="M5 12.5l4.5 4.5L19 7.5" />
+          : <><rect x="9" y="9" width="11" height="11" rx="2.5" /><path d="M15 9V6.5A2.5 2.5 0 0 0 12.5 4h-6A2.5 2.5 0 0 0 4 6.5v6A2.5 2.5 0 0 0 6.5 15H9" /></>}
+      </svg>
     </button>
   );
 }
