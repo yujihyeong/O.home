@@ -2152,6 +2152,7 @@ html.gate-seen .gate{display:none}
 .exc-sw.exc-photo.v{width:26px;height:64px}
 .exc-quick{display:inline-flex;gap:5px}
 .exc-hud{position:relative;background:#1d2124}
+.exc-ascii{background:#fff;color:#2c3037;font:700 13px/1 ui-monospace,Menlo,Consolas,monospace;letter-spacing:-.04em;display:grid;place-items:center}
 .exc-hud i{position:absolute;width:7px;height:7px;border:0 solid #e4e6e3;opacity:.8}
 .exc-hud i:nth-child(1){left:5px;top:5px;border-left-width:1px;border-top-width:1px}
 .exc-hud i:nth-child(2){right:5px;top:5px;border-right-width:1px;border-top-width:1px}

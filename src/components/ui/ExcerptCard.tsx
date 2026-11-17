@@ -32,7 +32,8 @@ interface CardStyle {
   photo?: string | null;   // 그 사진 (올린 이미지 data URL)
   speakers?: Speaker[];    // 대사 말풍선의 발화자 (사용자 요청)
   kind?: 'card' | 'tweet' | 'book' | 'lyric' | 'letter' | 'comm'; // 모양 — 카드 / 트위터식 / 책 / 가사 / 편지 / 교신 기록
-  deco?: 'hud' | null;     // 그려 넣는 꾸밈 배경 — 거리측정 HUD
+  deco?: 'hud' | 'ascii' | null;  // 그려 넣는 꾸밈 배경 — 거리측정 HUD / 아스키 그림
+  ascii?: Partial<AsciiConf>;      // 아스키 그림 배경 (사용자 요청) — 올린 사진의 인물만 글자로, 바탕은 흰색
   hud?: string[];          // HUD 네 귀퉁이 작은 글씨 (왼쪽 위 · 오른쪽 위 · 왼쪽 아래 · 오른쪽 아래, 비우면 숨김)
   tw?: Partial<TweetConf>;
   book?: Partial<BookConf>;
@@ -786,6 +787,123 @@ async function drawComm(canvas: HTMLCanvasElement, paras: Run[][], src: string, 
   ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
 }
 
+/* ---------- 아스키 그림 배경 (사용자 요청) ----------
+   올린 사진에서 바탕을 지우고(가장자리에서부터 비슷한 색을 번져 가며 지운다 · 투명 PNG는 투명한 곳이 바탕),
+   남은 인물만 밝기에 따라 글자(@%#*+=-:.)로 바꿔 흰 바탕에 그린다 */
+export interface AsciiConf { img: string | null; cols: number; cut: number; ink: number; pos: 'l' | 'c' | 'r' }
+const ASCII_DEF: AsciiConf = { img: null, cols: 110, cut: 22, ink: 55, pos: 'c' };
+const RAMP = '@%#*+=-:.';
+const CELL_AR = 0.55;   // 고정폭 글자 한 칸의 가로/세로
+const asciiCache = new Map<string, { rows: string[]; cols: number }>();
+function asciiRows(im: HTMLImageElement, src: string, cols: number, cut: number) {
+  const key = `${src.length}:${src.slice(-48)}|${cols}|${cut}`;
+  const hit = asciiCache.get(key);
+  if (hit) return hit;
+  // 칸마다 2×2 표본 — 바탕 지우기는 표본 단위로, 글자는 칸 단위로
+  const rowsN = Math.max(1, Math.round(cols * (im.height / im.width) * CELL_AR));
+  const gw = cols * 2, gh = rowsN * 2;
+  const c = document.createElement('canvas');
+  c.width = gw; c.height = gh;
+  const cx = c.getContext('2d', { willReadFrequently: true })!;
+  cx.imageSmoothingQuality = 'high';
+  cx.drawImage(im, 0, 0, gw, gh);
+  const d = cx.getImageData(0, 0, gw, gh).data;
+  const N = gw * gh;
+  const bg = new Uint8Array(N);
+  const dist = (a: number, b: number) => {
+    const i = a * 4, j = b * 4;
+    return Math.hypot(d[i] - d[j], d[i + 1] - d[j + 1], d[i + 2] - d[j + 2]);
+  };
+  // 투명한 곳은 늘 바탕
+  for (let k = 0; k < N; k++) if (d[k * 4 + 3] < 40) bg[k] = 1;
+  if (cut > 0) {
+    // 가장자리에서 출발해 이웃과 색이 비슷하면 바탕으로 번진다 (그라데이션 바탕도 따라간다)
+    const tol = cut * 1.6;
+    // 바탕 색 = 가장자리에서 가장 흔한 색 — 가장자리에 걸친 인물(어깨 등)에서는 출발하지 않는다
+    const edge: number[] = [];
+    for (let x = 0; x < gw; x++) edge.push(x, (gh - 1) * gw + x);
+    for (let y = 1; y < gh - 1; y++) edge.push(y * gw, y * gw + gw - 1);
+    const bins = new Map<number, number[]>();
+    for (const k of edge) {
+      const i = k * 4;
+      const q = ((d[i] >> 5) << 6) | ((d[i + 1] >> 5) << 3) | (d[i + 2] >> 5);
+      const a = bins.get(q); if (a) a.push(k); else bins.set(q, [k]);
+    }
+    const ref = [...bins.values()].sort((a, b) => b.length - a.length)[0]?.[0] ?? 0;
+    const stack = edge.filter(k => d[k * 4 + 3] < 40 || dist(k, ref) < tol * 2.2);
+    for (const k of stack) bg[k] = 1;
+    while (stack.length) {
+      const k = stack.pop()!;
+      const x = k % gw, y = (k / gw) | 0;
+      const nb = [x > 0 ? k - 1 : -1, x < gw - 1 ? k + 1 : -1, y > 0 ? k - gw : -1, y < gh - 1 ? k + gw : -1];
+      for (const n of nb) {
+        if (n < 0 || bg[n]) continue;
+        if (d[n * 4 + 3] < 40 || dist(n, k) < tol) { bg[n] = 1; stack.push(n); }
+      }
+    }
+  }
+  // 칸 단위 — 바탕이 절반 넘으면 빈칸, 아니면 밝기
+  const lum: number[] = new Array(cols * rowsN).fill(-1);
+  let lo = 1, hi = 0;
+  for (let r = 0; r < rowsN; r++) for (let q = 0; q < cols; q++) {
+    let n = 0, sum = 0;
+    for (const [dx, dy] of [[0, 0], [1, 0], [0, 1], [1, 1]]) {
+      const k = (r * 2 + dy) * gw + q * 2 + dx;
+      if (bg[k]) continue;
+      const i = k * 4;
+      sum += (0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2]) / 255; n++;
+    }
+    if (n < 2) continue;
+    const v = sum / n;
+    lum[r * cols + q] = v; lo = Math.min(lo, v); hi = Math.max(hi, v);
+  }
+  // 대비를 넓혀 어두운 곳은 빽빽하게, 밝은 곳은 성기게
+  const span = Math.max(0.15, hi - lo);
+  const rows: string[] = [];
+  for (let r = 0; r < rowsN; r++) {
+    let line = '';
+    for (let q = 0; q < cols; q++) {
+      const v = lum[r * cols + q];
+      line += v < 0 ? ' ' : RAMP[Math.min(RAMP.length - 1, Math.floor(((v - lo) / span) * RAMP.length))];
+    }
+    rows.push(line);
+  }
+  const out = { rows, cols };
+  if (asciiCache.size > 12) asciiCache.clear();
+  asciiCache.set(key, out);
+  return out;
+}
+async function drawAscii(ctx: CanvasRenderingContext2D, H: number, cf: AsciiConf) {
+  ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, W, H);
+  if (!cf.img) return;
+  let im: HTMLImageElement;
+  try { im = await loadImg(cf.img); } catch { return; }
+  const { rows, cols } = asciiRows(im, cf.img, cf.cols, cf.cut);
+  // 그림 크기 — 캔버스 안에 통째로(contain), 가로는 왼쪽·가운데·오른쪽
+  const ar = (cols * CELL_AR) / rows.length;   // 그림 가로/세로
+  let gh = H, gw = gh * ar;
+  if (gw > W) { gw = W; gh = gw / ar; }
+  const cw = gw / cols, ch = gh / rows.length;
+  const x0 = cf.pos === 'l' ? 0 : cf.pos === 'r' ? W - gw : (W - gw) / 2;
+  const y0 = H - gh;   // 아래에 붙인다 — 인물 사진은 보통 아래가 잘려 있다
+  ctx.save();
+  ctx.font = `100px ${MONO}`;
+  const adv = ctx.measureText('M').width / 100;
+  ctx.font = `${ch * 1.02}px ${MONO}`;
+  const sx = cw / (adv * ch * 1.02);   // 글자 폭을 칸 폭에 맞춘다
+  ctx.fillStyle = `rgba(30,32,36,${Math.max(0.08, Math.min(1, cf.ink / 100))})`;
+  ctx.textBaseline = 'top';
+  rows.forEach((line, r) => {
+    if (!line.trim()) return;
+    ctx.save();
+    ctx.translate(x0, y0 + r * ch);
+    ctx.scale(sx, 1);
+    ctx.fillText(line, 0, 0);
+    ctx.restore();
+  });
+  ctx.restore();
+}
+
 /** 카드를 캔버스에 그린다 — 높이는 글 길이에 맞추되 정사각형보다 작아지지 않게.
  *  scale: 실제 픽셀 배율 — 미리보기는 1, 저장은 2(고화질, 사용자 요청). 좌표는 전부 1배 기준으로 쓰고 변환으로 키운다 */
 async function draw(canvas: HTMLCanvasElement, paras: Run[][], source: string, st: CardStyle, family: string, scale = 1, talk: (Talk | undefined)[] = [], title = '') {
@@ -797,6 +915,7 @@ async function draw(canvas: HTMLCanvasElement, paras: Run[][], source: string, s
   if (st.kind === 'comm') return drawComm(canvas, paras, source.replace(/^\s*[—–-]\s*/, '').replace(/[「」]/g, '').trim() || title, st, family, scale);
   const ctx = canvas.getContext('2d')!;
   const hud = st.deco === 'hud';
+  const asc = st.deco === 'ascii';
   const font = `${st.size}px ${family}`;
   const fontOf = (r: Run) => `${r.i ? 'italic ' : ''}${r.b ? 'bold ' : ''}${st.size}px ${family}`;
   const small = `${Math.round(st.size * 0.62)}px ${family}`;
@@ -859,6 +978,7 @@ async function draw(canvas: HTMLCanvasElement, paras: Run[][], source: string, s
   ctx.fillStyle = st.bg;
   ctx.fillRect(0, 0, W, H);
   if (hud) drawHud(ctx, H, st.hud ?? HUD_DEF);
+  else if (asc) await drawAscii(ctx, H, { ...ASCII_DEF, ...st.ascii });
   else if (st.img) {
     try {
       const im = await loadImg(st.img);
@@ -906,7 +1026,9 @@ async function draw(canvas: HTMLCanvasElement, paras: Run[][], source: string, s
   // 글
   ctx.fillStyle = st.color;
   ctx.textBaseline = 'top';
-  if (st.img && !hud) { ctx.shadowColor = 'rgba(0,0,0,.28)'; ctx.shadowBlur = 10 * S; }   // 그림자 흐림은 변환을 따르지 않아 배율을 직접 곱한다
+  if (st.img && !hud && !asc) { ctx.shadowColor = 'rgba(0,0,0,.28)'; ctx.shadowBlur = 10 * S; }
+  // 아스키 그림 위 — 글자 둘레를 흰 빛으로 감싸 읽히게
+  if (asc) { ctx.shadowColor = 'rgba(255,255,255,1)'; ctx.shadowBlur = 18 * S; }   // 그림자 흐림은 변환을 따르지 않아 배율을 직접 곱한다
   let y = textTop;
   const drawLine = (l: Piece[], textX: number, ink: string) => { paintLine(ctx, l, textX, y, lh, st.size, fontOf, st.hl, ink); y += lh; };
   const lineW = (l: Piece[]) => l.reduce((n, pc) => { ctx.font = fontOf(pc.r); return n + ctx.measureText(pc.t).width; }, 0);
@@ -1027,7 +1149,10 @@ export function ExcerptCard({ paras: plain, source, fileName, title = '' }: { pa
 
   const tw = { ...TW_DEF, ...st.tw };
   const setTw = (p: Partial<TweetConf>) => set({ tw: { ...tw, ...p } });
-  const isTweet = st.kind === 'tweet', isHud = st.deco === 'hud';
+  const isTweet = st.kind === 'tweet', isHud = st.deco === 'hud', isAscii = st.deco === 'ascii';
+  const ascii = { ...ASCII_DEF, ...st.ascii };
+  const setAscii = (p: Partial<AsciiConf>) => set({ ascii: { ...ascii, ...p } });
+  const asciiRef = useRef<HTMLInputElement>(null);
   // 카드만 배경·사진·글씨색·대사 말풍선을 고른다 — 책·가사·편지는 모양에 색이 정해져 있다
   const isCard = !st.kind || st.kind === 'card';
   const book = { ...BOOK_DEF, ...st.book }, lyric = { ...LYRIC_DEF, ...st.lyric }, letter = { ...LETTER_DEF, ...st.letter };
@@ -1039,22 +1164,31 @@ export function ExcerptCard({ paras: plain, source, fileName, title = '' }: { pa
   const artRef = useRef<HTMLInputElement>(null);
   /** 배경 고르기 — HUD는 어두우니 글씨를 밝게, 다른 배경으로 돌아가면 다시 어둡게 */
   const pickBg = (p: Partial<CardStyle>) => set({ deco: null, ...(isHud && st.color === HUD_INK ? { color: DEF.color } : {}), ...p });
-  const upload = async (f?: File, to: 'img' | 'photo' | 'av' | 'art' = 'img') => {
+  /** 아스키 그림 — 사진을 올리면 그 사진으로, 이미 있으면 그대로 켠다 (글씨는 어둡게) */
+  const pickAscii = () => {
+    if (!ascii.img) { asciiRef.current?.click(); return; }
+    set({ deco: 'ascii', img: null, ...(st.color === HUD_INK || st.color.toLowerCase() === '#ffffff' ? { color: DEF.color } : {}) });
+  };
+  const upload = async (f?: File, to: 'img' | 'photo' | 'av' | 'art' | 'ascii' = 'img') => {
     if (!f) return;
     try {
       // 메타데이터 없이, 긴 변 2160px까지만 — 고화질 저장(2배)에 맞춘 크기. 이 브라우저 안에만 둔다 (서버에 올리지 않음)
-      const clean = await stripImageMeta(f);
+      // 아스키 그림은 투명 PNG의 투명한 곳을 바탕으로 쓰므로 원본 그대로 읽는다 (캔버스로 다시 그려 메타데이터는 빠진다)
+      const clean = to === 'ascii' ? f : await stripImageMeta(f);
       const url = URL.createObjectURL(clean);
       const im = await loadImg(url);
-      const k = Math.min(1, (to === 'av' || to === 'art' ? 512 : 2160) / Math.max(im.width, im.height));
+      const k = Math.min(1, (to === 'av' || to === 'art' ? 512 : to === 'ascii' ? 900 : 2160) / Math.max(im.width, im.height));
       const c = document.createElement('canvas');
       c.width = Math.round(im.width * k); c.height = Math.round(im.height * k);
       const cx = c.getContext('2d')!;
       cx.imageSmoothingQuality = 'high';
       cx.drawImage(im, 0, 0, c.width, c.height);
       URL.revokeObjectURL(url); imgCache.delete(url);
-      const url2 = c.toDataURL('image/jpeg', 0.92);
-      if (to === 'av') setTw({ av: url2 });
+      const url2 = to === 'ascii' ? c.toDataURL('image/png') : c.toDataURL('image/jpeg', 0.92);
+      if (to === 'ascii') {
+        set({ deco: 'ascii', img: null, ascii: { ...ascii, img: url2 },
+          ...(st.color === HUD_INK || st.color.toLowerCase() === '#ffffff' ? { color: DEF.color } : {}) });
+      } else if (to === 'av') setTw({ av: url2 });
       else if (to === 'art') setLyric({ art: url2 });
       else set(to === 'img' ? { img: url2, deco: null } : { photo: url2 });
     } catch (e) {
@@ -1371,11 +1505,16 @@ export function ExcerptCard({ paras: plain, source, fileName, title = '' }: { pa
         <div className="exc-row">
           <label>배경</label>
           <div className="exc-bgs">
-            <button type="button" className={`exc-sw ${!st.img && !isHud ? 'on' : ''}`} style={{ background: st.bg }}
+            <button type="button" className={`exc-sw ${!st.img && !isHud && !isAscii ? 'on' : ''}`} style={{ background: st.bg }}
               onClick={() => pickBg({ img: null })} data-tip="색 배경" />
             {/* 거리측정 HUD (사용자 요청) */}
             <button type="button" className={`exc-sw exc-hud ${isHud ? 'on' : ''}`} data-tip="거리측정 HUD"
               onClick={() => set({ deco: 'hud', img: null, color: HUD_INK })}><i /><i /><i /><i /></button>
+            {/* 아스키 그림 (사용자 요청) — 사진의 인물만 글자로 */}
+            <button type="button" className={`exc-sw exc-ascii ${isAscii ? 'on' : ''}`} data-tip="아스키 그림 — 사진의 인물만 글자로"
+              onClick={pickAscii}>@#</button>
+            <input ref={asciiRef} type="file" accept="image/*" style={{ display: 'none' }}
+              onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; void upload(f, 'ascii'); }} />
             {EXCERPT_BGS.map(b => (
               <button key={b.src} type="button" className={`exc-sw ${st.img === b.src && !isHud ? 'on' : ''}`}
                 style={{ backgroundImage: `url(${b.thumb})` }} onClick={() => pickBg({ img: b.src })} />
@@ -1387,7 +1526,42 @@ export function ExcerptCard({ paras: plain, source, fileName, title = '' }: { pa
               onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; void upload(f); }} />
           </div>
         </div>
-        {isHud ? (
+        {isAscii ? (
+          <>
+            <div className="exc-row">
+              <label>인물</label>
+              <button type="button" className="btn btn-ghost" style={{ padding: '5px 12px', fontSize: 11 }}
+                onClick={() => asciiRef.current?.click()}>{ascii.img ? '다른 사진으로' : '사진 고르기'}</button>
+              <span className="exc-hint" style={{ flex: '1 1 160px' }}>바탕이 단순할수록 인물만 깔끔하게 남아요 · 투명 PNG도 돼요</span>
+            </div>
+            <div className="exc-row">
+              <label>지우기</label>
+              <input type="range" className="k-range" min={0} max={60} value={ascii.cut}
+                onChange={e => setAscii({ cut: Number(e.target.value) })} />
+              <span className="exc-v">{ascii.cut || '끔'}</span>
+            </div>
+            <div className="exc-row">
+              <label>촘촘함</label>
+              <input type="range" className="k-range" min={50} max={180} step={5} value={ascii.cols}
+                onChange={e => setAscii({ cols: Number(e.target.value) })} />
+              <span className="exc-v">{ascii.cols}</span>
+            </div>
+            <div className="exc-row">
+              <label>진하기</label>
+              <input type="range" className="k-range" min={10} max={100} value={ascii.ink}
+                onChange={e => setAscii({ ink: Number(e.target.value) })} />
+              <span className="exc-v">{ascii.ink}%</span>
+            </div>
+            <div className="exc-row">
+              <label>위치</label>
+              <div className="mini-seg">
+                {([['l', '왼쪽'], ['c', '가운데'], ['r', '오른쪽']] as const).map(([k, l]) => (
+                  <button key={k} type="button" className={ascii.pos === k ? 'on' : ''} onClick={() => setAscii({ pos: k })}>{l}</button>
+                ))}
+              </div>
+            </div>
+          </>
+        ) : isHud ? (
           <div className="exc-row">
             <label>글씨</label>
             <div className="exc-hudtx">
