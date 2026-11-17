@@ -31,13 +31,14 @@ interface CardStyle {
   photoDir?: 'none' | 'h' | 'v';   // 따로 넣는 사진 — 없음 / 가로 띠(글 위) / 세로 띠(글 옆)
   photo?: string | null;   // 그 사진 (올린 이미지 data URL)
   speakers?: Speaker[];    // 대사 말풍선의 발화자 (사용자 요청)
-  kind?: 'card' | 'tweet' | 'book' | 'lyric' | 'letter'; // 모양 — 카드 / 트위터식 / 책 / 가사 / 편지
+  kind?: 'card' | 'tweet' | 'book' | 'lyric' | 'letter' | 'comm'; // 모양 — 카드 / 트위터식 / 책 / 가사 / 편지 / 교신 기록
   deco?: 'hud' | null;     // 그려 넣는 꾸밈 배경 — 거리측정 HUD
   hud?: string[];          // HUD 네 귀퉁이 작은 글씨 (왼쪽 위 · 오른쪽 위 · 왼쪽 아래 · 오른쪽 아래, 비우면 숨김)
   tw?: Partial<TweetConf>;
   book?: Partial<BookConf>;
   lyric?: Partial<LyricConf>;
   letter?: Partial<LetterConf>;
+  comm?: Partial<CommConf>;
 }
 /** 트위터식 발췌 — 이름 자리는 글 제목, 나머지는 직접 고친다 */
 interface TweetConf {
@@ -660,6 +661,131 @@ async function drawLetter(canvas: HTMLCanvasElement, paras: Run[][], title: stri
   setLS(ctx, 0);
 }
 
+/* 6. 교신 기록 (사용자 확정 시안 — 우주선 단말기) — 초록 / 호박색.
+   앞뒤가 따옴표인 문단만 대사로 보고, 따옴표를 떼고 앞에 > 를 붙인다. 지문은 표시 없이 조금 흐리게.
+   위아래 작은 글씨(신호 수신 · 시각 · 채널 줄 · SIGNAL)는 고칠 수 있고, 비우면 숨긴다 */
+export interface CommConf { amber: boolean; tl: string; tr: string; sub: string; sig: string; bars: number }
+const COMM_DEF: CommConf = { amber: false, tl: 'TRANSMISSION RECEIVED', tr: 'SOL 214 · 03:17', sub: 'CH 07   FREQ 142.8 MHZ   DELAY 4.2s', sig: 'SIGNAL', bars: 3 };
+const PLEX = `"IBM Plex Mono", ${MONO}`;
+function ensureMonoFont() {
+  if (typeof document === 'undefined' || document.getElementById('exc-mono-font')) return;
+  const l = document.createElement('link');
+  l.id = 'exc-mono-font'; l.rel = 'stylesheet';
+  l.href = 'https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&display=swap';
+  document.head.appendChild(l);
+}
+async function drawComm(canvas: HTMLCanvasElement, paras: Run[][], src: string, st: CardStyle, family: string, scale: number) {
+  const cf = { ...COMM_DEF, ...st.comm };
+  ensureMonoFont();
+  const pal = cf.amber
+    ? { bg: '#0a0703', c: '#ffbf5e', rgb: '255,191,94', ink: '#ffeccc', nar: 'rgba(255,236,204,.78)' }
+    : { bg: '#04080a', c: '#7ef0b4', rgb: '126,240,180', ink: '#dcfbe9', nar: 'rgba(220,251,233,.78)' };
+  const dim = `rgba(${pal.rgb},.5)`;
+  const fs = Math.round(st.size * 0.88), lh = fs * 1.85, gap = fs * 0.55;
+  const fontOf = (r: Run) => `${r.i ? 'italic ' : ''}${r.b ? 'bold ' : ''}${fs}px ${family}`;
+  const all = paras.map(p => p.map(r => r.t).join('')).join('') + src;
+  await loadFonts([`${fs}px ${family}`, `bold ${fs}px ${family}`, `400 18px ${PLEX}`, `600 ${fs}px ${PLEX}`, `20px ${family}`],
+    all + cf.tl + cf.tr + cf.sub + cf.sig + '>');
+  const L = 72, R = 72, IND = Math.round(fs * 1.4);
+  const tmp = canvas.getContext('2d')!;
+  const blocks = paras.map(p => {
+    const say = isQuote(p.map(r => r.t).join(''));
+    const runs = say ? stripQuotes(p) : p;
+    return { say, lines: wrap(tmp, runs, W - L - R - (say ? IND : 0), fontOf) };
+  });
+  const headH = (cf.tl.trim() || cf.tr.trim() ? 26 : 0) + (cf.sub.trim() ? 30 : 0);
+  const T = 66, bodyTop = T + headH + (headH ? 66 : 20);
+  const bodyH = blocks.reduce((n, b) => n + b.lines.length * lh, 0) + Math.max(0, blocks.length - 1) * gap;
+  const footH = 48 + 24 + 22 + 70;
+  const H = Math.ceil(Math.max(W * 0.62, bodyTop + bodyH + footH));
+  const ctx = sizeCanvas(canvas, H, scale);
+  // 화면 — 바탕 · 가운데 빛 · 가장자리 어둡게
+  ctx.fillStyle = pal.bg; ctx.fillRect(0, 0, W, H);
+  let g = ctx.createRadialGradient(W / 2, H * 0.4, 0, W / 2, H * 0.4, Math.max(W, H) * 0.6);
+  g.addColorStop(0, `rgba(${pal.rgb},.11)`); g.addColorStop(1, `rgba(${pal.rgb},0)`);
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  ctx.textBaseline = 'top';
+  let y = T;
+  // 위 — 신호 수신 · 시각
+  ctx.font = `400 18px ${PLEX}`; setLS(ctx, 3.6);
+  if (cf.tl.trim()) {
+    ctx.save(); ctx.shadowColor = pal.c; ctx.shadowBlur = 10; ctx.fillStyle = pal.c;
+    ctx.beginPath(); ctx.arc(L + 6, y + 9, 5.5, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+    ctx.fillStyle = pal.c; ctx.fillText(cf.tl.trim(), L + 24, y);
+  }
+  if (cf.tr.trim()) { ctx.fillStyle = pal.c; ctx.textAlign = 'right'; ctx.fillText(cf.tr.trim(), W - R + 3.6, y); ctx.textAlign = 'left'; }
+  if (cf.tl.trim() || cf.tr.trim()) y += 26;
+  if (cf.sub.trim()) { ctx.font = `400 16px ${PLEX}`; setLS(ctx, 2.6); ctx.fillStyle = dim; ctx.fillText(cf.sub.trim(), L, y + 12); y += 30; }
+  setLS(ctx, 0);
+  if (headH) {
+    y += 30;
+    const lg = ctx.createLinearGradient(L, 0, W - R, 0);
+    lg.addColorStop(0, dim); lg.addColorStop(1, `rgba(${pal.rgb},0)`);
+    ctx.fillStyle = lg; ctx.fillRect(L, y, W - L - R, 1.5);
+  }
+  // 본문 — 글자에 은은한 빛
+  y = bodyTop;
+  let endX = L, endY = y;
+  ctx.shadowColor = `rgba(${pal.rgb},.38)`; ctx.shadowBlur = 14;
+  blocks.forEach((b, i) => {
+    if (i) y += gap;
+    if (b.say) {
+      ctx.font = `600 ${fs}px ${PLEX}`; ctx.fillStyle = pal.c;
+      ctx.fillText('>', L, y + (lh - fs) / 2);
+    }
+    const x0 = b.say ? L + IND : L;
+    for (const l of b.lines) {
+      paintLine(ctx, l, x0, y, lh, fs, fontOf, `rgba(${pal.rgb},.55)`, b.say ? pal.ink : pal.nar);
+      let w = 0;
+      for (const pc of l) { ctx.font = fontOf(pc.r); w += ctx.measureText(pc.t).width; }
+      endX = x0 + w; endY = y;
+      y += lh;
+    }
+  });
+  // 깜빡이는 커서 자리 — 마지막 글자 뒤
+  ctx.shadowColor = pal.c; ctx.shadowBlur = 10; ctx.fillStyle = pal.c;
+  ctx.fillRect(Math.min(endX + 8, W - R - fs * 0.5), endY + (lh - fs) / 2 + fs * 0.06, fs * 0.5, fs * 1.0);
+  ctx.shadowBlur = 0;
+  // 아래 — 점선 · 출처 · 신호 막대
+  y = H - 70 - 22 - 24;
+  ctx.fillStyle = `rgba(${pal.rgb},.3)`;
+  for (let x = L; x < W - R; x += 7) ctx.fillRect(x, y, 3.5, 1.4);
+  y += 24;
+  let sx = L;
+  if (src) {
+    ctx.font = `400 17px ${PLEX}`; setLS(ctx, 2.6); ctx.fillStyle = dim; ctx.fillText('SRC', sx, y + 2);
+    sx += ctx.measureText('SRC').width + 18; setLS(ctx, 1.2);
+    ctx.font = `20px ${family}`; ctx.fillStyle = pal.c; ctx.fillText(src, sx, y, W - R - sx - 220);
+  }
+  let rx = W - R;
+  const bars = Math.max(0, Math.min(4, cf.bars));
+  if (cf.sig.trim() || bars) {
+    for (let k = 3; k >= 0; k--) {
+      const h = 7 + k * 4.5;
+      ctx.fillStyle = k < bars ? pal.c : `rgba(${pal.rgb},.25)`;
+      ctx.fillRect(rx - 5.5, y + 20 - h, 5.5, h);
+      rx -= 9.5;
+    }
+    if (cf.sig.trim()) {
+      ctx.font = `400 17px ${PLEX}`; setLS(ctx, 2.6); ctx.fillStyle = dim; ctx.textAlign = 'right';
+      ctx.fillText(cf.sig.trim(), rx - 8, y + 2); ctx.textAlign = 'left';
+    }
+  }
+  setLS(ctx, 0);
+  // 모서리 꺾쇠
+  ctx.strokeStyle = dim; ctx.lineWidth = 2;
+  const C = 30, K = 31;
+  for (const [cx, cy, dx, dy] of [[C, C, 1, 1], [W - C, C, -1, 1], [C, H - C, 1, -1], [W - C, H - C, -1, -1]]) {
+    ctx.beginPath(); ctx.moveTo(cx, cy + dy * K); ctx.lineTo(cx, cy); ctx.lineTo(cx + dx * K, cy); ctx.stroke();
+  }
+  // 주사선 · 가장자리 어둡게
+  ctx.fillStyle = 'rgba(0,0,0,.3)';
+  for (let yy = 0; yy < H; yy += 5) ctx.fillRect(0, yy + 3.6, W, 1.4);
+  g = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.35, W / 2, H / 2, Math.hypot(W, H) * 0.56);
+  g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,.72)');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+}
+
 /** 카드를 캔버스에 그린다 — 높이는 글 길이에 맞추되 정사각형보다 작아지지 않게.
  *  scale: 실제 픽셀 배율 — 미리보기는 1, 저장은 2(고화질, 사용자 요청). 좌표는 전부 1배 기준으로 쓰고 변환으로 키운다 */
 async function draw(canvas: HTMLCanvasElement, paras: Run[][], source: string, st: CardStyle, family: string, scale = 1, talk: (Talk | undefined)[] = [], title = '') {
@@ -667,6 +793,8 @@ async function draw(canvas: HTMLCanvasElement, paras: Run[][], source: string, s
   if (st.kind === 'book') return drawBook(canvas, paras, title || source, st, family, scale);
   if (st.kind === 'lyric') return drawLyric(canvas, paras, title || source, st, family, scale);
   if (st.kind === 'letter') return drawLetter(canvas, paras, title || source, st, family, scale);
+  // 교신 기록 — 출처 줄은 「— 「제목」 · 저자」에서 꾸밈 기호를 떼고
+  if (st.kind === 'comm') return drawComm(canvas, paras, source.replace(/^\s*[—–-]\s*/, '').replace(/[「」]/g, '').trim() || title, st, family, scale);
   const ctx = canvas.getContext('2d')!;
   const hud = st.deco === 'hud';
   const font = `${st.size}px ${family}`;
@@ -903,6 +1031,8 @@ export function ExcerptCard({ paras: plain, source, fileName, title = '' }: { pa
   // 카드만 배경·사진·글씨색·대사 말풍선을 고른다 — 책·가사·편지는 모양에 색이 정해져 있다
   const isCard = !st.kind || st.kind === 'card';
   const book = { ...BOOK_DEF, ...st.book }, lyric = { ...LYRIC_DEF, ...st.lyric }, letter = { ...LETTER_DEF, ...st.letter };
+  const comm = { ...COMM_DEF, ...st.comm };
+  const setComm = (p: Partial<CommConf>) => set({ comm: { ...comm, ...p } });
   const setBook = (p: Partial<BookConf>) => set({ book: { ...book, ...p } });
   const setLyric = (p: Partial<LyricConf>) => set({ lyric: { ...lyric, ...p } });
   const setLetter = (p: Partial<LetterConf>) => set({ letter: { ...letter, ...p } });
@@ -982,7 +1112,7 @@ export function ExcerptCard({ paras: plain, source, fileName, title = '' }: { pa
         <div className="exc-row">
           <label>모양</label>
           <div className="mini-seg">
-            {([['card', '카드'], ['tweet', '트윗'], ['book', '책'], ['lyric', '가사'], ['letter', '편지']] as const).map(([k, l]) => (
+            {([['card', '카드'], ['tweet', '트윗'], ['book', '책'], ['lyric', '가사'], ['letter', '편지'], ['comm', '교신']] as const).map(([k, l]) => (
               <button key={k} type="button" className={(st.kind ?? 'card') === k ? 'on' : ''} onClick={() => set({ kind: k })}>{l}</button>
             ))}
           </div>
@@ -1148,6 +1278,47 @@ export function ExcerptCard({ paras: plain, source, fileName, title = '' }: { pa
               <button type="button" className={letter.paper === 'blue' ? 'on' : ''} onClick={() => setLetter({ paper: 'blue' })}>하늘</button>
             </div>
           </div>
+        </>)}
+        {/* 교신 기록 (사용자 확정 시안) — 색 · 위아래 작은 글씨 · 신호 막대 */}
+        {st.kind === 'comm' && (<>
+          <div className="exc-row">
+            <label>색</label>
+            <div className="mini-seg">
+              <button type="button" className={!comm.amber ? 'on' : ''} onClick={() => setComm({ amber: false })}>초록</button>
+              <button type="button" className={comm.amber ? 'on' : ''} onClick={() => setComm({ amber: true })}>호박색</button>
+            </div>
+          </div>
+          <div className="exc-row">
+            <label>상태</label>
+            <input className="k-input exc-time" value={comm.tl} maxLength={30} placeholder="비우면 숨김"
+              onChange={e => setComm({ tl: e.target.value })} />
+          </div>
+          <div className="exc-row">
+            <label>시각</label>
+            <input className="k-input exc-time" value={comm.tr} maxLength={24} placeholder="비우면 숨김"
+              onChange={e => setComm({ tr: e.target.value })} />
+          </div>
+          <div className="exc-row">
+            <label>정보</label>
+            <input className="k-input exc-time" value={comm.sub} maxLength={48} placeholder="비우면 숨김"
+              onChange={e => setComm({ sub: e.target.value })} />
+          </div>
+          <div className="exc-row">
+            <label>신호명</label>
+            <input className="k-input exc-time" value={comm.sig} maxLength={16} placeholder="비우면 숨김"
+              onChange={e => setComm({ sig: e.target.value })} />
+          </div>
+          <div className="exc-row">
+            <label>신호</label>
+            <div className="mini-seg">
+              {[0, 1, 2, 3, 4].map(n => (
+                <button key={n} type="button" className={comm.bars === n ? 'on' : ''} onClick={() => setComm({ bars: n })}>{n ? `${n}칸` : '없음'}</button>
+              ))}
+            </div>
+          </div>
+          <button type="button" className="btn btn-ghost" style={{ justifySelf: 'start', padding: '5px 12px', fontSize: 11 }}
+            onClick={() => setComm({ tl: COMM_DEF.tl, tr: COMM_DEF.tr, sub: COMM_DEF.sub, sig: COMM_DEF.sig, bars: COMM_DEF.bars })}>작은 글씨 처음대로</button>
+          <p className="exc-hint">앞뒤가 따옴표인 문단은 따옴표 대신 앞에 &gt; 가 붙어요</p>
         </>)}
         {isCard && paras.some(r => isQuote(r.map(x => x.t).join(''))) && (
           <div className="exc-talk">
