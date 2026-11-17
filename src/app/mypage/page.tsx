@@ -1,6 +1,6 @@
 'use client';
 // 마이페이지 (v1.9) — 내 정보 수정(닉네임·프로필 이미지·비밀번호) +
-// 일반 회원: 나에게 연동된 캐릭터 리스트 · 내가 쓴 글/댓글 리스트 (관리자는 기본정보만)
+// 일반 회원: 나에게 연동된 캐릭터 리스트 · 내가 쓴 글/댓글 리스트 (관리자는 기본정보 + 직접 쓰는 발췌기)
 import React, { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
@@ -19,6 +19,7 @@ import { fileDrop } from '@/lib/dnd';
 import { useToast } from '@/components/ui/Toast';
 import { PageTitle, EditableDesc } from '@/components/ui/PageText';
 import { PushSettings } from '@/components/shell/PushSettings';
+import { FreeExcerpt } from '@/components/ui/FreeExcerpt';
 
 export default function MyPage() {
   const router = useRouter();
@@ -180,6 +181,9 @@ export default function MyPage() {
 
         {/* 웹푸시 알림 받기 (자놀 이식) — PC·모바일 체크, 처음에는 둘 다 해제 */}
         <PushSettings />
+
+        {/* 직접 쓰는 발췌기 — 관리자만 (사용자 요청) */}
+        {isAdmin && <FreeExcerpt />}
 
         {/* 내가 쓴 글/댓글 — 일반 회원만 */}
         {!isAdmin && (
