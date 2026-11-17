@@ -665,7 +665,7 @@ async function drawLetter(canvas: HTMLCanvasElement, paras: Run[][], title: stri
 /* 6. 교신 기록 (사용자 확정 시안 — 우주선 단말기) — 초록 / 호박색.
    앞뒤가 따옴표인 문단만 대사로 보고, 따옴표를 떼고 앞에 > 를 붙인다. 지문은 표시 없이 조금 흐리게.
    위아래 작은 글씨(신호 수신 · 시각 · 채널 줄 · SIGNAL)는 고칠 수 있고, 비우면 숨긴다 */
-export interface CommConf { amber: boolean; tl: string; tr: string; sub: string; sig: string; bars: number }
+export interface CommConf { amber: boolean; tone?: 'green' | 'amber' | 'blue'; tl: string; tr: string; sub: string; sig: string; bars: number }
 const COMM_DEF: CommConf = { amber: false, tl: 'TRANSMISSION RECEIVED', tr: 'SOL 214 · 03:17', sub: 'CH 07   FREQ 142.8 MHZ   DELAY 4.2s', sig: 'SIGNAL', bars: 3 };
 const PLEX = `"IBM Plex Mono", ${MONO}`;
 function ensureMonoFont() {
@@ -678,9 +678,13 @@ function ensureMonoFont() {
 async function drawComm(canvas: HTMLCanvasElement, paras: Run[][], src: string, st: CardStyle, family: string, scale: number) {
   const cf = { ...COMM_DEF, ...st.comm };
   ensureMonoFont();
-  const pal = cf.amber
+  // 색 — 초록 / 호박색 / 푸른색 (예전 저장분은 amber 하나로 들고 있다)
+  const tone = cf.tone ?? (cf.amber ? 'amber' : 'green');
+  const pal = tone === 'amber'
     ? { bg: '#0a0703', c: '#ffbf5e', rgb: '255,191,94', ink: '#ffeccc', nar: 'rgba(255,236,204,.78)' }
-    : { bg: '#04080a', c: '#7ef0b4', rgb: '126,240,180', ink: '#dcfbe9', nar: 'rgba(220,251,233,.78)' };
+    : tone === 'blue'
+      ? { bg: '#03060d', c: '#7cc4ff', rgb: '124,196,255', ink: '#dcefff', nar: 'rgba(220,239,255,.78)' }
+      : { bg: '#04080a', c: '#7ef0b4', rgb: '126,240,180', ink: '#dcfbe9', nar: 'rgba(220,251,233,.78)' };
   const dim = `rgba(${pal.rgb},.5)`;
   const fs = Math.round(st.size * 0.88), lh = fs * 1.85, gap = fs * 0.55;
   const fontOf = (r: Run) => `${r.i ? 'italic ' : ''}${r.b ? 'bold ' : ''}${fs}px ${family}`;
@@ -1418,8 +1422,10 @@ export function ExcerptCard({ paras: plain, source, fileName, title = '' }: { pa
           <div className="exc-row">
             <label>색</label>
             <div className="mini-seg">
-              <button type="button" className={!comm.amber ? 'on' : ''} onClick={() => setComm({ amber: false })}>초록</button>
-              <button type="button" className={comm.amber ? 'on' : ''} onClick={() => setComm({ amber: true })}>호박색</button>
+              {([['green', '초록'], ['amber', '호박색'], ['blue', '푸른색']] as const).map(([k, l]) => (
+                <button key={k} type="button" className={(comm.tone ?? (comm.amber ? 'amber' : 'green')) === k ? 'on' : ''}
+                  onClick={() => setComm({ tone: k, amber: k === 'amber' })}>{l}</button>
+              ))}
             </div>
           </div>
           <div className="exc-row">
