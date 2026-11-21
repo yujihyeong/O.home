@@ -111,13 +111,21 @@ function PromptBlock({ label, text, neg }: { label: string; text: string; neg?: 
   );
 }
 
-function Thumb({ src, onOpen }: { src: string; onOpen: () => void }) {
+/** 예시 그림 — 누르면 태그가 펼쳐지고(사용자 요청), 오른쪽 위 작은 버튼으로 크게 본다 */
+function Thumb({ src, open, onToggle, onZoom }: { src: string; open: boolean; onToggle: () => void; onZoom: () => void }) {
   const url = useBlobUrl(src);
   return (
-    <button type="button" className="pb-img" onClick={onOpen} aria-label="예시 그림 크게 보기">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      {url ? <img src={url} alt="" /> : <span />}
-    </button>
+    <div className={`pb-img ${open ? 'open' : ''}`}>
+      <button type="button" className="pb-img-btn" onClick={onToggle} aria-expanded={open}
+        aria-label={open ? '태그 접기' : '눌러서 태그 보기'}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        {url ? <img src={url} alt="" /> : <span />}
+        <span className="pb-img-hint">{open ? '태그 접기 ▲' : '눌러서 태그 보기 ▼'}</span>
+      </button>
+      <button type="button" className="pb-zoom" onClick={onZoom} aria-label="예시 그림 크게 보기" data-tip="크게 보기">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden><path d="M15 4h5v5M9 20H4v-5M20 4l-6 6M4 20l6-6" /></svg>
+      </button>
+    </div>
   );
 }
 
@@ -145,6 +153,8 @@ export function PromptBackup() {
   const [edit, setEdit] = useState<(typeof EMPTY & { id?: string }) | null>(null);
   const [upBusy, setUpBusy] = useState(false);
   const [view, setView] = useState<string | null>(null);
+  const [openIds, setOpenIds] = useState<Set<string>>(new Set());   // 그림을 눌러 태그를 펼친 카드
+  const toggleOpen = (id: string) => setOpenIds(s0 => { const n = new Set(s0); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   const [del, setDel] = useState<MyPrompt | null>(null);
   const picRef = useRef<HTMLInputElement>(null);
 
@@ -211,12 +221,15 @@ export function PromptBackup() {
                 <button type="button" className="pb-mini danger" onClick={() => setDel(p)}>삭제</button>
               </>)}
             </div>
-            <div className={`pb-body ${p.img ? 'with-img' : ''}`}>
-              {p.img && <Thumb src={p.img} onOpen={() => setView(p.img)} />}
-              <div className="pb-texts">
-                {p.prompt && <PromptBlock label="PROMPT" text={fixEncoded(p.prompt)} />}
-                {p.negative && <PromptBlock label="NEGATIVE" text={fixEncoded(p.negative)} neg />}
-              </div>
+            <div className="pb-body">
+              {p.img && <Thumb src={p.img} open={openIds.has(p.id)} onToggle={() => toggleOpen(p.id)} onZoom={() => setView(p.img)} />}
+              {/* 그림이 있으면 그림을 눌러야 태그가 보인다 — 그림이 없으면 바로 */}
+              {(!p.img || openIds.has(p.id) || !!q.trim()) && (
+                <div className="pb-texts">
+                  {p.prompt && <PromptBlock label="PROMPT" text={fixEncoded(p.prompt)} />}
+                  {p.negative && <PromptBlock label="NEGATIVE" text={fixEncoded(p.negative)} neg />}
+                </div>
+              )}
             </div>
             <div className="pb-foot">{p.authorName ? `${p.authorName} · ` : ''}{fmt(p.date)}{p.memo ? ` · 메모: ${p.memo}` : ''}</div>
           </div>

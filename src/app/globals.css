@@ -3740,8 +3740,16 @@ html[data-scene="night"] .lcs-widget{--lcs-a:#e0444f;--lcs-b:#9b1f3a;--lcs-c:#1f
 .pb-mini.danger:hover{color:#c0504d}
 .pb-body{display:grid;gap:10px}
 /* 예시 그림은 위에 넓게 — 글은 늘 카드 폭을 다 쓴다 */
-.pb-img{display:block;width:100%;max-height:220px;border-radius:10px;overflow:hidden;padding:0;border:0;background:color-mix(in srgb,var(--ink) 5%,transparent)}
-.pb-img img{width:100%;height:100%;max-height:220px;object-fit:cover;display:block}
+.pb-img{position:relative;border-radius:10px;overflow:hidden;background:color-mix(in srgb,var(--ink) 5%,transparent)}
+.pb-img-btn{display:block;width:100%;padding:0;border:0;position:relative}
+.pb-img-btn img{width:100%;height:240px;object-fit:cover;display:block;transition:transform .3s,filter .3s}
+.pb-img-btn:hover img{transform:scale(1.02)}
+.pb-img.open .pb-img-btn img{height:140px;filter:brightness(.92)}
+.pb-img-hint{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);padding:5px 12px;border-radius:99px;font-size:11.5px;font-weight:600;
+  color:#fff;background:rgba(20,22,26,.55);backdrop-filter:blur(6px);white-space:nowrap;pointer-events:none}
+.pb-zoom{position:absolute;top:8px;right:8px;width:30px;height:30px;border-radius:50%;display:grid;place-items:center;color:#fff;background:rgba(20,22,26,.45);backdrop-filter:blur(6px)}
+.pb-zoom svg{width:14px;height:14px}
+.pb-texts{animation:fade .2s ease}
 .pb-texts{min-width:0;display:grid;gap:10px}
 .pb-block{border-radius:10px;background:color-mix(in srgb,var(--ink) 3.5%,transparent);padding:10px 12px}
 .pb-block.neg{background:color-mix(in srgb,#c0504d 6%,transparent)}
