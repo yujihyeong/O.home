@@ -58,13 +58,56 @@ function CopyBtn({ text, label }: { text: string; label: string }) {
   const [done, setDone] = useState(false);
   useEffect(() => { if (!done) return; const t = setTimeout(() => setDone(false), 1400); return () => clearTimeout(t); }, [done]);
   return (
-    <button type="button" className={`pb-copy ${done ? 'done' : ''}`} aria-label={`${label} 복사`} data-tip="복사"
+    <button type="button" className={`pb-copy ${done ? 'done' : ''}`} aria-label={`${label} 복사`}
       onClick={async () => { if (await copyText(text)) { setDone(true); toast(`${label}를 복사했어요`); } else toast('복사하지 못했어요 — 길게 눌러 직접 복사해 주세요'); }}>
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
         {done ? <path d="M5 12.5l4.5 4.5L19 7.5" />
           : <><rect x="9" y="9" width="11" height="11" rx="2.5" /><path d="M15 9V6.5A2.5 2.5 0 0 0 12.5 4h-6A2.5 2.5 0 0 0 4 6.5v6A2.5 2.5 0 0 0 6.5 15H9" /></>}
       </svg>
+      <span>{done ? '복사됨' : '복사'}</span>
     </button>
+  );
+}
+
+/** 태그 글을 보기 좋게 — 쉼표는 흐리게, 가중치(0.7:: … ::)와 {강조}·[약화]는 색으로 */
+function Tags({ text }: { text: string }) {
+  const parts = text.split(/(,\s*)/);
+  return (
+    <>
+      {parts.map((t, i) => {
+        if (/^,\s*$/.test(t)) return <span key={i} className="pb-sep">, </span>;
+        const pieces = t.split(/(-?\d+(?:\.\d+)?::|::|[{}[\]]+|^artist:|^rating:)/);
+        return (
+          <span key={i} className="pb-tag">
+            {pieces.map((x, k) => {
+              if (!x) return null;
+              if (/^-\d/.test(x)) return <b key={k} className="pb-w neg">{x}</b>;
+              if (/^\d.*::$|^::$/.test(x)) return <b key={k} className="pb-w">{x}</b>;
+              if (/^[{}[\]]+$/.test(x)) return <b key={k} className={x.includes('[') || x.includes(']') ? 'pb-br dn' : 'pb-br'}>{x}</b>;
+              if (/^(artist|rating):$/.test(x)) return <i key={k} className="pb-pre">{x}</i>;
+              return x;
+            })}
+          </span>
+        );
+      })}
+    </>
+  );
+}
+
+/** 긴 프롬프트는 네 줄까지만 — 눌러서 펼친다 */
+function PromptBlock({ label, text, neg }: { label: string; text: string; neg?: boolean }) {
+  const [open, setOpen] = useState(false);
+  const n = text.split(',').map(t => t.trim()).filter(Boolean).length;
+  const long = text.length > 180;
+  return (
+    <div className={`pb-block ${neg ? 'neg' : ''}`}>
+      <div className="pb-lbl">
+        <span>{label}</span><small>태그 {n}개</small>
+        <CopyBtn text={text} label={neg ? '네거티브' : '프롬프트'} />
+      </div>
+      <div className={`pb-txt ${long && !open ? 'clamp' : ''}`}><Tags text={text} /></div>
+      {long && <button type="button" className="pb-more" onClick={() => setOpen(v => !v)}>{open ? '접기' : '전체 보기'}</button>}
+    </div>
   );
 }
 
@@ -171,14 +214,8 @@ export function PromptBackup() {
             <div className={`pb-body ${p.img ? 'with-img' : ''}`}>
               {p.img && <Thumb src={p.img} onOpen={() => setView(p.img)} />}
               <div className="pb-texts">
-                {p.prompt && (<>
-                  <div className="pb-lbl">PROMPT</div>
-                  <div className="pb-row"><div className="pb-txt">{fixEncoded(p.prompt)}</div><CopyBtn text={fixEncoded(p.prompt)} label="프롬프트" /></div>
-                </>)}
-                {p.negative && (<>
-                  <div className="pb-lbl">NEGATIVE</div>
-                  <div className="pb-row"><div className="pb-txt neg">{fixEncoded(p.negative)}</div><CopyBtn text={fixEncoded(p.negative)} label="네거티브" /></div>
-                </>)}
+                {p.prompt && <PromptBlock label="PROMPT" text={fixEncoded(p.prompt)} />}
+                {p.negative && <PromptBlock label="NEGATIVE" text={fixEncoded(p.negative)} neg />}
               </div>
             </div>
             <div className="pb-foot">{p.authorName ? `${p.authorName} · ` : ''}{fmt(p.date)}{p.memo ? ` · 메모: ${p.memo}` : ''}</div>
