@@ -122,7 +122,7 @@ function Thumb({ src, open, onToggle, onZoom }: { src: string; open: boolean; on
         aria-label={open ? '태그 접기' : '눌러서 태그 보기'}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         {url ? <img src={url} alt="" /> : <span />}
-        <span className="pb-img-hint">{open ? '태그 접기 ▲' : '눌러서 태그 보기 ▼'}</span>
+        <span className="pb-img-hint">{open ? '접기 ▲' : '태그 ▼'}</span>
       </button>
       <button type="button" className="pb-zoom" onClick={onZoom} aria-label="예시 그림 크게 보기" data-tip="크게 보기">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden><path d="M15 4h5v5M9 20H4v-5M20 4l-6 6M4 20l6-6" /></svg>
@@ -219,7 +219,8 @@ export function PromptBackup() {
           <p className="hint pb-empty">{q ? '찾는 프롬프트가 없어요' : `아직 ${CATS.find(c => c[0] === cat)![1]} 프롬프트가 없어요 — ＋ 새 프롬프트로 백업해 보세요`}</p>
         )}
         {shown.slice(0, limit).map(p => (
-          <div key={p.id} className="pb-card">
+          // 그림 있는 카드는 세로 미리보기로 한 줄에 셋 (사용자 요청) — 눌러 펼치면 한 줄을 다 쓴다
+          <div key={p.id} className={`pb-card ${p.img ? 'thumb' : ''} ${p.img && (openIds.has(p.id) || q.trim()) ? 'open' : ''}`}>
             <div className="pb-top">
               <b>{p.title}</b>
               {canEdit(p) && (<>
