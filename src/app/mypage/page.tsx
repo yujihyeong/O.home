@@ -21,6 +21,7 @@ import { PageTitle, EditableDesc } from '@/components/ui/PageText';
 import { PushSettings } from '@/components/shell/PushSettings';
 import { FreeExcerpt } from '@/components/ui/FreeExcerpt';
 import { MetaStrip } from '@/components/ui/MetaStrip';
+import { PromptBackup } from '@/components/ui/PromptBackup';
 
 export default function MyPage() {
   const router = useRouter();
@@ -185,6 +186,9 @@ export default function MyPage() {
 
         {/* 직접 쓰는 발췌기 — 관리자·일반 회원 모두 (사용자 요청) */}
         <FreeExcerpt />
+
+        {/* 프롬프트 백업 (사용자 요청) — NovelAI 태그를 작태·구도·의상으로, 나만 보기 */}
+        <PromptBackup />
 
         {/* 메타데이터 지우기 (사용자 요청) — 여러 장 한꺼번에, 브라우저 안에서만 */}
         <MetaStrip />
