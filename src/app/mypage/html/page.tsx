@@ -1,5 +1,5 @@
 'use client';
-// HTML 이미지 편집기 (사용자 요청 — 마이페이지) — HTML을 붙여 넣거나 .html 파일을 열면 오른쪽에 미리보기.
+// HTML 편집기 (사용자 요청 — 마이페이지, 예전 이름 HTML 이미지 편집기) — HTML을 붙여 넣거나 .html 파일을 열면 오른쪽에 미리보기.
 // 미리보기의 글자를 누르면 바로 고치고, 그림을 누르면 바꾼다. 고친 내용은 왼쪽 코드에도 그대로 반영된다.
 // 저장: HTML 파일 / HTML 복사 / 고화질 PNG (HTML 자체를 다시 그린다 — 화면 캡처가 아님, lib/htmlToImage).
 // 안전: 미리보기는 스크립트를 막은 iframe(sandbox, allow-same-origin만) — 붙여 넣은 HTML 속 코드는 실행되지 않는다.
@@ -9,9 +9,14 @@ import { useToast } from '@/components/ui/Toast';
 import { Modal } from '@/components/ui/Modal';
 import { KInput } from '@/components/ui/Kit';
 import { PageTitle } from '@/components/ui/PageText';
-import { renderDocToPng, maxScaleFor } from '@/lib/htmlToImage';
+import { renderDocToPng, maxScaleFor, docWidth } from '@/lib/htmlToImage';
 
 const KEY = 'ohome.htmlimg.v1';
+
+/** 작은 선 아이콘 */
+const Ico = ({ d }: { d: string }) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d={d} /></svg>
+);
 const SAMPLE = `<!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -118,16 +123,30 @@ export default function HtmlImagePage() {
     if (d) setCode(cleanHtml(d));
   }, []);
 
-  // 미리보기 높이를 내용에 맞춘다 (바깥 칸이 스크롤)
+  // 미리보기 크기 — 높이는 내용에 맞추고(바깥 칸이 스크롤), 폭이 자동인데 내용이 칸보다 넓으면
+  // (휴대폰에서 고정 폭 카드 등) 내용 폭 그대로 그린 뒤 칸에 맞게 줄여 보여 준다. 저장 이미지는 원래 크기
+  const box = useRef<HTMLDivElement>(null);
+  const [fit, setFit] = useState({ w: 0, h: 0, k: 1 });
+  useEffect(() => { setFit({ w: 0, h: 0, k: 1 }); }, [doc, width]);
   useEffect(() => {
     const t = setInterval(() => {
-      const f = frame.current, d = f?.contentDocument;
-      if (!f || !d?.documentElement) return;
+      const f = frame.current, d = f?.contentDocument, b = box.current;
+      if (!f || !b || !d?.documentElement) return;
       const h = Math.max(d.documentElement.scrollHeight, d.body?.scrollHeight ?? 0);
-      if (Math.abs(f.offsetHeight - h) > 2) f.style.height = `${h}px`;
+      const avail = b.clientWidth;
+      setFit(o => {
+        let w = o.w;
+        if (!width) {
+          const sw = docWidth(d);
+          // 칸보다 넓을 때만 넓힌다 (줄이지 않는다 — 넓혔다 줄였다 반복하지 않게)
+          if (sw > Math.max(avail, w) + 1) w = sw;
+        }
+        const k = !width && w > avail ? avail / w : 1;
+        return Math.abs(o.h - h) > 2 || o.w !== w || Math.abs(o.k - k) > 0.001 ? { w, h, k } : o;
+      });
     }, 400);
     return () => clearInterval(t);
-  }, []);
+  }, [width]);
 
   // 미리보기가 다 읽히면 — 편집 표시를 붙이고 누르기를 받는다
   const onLoad = () => {
@@ -237,7 +256,7 @@ export default function HtmlImagePage() {
     const t = setInterval(() => {
       const d = frame.current?.contentDocument;
       if (!d?.documentElement) return;
-      const w = Math.max(d.documentElement.scrollWidth, 1), h = Math.max(d.documentElement.scrollHeight, 1);
+      const w = docWidth(d), h = Math.max(d.documentElement.scrollHeight, 1);
       setCap(Math.round(maxScaleFor(w, h) * 100) / 100);
     }, 1000);
     return () => clearInterval(t);
@@ -246,7 +265,7 @@ export default function HtmlImagePage() {
   if (!user) {
     return (
       <section className="page">
-        <div className="page-head"><PageTitle href="/mypage">HTML IMAGE</PageTitle><p>로그인 후 이용할 수 있습니다</p></div>
+        <div className="page-head"><PageTitle href="/mypage">HTML 편집기</PageTitle><p>로그인 후 이용할 수 있습니다</p></div>
       </section>
     );
   }
@@ -254,65 +273,84 @@ export default function HtmlImagePage() {
   return (
     <section className="page hx-page">
       <div className="page-head">
-        <PageTitle href="/mypage">HTML IMAGE</PageTitle>
-        <p>HTML을 붙여 넣거나 파일을 열면 미리보기가 떠요 · 글자·그림을 눌러 고치고 고화질 이미지로 저장</p>
+        <PageTitle href="/mypage">HTML 편집기</PageTitle>
+        <p>HTML을 붙여 넣거나 파일을 열어, 보면서 고치고 고화질 이미지로 저장해요</p>
       </div>
 
-      <div className="hx-bar">
-        <button type="button" className="btn btn-dark" onClick={() => fileRef.current?.click()}>HTML 파일 열기</button>
-        <input ref={fileRef} type="file" accept=".html,.htm,text/html" hidden onChange={e => { openFile(e.target.files?.[0]); e.target.value = ''; }} />
-        <button type="button" className={`btn btn-ghost hx-tog ${edit ? 'on' : ''}`} onClick={() => setEdit(v => !v)}
-          data-tip="켜면 미리보기의 글자·그림을 눌러 고쳐요">✏️ 편집 {edit ? 'ON' : 'OFF'}</button>
-        <button type="button" className="btn btn-ghost hx-fold" onClick={() => setFold(v => !v)}>{fold ? '코드 펼치기' : '코드 접기'}</button>
-        <label className="hx-w">폭
-          <input className="k-input" inputMode="numeric" value={width} placeholder="맞춤" maxLength={5}
-            onChange={e => setWidth(e.target.value.replace(/\D/g, ''))} aria-label="미리보기 폭(px)" />px
-        </label>
-        <span className="hx-sp" />
-        <button type="button" className="btn btn-ghost" onClick={() => { if (confirm('보기 예시로 되돌릴까요? 지금 코드는 지워져요')) { setCode(SAMPLE); setDoc(SAMPLE); } }}>예시로</button>
-      </div>
-
-      {/* 휴대폰 — 코드 / 미리보기를 탭으로 */}
-      <div className="hx-tabs mini-seg">
-        <button type="button" className={tab === 'code' ? 'on' : ''} onClick={() => setTab('code')}>코드</button>
-        <button type="button" className={tab === 'view' ? 'on' : ''} onClick={() => setTab('view')}>미리보기</button>
-      </div>
-
-      <div className={`hx-main ${fold ? 'fold' : ''}`} data-tab={tab}>
-        <div className="hx-pane hx-code">
-          <div className="hx-ttl">소스 코드 <small>직접 고쳐도 반영돼요</small></div>
-          <textarea value={code} onChange={e => onCode(e.target.value)} spellCheck={false}
-            placeholder="여기에 HTML을 붙여 넣거나, 위에서 파일을 열어 주세요" aria-label="HTML 코드" />
+      <div className="hx-card">
+        {/* 도구 줄 */}
+        <div className="hx-bar">
+          <button type="button" className="hx-btn" onClick={() => fileRef.current?.click()}>
+            <Ico d="M4 5h6l2 2h8v12H4z" />파일 열기
+          </button>
+          <input ref={fileRef} type="file" accept=".html,.htm,text/html" hidden onChange={e => { openFile(e.target.files?.[0]); e.target.value = ''; }} />
+          <button type="button" className={`hx-switch ${edit ? 'on' : ''}`} onClick={() => setEdit(v => !v)} aria-pressed={edit}
+            data-tip="켜면 미리보기의 글자·그림을 눌러 고쳐요">
+            <i />눌러서 고치기
+          </button>
+          <span className="hx-sep" />
+          <button type="button" className="hx-btn hx-fold" onClick={() => setFold(v => !v)}>
+            <Ico d={fold ? 'M4 5h16v14H4zM10 5v14' : 'M4 5h16v14H4zM10 5v14M7 10l-2 2 2 2'} />{fold ? '코드 보기' : '코드 숨기기'}
+          </button>
+          <label className="hx-w" data-tip="미리보기·이미지의 가로 폭 — 비우면 칸에 맞춰요">
+            <Ico d="M4 12h16M7 9l-3 3 3 3M17 9l3 3-3 3" />
+            <input inputMode="numeric" value={width} placeholder="자동" maxLength={5}
+              onChange={e => setWidth(e.target.value.replace(/\D/g, ''))} aria-label="미리보기 폭(px)" />
+            <span>px</span>
+          </label>
+          <span className="hx-grow" />
+          <button type="button" className="hx-link" onClick={() => { if (confirm('보기 예시로 되돌릴까요? 지금 코드는 지워져요')) { setCode(SAMPLE); setDoc(SAMPLE); } }}>예시로 되돌리기</button>
         </div>
-        <div className="hx-pane hx-view">
-          <div className="hx-ttl">미리보기 <small>{edit ? '글자·그림을 눌러 고치기 · Esc로 마치기' : '편집 꺼짐'}</small></div>
-          <div className="hx-scroll">
-            {ready && (
-              <iframe ref={frame} title="HTML 미리보기" sandbox="allow-same-origin" srcDoc={doc} onLoad={onLoad}
-                style={{ width: width ? `${width}px` : '100%' }} />
-            )}
+
+        {/* 휴대폰 — 코드 / 미리보기를 탭으로 */}
+        <div className="hx-tabs">
+          <button type="button" className={tab === 'code' ? 'on' : ''} onClick={() => setTab('code')}>코드</button>
+          <button type="button" className={tab === 'view' ? 'on' : ''} onClick={() => setTab('view')}>미리보기</button>
+        </div>
+
+        <div className={`hx-main ${fold ? 'fold' : ''}`} data-tab={tab}>
+          <div className="hx-pane hx-code">
+            <div className="hx-ttl"><b>CODE</b><small>직접 고쳐도 바로 반영돼요</small></div>
+            <textarea value={code} onChange={e => onCode(e.target.value)} spellCheck={false}
+              placeholder="여기에 HTML을 붙여 넣거나, 위에서 파일을 열어 주세요" aria-label="HTML 코드" />
+          </div>
+          <div className="hx-pane hx-view">
+            <div className="hx-ttl"><b>PREVIEW</b><small>{edit ? '글자·그림을 눌러 고치기 · Esc로 마치기' : '고치기 꺼짐'}{fit.k < 1 ? ` · ${Math.round(fit.k * 100)}%로 줄여 보는 중` : ''}</small></div>
+            <div className="hx-scroll" ref={box}>
+              {ready && (
+                <div className="hx-fit" style={fit.k < 1 ? { width: fit.w * fit.k, height: fit.h * fit.k } : undefined}>
+                  <iframe ref={frame} title="HTML 미리보기" sandbox="allow-same-origin" srcDoc={doc} onLoad={onLoad}
+                    style={{
+                      width: width ? `${width}px` : fit.w ? `${fit.w}px` : '100%',
+                      height: fit.h ? `${fit.h}px` : undefined,
+                      ...(fit.k < 1 ? { transform: `scale(${fit.k})`, transformOrigin: '0 0' } : {}),
+                    }} />
+                </div>
+              )}
+            </div>
           </div>
         </div>
-      </div>
 
-      <div className="hx-save">
-        <label className="hx-name">파일 이름
-          <KInput value={name} onChange={e => setName(e.target.value)} maxLength={60} />
-        </label>
-        <div className="hx-scale">
-          <span>이미지 배율</span>
-          <div className="mini-seg">
-            {[1, 2, 3, 4].map(n => (
-              <button key={n} type="button" className={scale === n ? 'on' : ''} onClick={() => setScale(n)}>{n === 4 ? '4× 최고' : `${n}×`}</button>
-            ))}
+        {/* 저장 줄 */}
+        <div className="hx-save">
+          <label className="hx-name">
+            <span>파일 이름</span>
+            <input value={name} onChange={e => setName(e.target.value)} maxLength={60} aria-label="파일 이름" />
+          </label>
+          <div className="hx-scale">
+            <span>화질</span>
+            <div className="hx-seg">
+              {[1, 2, 3, 4].map(n => (
+                <button key={n} type="button" className={scale === n ? 'on' : ''} onClick={() => setScale(n)}>{n}×{n === 4 && <em>최고</em>}</button>
+              ))}
+            </div>
+            {scale > cap && <small>이 크기에선 {cap}배까지 — 자동으로 맞춰요</small>}
           </div>
-          {scale > cap && <small>이 크기에선 {cap}배까지 돼요 — 자동으로 맞춰요</small>}
-        </div>
-        <div className="hx-btns">
-          <button type="button" className="btn btn-ghost" onClick={() => { void copyHtml(); }}>HTML 복사</button>
-          <button type="button" className="btn btn-ghost" onClick={saveHtml}>HTML 저장</button>
-          <button type="button" className="btn btn-dark" disabled={!!busy} onClick={() => { void saveImage(); }}>
-            {busy || '🖼 이미지 저장'}
+          <span className="hx-grow" />
+          <button type="button" className="hx-btn" onClick={() => { void copyHtml(); }}><Ico d="M9 9h10v10H9zM5 15V5h10" />HTML 복사</button>
+          <button type="button" className="hx-btn" onClick={saveHtml}><Ico d="M8 8l-4 4 4 4M16 8l4 4-4 4" />HTML 저장</button>
+          <button type="button" className="hx-btn hx-primary" disabled={!!busy} onClick={() => { void saveImage(); }}>
+            <Ico d="M4 5h16v14H4zM4 15l5-5 4 4 3-3 4 4M15 9h.01" />{busy || '이미지 저장'}
           </button>
         </div>
       </div>

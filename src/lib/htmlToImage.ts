@@ -65,6 +65,15 @@ async function collectCss(doc: Document, base: string): Promise<string> {
   return parts.join('\n');
 }
 
+/** 문서 전체 폭 — 내용이 창보다 넓으면 브라우저가 오른쪽 여백을 빼고 재므로 body의 오른쪽 여백을 더한다 */
+export function docWidth(doc: Document): number {
+  const html = doc.documentElement, body = doc.body;
+  const sw = Math.max(html.scrollWidth, body?.scrollWidth ?? 0, 1);
+  if (!body || sw <= html.clientWidth + 1) return sw;
+  const cs = doc.defaultView?.getComputedStyle(body);
+  return Math.ceil(sw + (parseFloat(cs?.paddingRight ?? '0') || 0) + (parseFloat(cs?.marginRight ?? '0') || 0));
+}
+
 export interface Rendered { blob: Blob; width: number; height: number; scale: number; missed: number }
 
 /** 고를 수 있는 가장 큰 배율 — 휴대폰은 캔버스 넓이 약 1,600만 화소, 컴퓨터는 넉넉히 */
@@ -77,7 +86,7 @@ export function maxScaleFor(w: number, h: number): number {
 /** 미리보기 문서(같은 출처 iframe)를 PNG로 */
 export async function renderDocToPng(doc: Document, wantScale: number, onStep?: (t: string) => void): Promise<Rendered> {
   const html = doc.documentElement, body = doc.body;
-  const width = Math.max(html.scrollWidth, body?.scrollWidth ?? 0, 1);
+  const width = docWidth(doc);
   const height = Math.max(html.scrollHeight, body?.scrollHeight ?? 0, 1);
   const scale = Math.min(wantScale, maxScaleFor(width, height));
   const base = doc.baseURI || location.href;
