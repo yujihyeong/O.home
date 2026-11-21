@@ -94,6 +94,10 @@ export interface Backend {
    *  관리자가 환경설정에서 직접 확인하고 정리한다. */
   listFiles(): Promise<{ ref: string; size: number }[]>;
   deleteFile(ref: string): Promise<void>;
+  /** 이미 올라간 파일 내용 바꾸기 (주소는 그대로) — 예전에 올린 이미지의 메타데이터를 지울 때 (관리자).
+   *  readFile은 캐시(CDN)를 거치지 않고 저장소에서 바로 받는다. 지원하지 않는 백엔드는 없어도 된다 */
+  readFile?(ref: string): Promise<Blob | null>;
+  replaceFile?(ref: string, blob: Blob): Promise<void>;
 
   /** 회원 프로필(닉네임·아바타) 삭제 — 홈의 회원 목록에서 사라진다.
    *  **로그인 계정 자체는 지울 수 없다.** Firebase Authentication / Supabase Auth의 계정 삭제는
