@@ -3779,3 +3779,16 @@ html[data-scene="night"] .lcs-widget{--lcs-a:#e0444f;--lcs-b:#9b1f3a;--lcs-c:#1f
 .pb-pic{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .pb-pic-img{width:72px;height:96px;object-fit:cover;border-radius:8px;border:1px solid var(--line)}
 .pb-pic-empty{width:72px;height:96px;display:grid;place-items:center;border-radius:8px;border:1px dashed var(--line);font-size:11px;color:var(--faint)}
+
+/* OOC 백업 (사용자 요청 — 프롬프트 백업과 같은 모양) */
+.oc-tabs{flex-wrap:wrap}
+.oc-cat{flex:none;font-size:10.5px;font-weight:600;padding:2px 8px;border-radius:99px;color:#7a5fb0;background:color-mix(in srgb,#9a7fd0 14%,transparent)}
+.oc-txt{white-space:pre-wrap;font-size:13px}
+.pb-txt.oc-txt.clamp,.oc-bubble.clamp{display:-webkit-box;-webkit-line-clamp:5;-webkit-box-orient:vertical;overflow:hidden}
+.oc-extog{margin-top:10px;width:100%;height:36px;border-radius:10px;border:1px dashed var(--line);font-size:12.5px;font-weight:600;color:var(--sub);transition:background .15s,color .15s,border-color .15s}
+.oc-extog:hover,.oc-extog.on{color:var(--ink);border-style:solid;background:color-mix(in srgb,var(--ink) 3%,transparent)}
+.oc-ex{margin-top:10px;display:grid;gap:8px;animation:fade .2s ease}
+.oc-ex-lbl{font-size:10px;letter-spacing:.14em;font-weight:700;color:var(--faint)}
+.oc-bubble{white-space:pre-wrap;font-size:13px;line-height:1.75;color:var(--ink);padding:12px 14px;border-radius:4px 14px 14px 14px;background:color-mix(in srgb,#9a7fd0 9%,var(--panel-solid,#fff));border:1px solid color-mix(in srgb,#9a7fd0 22%,transparent);word-break:break-word;user-select:text}
+.oc-img{display:block;width:100%;padding:0;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:color-mix(in srgb,var(--ink) 5%,transparent)}
+.oc-img img{width:100%;max-height:320px;object-fit:contain;display:block;background:#fff}

@@ -53,7 +53,7 @@ async function copyText(text: string): Promise<boolean> {
   } catch { return false; }
 }
 
-function CopyBtn({ text, label }: { text: string; label: string }) {
+export function CopyBtn({ text, label }: { text: string; label: string }) {
   const toast = useToast();
   const [done, setDone] = useState(false);
   useEffect(() => { if (!done) return; const t = setTimeout(() => setDone(false), 1400); return () => clearTimeout(t); }, [done]);
@@ -129,7 +129,7 @@ function Thumb({ src, open, onToggle, onZoom }: { src: string; open: boolean; on
   );
 }
 
-const fmt = (iso: string) => { const d = new Date(iso); return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`; };
+export const fmt = (iso: string) => { const d = new Date(iso); return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`; };
 const EMPTY = { cat: 'pose' as PromptCat, title: '', prompt: '', negative: '', memo: '', img: null as string | null };
 
 export function PromptBackup() {
@@ -137,14 +137,16 @@ export function PromptBackup() {
   const toast = useToast();
   const [all, setAll, loaded] = useLocalList<MyPrompt>(MYPROMPT_KEY, []);
   // 모두 같은 목록 — 최근에 고친 것이 위로
-  const mine = useMemo(() => [...all].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0)), [all]);
+  // 같은 표에 OOC 백업(kind 'ooc')도 들어 있다 — 여기선 프롬프트만
+  const mine = useMemo(() => all.filter(p => (p as { kind?: string }).kind !== 'ooc')
+    .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0)), [all]);
   const canEdit = (p: MyPrompt) => isAdmin || p.authorId === user?.id;
   // 나만 보기로 저장했던 내 것은 함께 보이게 바꿔 둔다 (한 번)
   const fixed = useRef(false);
   useEffect(() => {
     if (!loaded || fixed.current || !user) return;
     fixed.current = true;
-    if (all.some(p => p.authorId === user.id && p.visibility !== 'member')) {
+    if (all.some(p => p.authorId === user.id && p.visibility !== 'member')) {   // OOC는 늘 member라 걸리지 않는다
       setAll(all.map(p => (p.authorId === user.id && p.visibility !== 'member' ? { ...p, visibility: 'member' as const, authorName: p.authorName ?? user.nickname } : p)));
     }
   }, [loaded, all, user, setAll]);
