@@ -2,7 +2,8 @@
 // 프롬프트 백업 (사용자 요청 — 마이페이지, 시안 A 카드형) — NovelAI 태그를 작태 · 구도 · 의상으로 나눠 모아 둔다.
 //  · 분류 탭을 누르면 그 분류의 카드가 쭉 나온다 · 프롬프트 / 네거티브는 각각 옆 버튼 한 번으로 복사
 //  · 카드마다 예시 그림 한 장 — 올리기 전에 메타데이터(위치·기기·생성 정보)를 지운다 (putBlob이 처리)
-//  · 서버에는 「나만 보기」로 저장 — 다른 회원은 읽을 수 없다 (my_prompts 표, visibility private)
+//  · 회원 모두가 같은 목록을 함께 본다 (사용자 요청 — 회원들과 태그 공유). 서버에는 회원 공개(member)로 저장 —
+//    누구나 새로 올릴 수 있고, 고치기·삭제는 올린 사람과 관리자만 (my_prompts 표의 공통 규칙 그대로)
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '@/lib/auth';
 import { useLocalList, newId } from '@/lib/postStore';
@@ -19,7 +20,8 @@ const CATS: [PromptCat, string][] = [['pose', '작태'], ['comp', '구도'], ['o
 export interface MyPrompt {
   id: string;
   authorId: string;
-  visibility: 'private';
+  visibility: 'member' | 'private';   // 예전(나만 보기) 저장분은 private — 올린 사람이 열면 member로 바꾼다
+  authorName?: string;    // 올린 사람 닉네임 (올릴 때 그대로)
   cat: PromptCat;
   title: string;
   prompt: string;
@@ -70,11 +72,21 @@ const fmt = (iso: string) => { const d = new Date(iso); return `${d.getFullYear(
 const EMPTY = { cat: 'pose' as PromptCat, title: '', prompt: '', negative: '', memo: '', img: null as string | null };
 
 export function PromptBackup() {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const toast = useToast();
-  const [all, setAll] = useLocalList<MyPrompt>(MYPROMPT_KEY, []);
-  // 관리자는 서버에서 남의 비공개 행도 받으므로, 화면에는 내 것만
-  const mine = useMemo(() => all.filter(p => p.authorId === user?.id), [all, user?.id]);
+  const [all, setAll, loaded] = useLocalList<MyPrompt>(MYPROMPT_KEY, []);
+  // 모두 같은 목록 — 최근에 고친 것이 위로
+  const mine = useMemo(() => [...all].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0)), [all]);
+  const canEdit = (p: MyPrompt) => isAdmin || p.authorId === user?.id;
+  // 나만 보기로 저장했던 내 것은 함께 보이게 바꿔 둔다 (한 번)
+  const fixed = useRef(false);
+  useEffect(() => {
+    if (!loaded || fixed.current || !user) return;
+    fixed.current = true;
+    if (all.some(p => p.authorId === user.id && p.visibility !== 'member')) {
+      setAll(all.map(p => (p.authorId === user.id && p.visibility !== 'member' ? { ...p, visibility: 'member' as const, authorName: p.authorName ?? user.nickname } : p)));
+    }
+  }, [loaded, all, user, setAll]);
   const [cat, setCat] = useState<PromptCat>('pose');
   const [q, setQ] = useState('');
   const [edit, setEdit] = useState<(typeof EMPTY & { id?: string }) | null>(null);
@@ -103,8 +115,10 @@ export function PromptBackup() {
     if (!edit || !user) return;
     if (!edit.title.trim() && !edit.prompt.trim()) { toast('제목이나 프롬프트를 적어 주세요'); return; }
     const now = new Date().toISOString();
+    const prev = edit.id ? all.find(p => p.id === edit.id) : undefined;
     const item: MyPrompt = {
-      id: edit.id ?? newId(), authorId: user.id, visibility: 'private',
+      // 관리자가 남의 것을 고쳐도 올린 사람은 그대로
+      id: edit.id ?? newId(), authorId: prev?.authorId ?? user.id, authorName: prev?.authorName ?? user.nickname, visibility: 'member',
       cat: edit.cat, title: edit.title.trim() || '제목 없음', prompt: edit.prompt.trim(), negative: edit.negative.trim(),
       memo: edit.memo.trim(), img: edit.img, date: now,
     };
@@ -117,7 +131,7 @@ export function PromptBackup() {
   return (
     <div className="panel" style={{ padding: 24 }}>
       <div className="pb-head">
-        <h4>PROMPT BACKUP</h4>
+        <h4>PROMPT BACKUP <small>회원 모두 함께 보는 태그</small></h4>
         <button type="button" className="btn btn-dark pb-add" onClick={() => setEdit({ ...EMPTY, cat })}>＋ 새 프롬프트</button>
       </div>
       <div className="pb-tabs" role="tablist">
@@ -139,8 +153,10 @@ export function PromptBackup() {
           <div key={p.id} className="pb-card">
             <div className="pb-top">
               <b>{p.title}</b>
-              <button type="button" className="pb-mini" onClick={() => setEdit({ id: p.id, cat: p.cat, title: p.title, prompt: p.prompt, negative: p.negative, memo: p.memo, img: p.img })}>고치기</button>
-              <button type="button" className="pb-mini danger" onClick={() => setDel(p)}>삭제</button>
+              {canEdit(p) && (<>
+                <button type="button" className="pb-mini" onClick={() => setEdit({ id: p.id, cat: p.cat, title: p.title, prompt: p.prompt, negative: p.negative, memo: p.memo, img: p.img })}>고치기</button>
+                <button type="button" className="pb-mini danger" onClick={() => setDel(p)}>삭제</button>
+              </>)}
             </div>
             <div className={`pb-body ${p.img ? 'with-img' : ''}`}>
               {p.img && <Thumb src={p.img} onOpen={() => setView(p.img)} />}
@@ -155,7 +171,7 @@ export function PromptBackup() {
                 </>)}
               </div>
             </div>
-            <div className="pb-foot">{fmt(p.date)} 수정{p.memo ? ` · 메모: ${p.memo}` : ''}</div>
+            <div className="pb-foot">{p.authorName ? `${p.authorName} · ` : ''}{fmt(p.date)}{p.memo ? ` · 메모: ${p.memo}` : ''}</div>
           </div>
         ))}
       </div>
