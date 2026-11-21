@@ -13,6 +13,8 @@ import { KInput, KTextarea } from '@/components/ui/Kit';
 import { Lightbox } from '@/components/ui/Lightbox';
 import { useToast } from '@/components/ui/Toast';
 
+const PAGE = 3;   // 처음에 보여 줄 카드 수
+
 export const MYPROMPT_KEY = 'ohome.myprompts.v1';
 export type PromptCat = 'pose' | 'comp' | 'outfit';
 const CATS: [PromptCat, string][] = [['pose', '작태'], ['comp', '구도'], ['outfit', '의상']];
@@ -152,6 +154,8 @@ export function PromptBackup() {
   }, [loaded, all, user, setAll]);
   const [cat, setCat] = useState<PromptCat>('pose');
   const [q, setQ] = useState('');
+  const [limit, setLimit] = useState(PAGE);
+  useEffect(() => { setLimit(PAGE); }, [cat, q]);   // 탭·찾기를 바꾸면 처음 몇 개만 다시
   const [edit, setEdit] = useState<(typeof EMPTY & { id?: string }) | null>(null);
   const [upBusy, setUpBusy] = useState(false);
   const [view, setView] = useState<string | null>(null);
@@ -214,7 +218,7 @@ export function PromptBackup() {
         {shown.length === 0 && (
           <p className="hint pb-empty">{q ? '찾는 프롬프트가 없어요' : `아직 ${CATS.find(c => c[0] === cat)![1]} 프롬프트가 없어요 — ＋ 새 프롬프트로 백업해 보세요`}</p>
         )}
-        {shown.map(p => (
+        {shown.slice(0, limit).map(p => (
           <div key={p.id} className="pb-card">
             <div className="pb-top">
               <b>{p.title}</b>
@@ -236,6 +240,14 @@ export function PromptBackup() {
             <div className="pb-foot">{p.authorName ? `${p.authorName} · ` : ''}{fmt(p.date)}{p.memo ? ` · 메모: ${p.memo}` : ''}</div>
           </div>
         ))}
+        {/* 많이 쌓여도 마이페이지가 너무 길어지지 않게 — 몇 개씩만 (사용자 요청) */}
+        {shown.length > PAGE && (
+          <div className="pb-pager">
+            {limit < shown.length
+              ? <button type="button" onClick={() => setLimit(l => l + PAGE)}>더 보기 <i>{shown.length - limit}개 더</i></button>
+              : <button type="button" onClick={() => setLimit(PAGE)}>접기 ▲</button>}
+          </div>
+        )}
       </div>
 
       {/* 새로 / 고치기 */}

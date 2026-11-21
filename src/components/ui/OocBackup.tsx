@@ -16,6 +16,8 @@ import { Lightbox } from '@/components/ui/Lightbox';
 import { useToast } from '@/components/ui/Toast';
 import { MYPROMPT_KEY, CopyBtn, fixEncoded, fmt } from '@/components/ui/PromptBackup';
 
+const PAGE = 3;   // 처음에 보여 줄 카드 수
+
 export interface OocNote {
   id: string;
   kind: 'ooc';
@@ -91,6 +93,8 @@ export function OocBackup() {
   const [catEdit, setCatEdit] = useState<string[] | null>(null);
   const [newCat, setNewCat] = useState('');
   const [q, setQ] = useState('');
+  const [limit, setLimit] = useState(PAGE);
+  useEffect(() => { setLimit(PAGE); }, [cat, q]);   // 탭·찾기를 바꾸면 처음 몇 개만 다시
   const [edit, setEdit] = useState<(typeof EMPTY & { id?: string }) | null>(null);
   const [upBusy, setUpBusy] = useState(false);
   const [view, setView] = useState<string | null>(null);
@@ -152,7 +156,7 @@ export function OocBackup() {
         {shown.length === 0 && (
           <p className="hint pb-empty">{q ? '찾는 OOC가 없어요' : '아직 백업한 OOC가 없어요 — ＋ 새 OOC로 올려 보세요'}</p>
         )}
-        {shown.map(n => {
+        {shown.slice(0, limit).map(n => {
           const open = openIds.has(n.id) || !!query;
           const hasEx = !!(n.example || n.img);
           return (
@@ -185,6 +189,14 @@ export function OocBackup() {
             </div>
           );
         })}
+        {/* 많이 쌓여도 마이페이지가 너무 길어지지 않게 — 몇 개씩만 (사용자 요청) */}
+        {shown.length > PAGE && (
+          <div className="pb-pager">
+            {limit < shown.length
+              ? <button type="button" onClick={() => setLimit(l => l + PAGE)}>더 보기 <i>{shown.length - limit}개 더</i></button>
+              : <button type="button" onClick={() => setLimit(PAGE)}>접기 ▲</button>}
+          </div>
+        )}
       </div>
 
       <Modal open={!!edit} onClose={() => setEdit(null)} title={edit?.id ? 'OOC 고치기' : '새 OOC'} dirty
