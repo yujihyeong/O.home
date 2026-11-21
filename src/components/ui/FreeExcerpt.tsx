@@ -49,7 +49,7 @@ export function FreeExcerpt() {
       <h4 style={{ fontSize: 11.5, letterSpacing: '.12em', color: 'var(--faint)', marginBottom: 16 }}>EXCERPT</h4>
       <div style={{ display: 'grid', gap: 9 }}>
         <KTextarea value={d.text} onChange={e => set({ text: e.target.value })} style={{ minHeight: 150 }}
-          placeholder={'발췌할 문장을 적거나 붙여 넣어 주세요\n빈 줄로 문단을 나눠요'} aria-label="발췌할 문장" />
+          placeholder={'발췌할 문장을 적거나 붙여 넣어 주세요\n빈 줄로 문단을 나눠요 · **굵게** *기울임* ==형광펜== 같은 마크다운도 돼요'} aria-label="발췌할 문장" />
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <KInput value={d.title} onChange={e => set({ title: e.target.value })} placeholder="제목" aria-label="제목"
             style={{ flex: 2, minWidth: 160 }} />

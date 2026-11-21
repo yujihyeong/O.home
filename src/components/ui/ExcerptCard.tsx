@@ -14,6 +14,7 @@ import { useToast } from '@/components/ui/Toast';
 import { stripImageMeta } from '@/lib/imageMeta';
 import { gaussBlur } from '@/lib/blur';
 import { splitPages, maxPages } from '@/lib/pageSplit';
+import { mdToRuns, hasMd } from '@/lib/mdRuns';
 
 export const EXCERPT_BGS = [1, 2, 3, 4, 5, 6, 7, 8].map(n => ({
   src: `/excerpt-bg/${n}.webp`, thumb: `/excerpt-bg/t${n}.webp`,
@@ -1072,7 +1073,21 @@ async function draw(canvas: HTMLCanvasElement, paras: Run[][], source: string, s
 
 export function ExcerptCard({ paras: plain, source, fileName, title = '' }: { paras: string[]; source: string; fileName: string; title?: string }) {
   // 문단마다 글 조각 — 처음엔 꾸밈 없이 한 조각
-  const [paras, setParas] = useState<Run[][]>(() => plain.map(t => [{ t }]));
+  /* 마크다운 읽기 (사용자 요청) — 켜 두면 **굵게** *기울임* ==형광펜== # 제목 등을 꾸밈으로 바꾸고 기호는 지운다.
+     끄면 적힌 그대로. 고른 값은 이 브라우저에 기억 */
+  const [md, setMd] = useState<boolean>(() => { try { return localStorage.getItem('ohome.excerptMd') !== '0'; } catch { return true; } });
+  const fromPlain = (on: boolean, bare = false): Run[][] => plain.map(t => {
+    if (!on || !hasMd(t)) return [{ t }];
+    const runs = mdToRuns(t);
+    return bare ? [{ t: runs.map(r => r.t).join('') }] : runs;
+  });
+  const [paras, setParas] = useState<Run[][]>(() => fromPlain(md));
+  const mdFound = plain.some(hasMd);
+  const toggleMd = () => {
+    const on = !md;
+    setMd(on); setParas(fromPlain(on));
+    try { localStorage.setItem('ohome.excerptMd', on ? '1' : '0'); } catch { /* 무시 */ }
+  };
   const markBox = useRef<HTMLDivElement>(null);
   /** 드래그한 범위 → (문단, 글자 위치) — 문단 시작부터의 글자 수로 센다 */
   const selRange = () => {
@@ -1330,7 +1345,13 @@ export function ExcerptCard({ paras: plain, source, fileName, title = '' }: { pa
             </button>
             <ColorField value={st.hl} onChange={hl => set({ hl })} />
             <button type="button" className="ghost" onMouseDown={e => e.preventDefault()}
-              onClick={() => setParas(plain.map(t => [{ t }]))} data-tip="꾸밈 모두 지우기">지우기</button>
+              onClick={() => setParas(fromPlain(md, true))} data-tip="꾸밈 모두 지우기">지우기</button>
+            {mdFound && (
+              <button type="button" className={`exc-md ${md ? 'on' : ''}`} onMouseDown={e => e.preventDefault()} onClick={toggleMd}
+                data-tip={md ? '마크다운을 꾸밈으로 적용 중 — 누르면 기호 그대로' : '**굵게** *기울임* ==형광펜== # 제목 등을 꾸밈으로'}>
+                M↓ 마크다운 {md ? '적용' : '끔'}
+              </button>
+            )}
           </div>
           <div className="exc-mark-text" ref={markBox}>
             {paras.map((runs, i) => (
