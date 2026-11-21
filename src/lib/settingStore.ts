@@ -47,6 +47,7 @@ export const SETTING_KEYS = [
   'ohome.relqsets.v1', 'ohome.main.v1', 'ohome.main.night.v1', 'ohome.sched.v1',
   'ohome.membertags.v1', 'ohome.roadnext.v1', 'ohome.repo.v1',
   'ohome.sections.v1', 'ohome.intro.v1', 'ohome.info.v1', 'ohome.prompt.v1', 'ohome.links.v1', 'ohome.aliases.v1',
+  'ohome.oocCats.v1',   // OOC 백업 분류 (마이페이지 — 관리자가 고친다)
 ];
 
 /** 앱 시작 시 1회 — 서버에 저장된 설정을 전부 받아 캐시 */

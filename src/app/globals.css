@@ -3792,3 +3792,14 @@ html[data-scene="night"] .lcs-widget{--lcs-a:#e0444f;--lcs-b:#9b1f3a;--lcs-c:#1f
 .oc-bubble{white-space:pre-wrap;font-size:13px;line-height:1.75;color:var(--ink);padding:12px 14px;border-radius:4px 14px 14px 14px;background:color-mix(in srgb,#9a7fd0 9%,var(--panel-solid,#fff));border:1px solid color-mix(in srgb,#9a7fd0 22%,transparent);word-break:break-word;user-select:text}
 .oc-img{display:block;width:100%;padding:0;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:color-mix(in srgb,var(--ink) 5%,transparent)}
 .oc-img img{width:100%;max-height:320px;object-fit:contain;display:block;background:#fff}
+
+.oc-catedit{margin-left:auto;margin-right:6px}
+.oc-catpick{flex-wrap:wrap}
+.oc-catpick button{font-size:12px;padding:5px 12px}
+.oc-catlist{display:grid;gap:8px}
+.oc-catrow{display:flex;gap:6px;align-items:center}
+.oc-catrow .k-input{flex:1;min-width:0}
+.oc-catrow button{flex:none;height:34px;min-width:34px;padding:0 8px;border-radius:8px;border:1px solid var(--line);background:var(--panel-solid,#fff);font-size:12px;color:var(--sub)}
+.oc-catrow button:disabled{opacity:.35}
+.oc-catrow button.danger{color:#c0504d}
+.oc-catrow button.add{color:var(--ink);font-weight:600}
