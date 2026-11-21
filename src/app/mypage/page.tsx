@@ -185,6 +185,15 @@ export default function MyPage() {
         {/* 직접 쓰는 발췌기 — 관리자·일반 회원 모두 (사용자 요청) */}
         <FreeExcerpt />
 
+        {/* HTML 이미지 편집기 (사용자 요청) — 따로 넓은 화면에서 */}
+        <div className="panel" style={{ padding: 24 }}>
+          <h4 style={{ fontSize: 11.5, letterSpacing: '.12em', color: 'var(--faint)', marginBottom: 10 }}>HTML IMAGE</h4>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+            <p className="hint" style={{ margin: 0, flex: '1 1 260px' }}>HTML을 붙여 넣거나 파일을 열어 미리보기 · 글자·그림을 눌러 고치고 고화질 이미지로 저장해요</p>
+            <button className="btn btn-dark" onClick={() => router.push('/mypage/html')}>편집기 열기</button>
+          </div>
+        </div>
+
         {/* 내가 쓴 글/댓글 — 일반 회원만 */}
         {!isAdmin && (
           <div className="panel" style={{ padding: 24 }}>
