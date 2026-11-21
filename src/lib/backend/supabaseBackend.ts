@@ -385,6 +385,25 @@ export async function createSupabaseBackend(
       if (error) throw error;
     },
 
+    async readFile(ref) {
+      const name = decodeURIComponent(ref.split('?')[0].split('/').pop() ?? '');
+      if (!name) return null;
+      const { data, error } = await sb.storage.from(BUCKET).download(name);
+      if (error) throw error;
+      return data;
+    },
+
+    async replaceFile(ref, blob) {
+      const name = decodeURIComponent(ref.split('?')[0].split('/').pop() ?? '');
+      if (!name) return;
+      const { error } = await sb.storage.from(BUCKET).upload(name, blob, {
+        contentType: blob.type || 'application/octet-stream',
+        cacheControl: '31536000',
+        upsert: true,
+      });
+      if (error) throw error;
+    },
+
     async deleteMember(id) {
       // profiles 행만 지운다 — auth.users 삭제는 service_role 키가 필요해 공개 홈에서는 불가
       const { error } = await sb.from('profiles').delete().eq('id', id);
