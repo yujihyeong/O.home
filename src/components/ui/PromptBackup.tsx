@@ -31,6 +31,16 @@ export interface MyPrompt {
   date: string;           // 마지막으로 고친 때 ISO
 }
 
+/** 주소용으로 바뀐 글(%20 · %3A …)을 되돌린다 — NovelAI 등에서 복사하면 이렇게 붙을 때가 있다 (사용자 제보).
+ *  그런 표시가 있을 때만, 되돌리다 실패하면 그대로 */
+export function fixEncoded(t: string): string {
+  if (!/%(20|2C|3A|28|29|7B|7D|5B|5D|3B|2F|22|27|25)/i.test(t)) return t;
+  try { return decodeURIComponent(t); } catch {
+    // 낱개 %가 섞여 있으면 알려진 것만 바꾼다
+    return t.replace(/%([0-9A-Fa-f]{2})/g, (m, h: string) => { const c = String.fromCharCode(parseInt(h, 16)); return /[\x20-\x7e]/.test(c) ? c : m; });
+  }
+}
+
 async function copyText(text: string): Promise<boolean> {
   try { await navigator.clipboard.writeText(text); return true; } catch { /* 아래로 */ }
   try {
@@ -97,7 +107,7 @@ export function PromptBackup() {
 
   const count = (c: PromptCat) => mine.filter(p => p.cat === c).length;
   const shown = mine.filter(p => p.cat === cat && (!q.trim()
-    || [p.title, p.prompt, p.negative, p.memo].join('\n').toLowerCase().includes(q.trim().toLowerCase())));
+    || [p.title, fixEncoded(p.prompt), fixEncoded(p.negative), p.memo].join('\n').toLowerCase().includes(q.trim().toLowerCase())));
 
   const pickImg = async (f?: File) => {
     if (!f || !edit) return;
@@ -154,7 +164,7 @@ export function PromptBackup() {
             <div className="pb-top">
               <b>{p.title}</b>
               {canEdit(p) && (<>
-                <button type="button" className="pb-mini" onClick={() => setEdit({ id: p.id, cat: p.cat, title: p.title, prompt: p.prompt, negative: p.negative, memo: p.memo, img: p.img })}>고치기</button>
+                <button type="button" className="pb-mini" onClick={() => setEdit({ id: p.id, cat: p.cat, title: p.title, prompt: fixEncoded(p.prompt), negative: fixEncoded(p.negative), memo: p.memo, img: p.img })}>고치기</button>
                 <button type="button" className="pb-mini danger" onClick={() => setDel(p)}>삭제</button>
               </>)}
             </div>
@@ -163,11 +173,11 @@ export function PromptBackup() {
               <div className="pb-texts">
                 {p.prompt && (<>
                   <div className="pb-lbl">PROMPT</div>
-                  <div className="pb-row"><div className="pb-txt">{p.prompt}</div><CopyBtn text={p.prompt} label="프롬프트" /></div>
+                  <div className="pb-row"><div className="pb-txt">{fixEncoded(p.prompt)}</div><CopyBtn text={fixEncoded(p.prompt)} label="프롬프트" /></div>
                 </>)}
                 {p.negative && (<>
                   <div className="pb-lbl">NEGATIVE</div>
-                  <div className="pb-row"><div className="pb-txt neg">{p.negative}</div><CopyBtn text={p.negative} label="네거티브" /></div>
+                  <div className="pb-row"><div className="pb-txt neg">{fixEncoded(p.negative)}</div><CopyBtn text={fixEncoded(p.negative)} label="네거티브" /></div>
                 </>)}
               </div>
             </div>
@@ -189,10 +199,10 @@ export function PromptBackup() {
             </div>
             <KInput value={edit.title} onChange={e => setEdit({ ...edit, title: e.target.value })} placeholder="제목 (예: 앉아서 턱 괴기)" maxLength={60} />
             <label className="pb-flabel">PROMPT</label>
-            <KTextarea value={edit.prompt} onChange={e => setEdit({ ...edit, prompt: e.target.value })} spellCheck={false}
+            <KTextarea value={edit.prompt} onChange={e => setEdit({ ...edit, prompt: fixEncoded(e.target.value) })} spellCheck={false}
               placeholder="1boy, sitting, chin rest, looking at viewer, ..." style={{ minHeight: 90, fontFamily: 'ui-monospace, Menlo, Consolas, monospace', fontSize: 12.5 }} />
             <label className="pb-flabel">NEGATIVE <small>(없으면 비워 두세요)</small></label>
-            <KTextarea value={edit.negative} onChange={e => setEdit({ ...edit, negative: e.target.value })} spellCheck={false}
+            <KTextarea value={edit.negative} onChange={e => setEdit({ ...edit, negative: fixEncoded(e.target.value) })} spellCheck={false}
               placeholder="lowres, bad anatomy, ..." style={{ minHeight: 56, fontFamily: 'ui-monospace, Menlo, Consolas, monospace', fontSize: 12.5 }} />
             <KInput value={edit.memo} onChange={e => setEdit({ ...edit, memo: e.target.value })} placeholder="메모 (선택)" maxLength={120} />
             <label className="pb-flabel">예시 그림 <small>(올릴 때 위치·기기·생성 정보 같은 메타데이터는 지워져요)</small></label>
