@@ -157,7 +157,7 @@ declare content_tables text[] := array[
   'rp_messages',  -- 역극 발화 (v2.0 — 같은 이유로 방 안이 아니라 자기 행으로)
   'notifications', -- 알림 (v2.0 — 기기 보관이던 것을 서버로: 받은 사람 계정으로 어느 기기에서나)
   'push_subs',    -- 웹푸시 기기 구독 (자놀 이식 — 회원마다 기기별 한 문서, 공개범위 member)
-  'my_prompts'    -- 프롬프트 백업 (마이페이지 — 회원마다 자기 것만, 늘 비공개)
+  'my_prompts'    -- 프롬프트 백업 (마이페이지 — 회원 모두 함께 보는 태그, 공개범위 member)
 ];
 begin
   foreach t in array content_tables loop

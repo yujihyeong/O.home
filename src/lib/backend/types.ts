@@ -138,7 +138,7 @@ export const COLLECTION_OF: Record<string, string> = {
   // 알림 — 기기 보관이던 것을 서버로 (v2.0 포크 제보 「알림이 안 와요」).
   // 행 주인(authorId)을 받는 사람으로 적어, 받는 사람 계정이 어느 기기에서나 받아 간다
   'ohome.notif.v1': 'notifications',
-  // 프롬프트 백업 (사용자 요청 — 마이페이지) — 회원마다 자기 것만, 늘 비공개(private)로 저장
+  // 프롬프트 백업 (사용자 요청 — 마이페이지) — 회원 모두가 함께 보는 태그 (공개범위 member)
   'ohome.myprompts.v1': 'my_prompts',
 };
 
