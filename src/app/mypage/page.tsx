@@ -198,6 +198,15 @@ export default function MyPage() {
           </div>
         </div>
 
+        {/* 사진 콜라주 (사용자 요청) — 따로 넓은 화면에서 */}
+        <div className="panel" style={{ padding: 24 }}>
+          <h4 style={{ fontSize: 11.5, letterSpacing: '.12em', color: 'var(--faint)', marginBottom: 10 }}>사진 콜라주</h4>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+            <p className="hint" style={{ margin: 0, flex: '1 1 260px' }}>좋아하는 사진 여러 장을 한 장으로 붙여 고화질로 저장해요</p>
+            <button className="btn btn-dark" onClick={() => router.push('/mypage/collage')}>콜라주 만들기</button>
+          </div>
+        </div>
+
         {/* 내가 쓴 글/댓글 — 일반 회원만 */}
         {!isAdmin && (
           <div className="panel" style={{ padding: 24 }}>

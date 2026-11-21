@@ -3681,3 +3681,40 @@ html[data-scene="night"] .lcs-widget{--lcs-a:#e0444f;--lcs-b:#9b1f3a;--lcs-c:#1f
 .ms-list li[data-s="removed"] small,.ms-list li[data-s="redrawn"] small{color:#4f9a63}
 .ms-list li[data-s="fail"] small{color:#c0504d}
 .ms-list li .btn{padding:5px 12px;font-size:11px;flex:none}
+
+/* 사진 콜라주 (사용자 요청 — 마이페이지) */
+.cl-page{max-width:1300px}
+.cl-grid{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:18px;align-items:start}
+.cl-stage{min-width:0;display:grid;justify-items:center;gap:8px;padding:16px;border:1px solid var(--line);border-radius:16px;background:var(--panel-solid,#fff)}
+.cl-stage canvas{display:block;max-width:100%;border-radius:4px;box-shadow:0 6px 24px rgba(0,0,0,.1);touch-action:none;cursor:var(--cur-pointer,pointer)}
+.cl-tip{margin:0;font-size:11.5px;color:var(--faint);text-align:center}
+.cl-tray{width:100%;display:grid;gap:6px;font-size:11.5px;color:var(--sub)}
+.cl-tray>div{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px}
+.cl-tray button{flex:none;width:56px;height:56px;border-radius:8px;overflow:hidden;border:1px solid var(--line);padding:0}
+.cl-tray img{width:100%;height:100%;object-fit:cover;display:block}
+.cl-side{display:grid;gap:12px;padding:16px;border:1px solid var(--line);border-radius:16px;background:var(--panel-solid,#fff);font-size:12.5px}
+.cl-add{width:100%}
+.cl-h{font-size:10.5px;letter-spacing:.16em;font-weight:700;color:var(--faint);margin-bottom:-4px}
+.cl-sel{display:grid;gap:10px;padding:12px;border-radius:12px;background:color-mix(in srgb,#d97f97 8%,transparent);border:1px solid color-mix(in srgb,#d97f97 35%,transparent)}
+.cl-btns{display:flex;flex-wrap:wrap;gap:6px}
+.cl-btns button{height:28px;padding:0 10px;border-radius:7px;border:1px solid var(--line);background:var(--panel-solid,#fff);font-size:11.5px;color:var(--ink)}
+.cl-btns button:disabled{opacity:.4}
+.cl-btns button.danger{color:#c0504d}
+.cl-layouts{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+.cl-layouts button{aspect-ratio:1;padding:5px;border-radius:8px;border:1px solid var(--line);background:var(--panel-solid,#fff);color:color-mix(in srgb,var(--ink) 35%,transparent)}
+.cl-layouts button svg{width:100%;height:100%;display:block}
+.cl-layouts button svg rect{fill:currentColor}
+.cl-layouts button.on{border-color:var(--accent);color:var(--accent);background:color-mix(in srgb,var(--accent) 6%,var(--panel-solid,#fff))}
+.cl-row{display:flex;align-items:center;gap:10px}
+.cl-row>span{width:44px;flex:none;color:var(--sub);font-weight:600}
+.cl-row .k-range{flex:1}
+.cl-bgs{display:flex;gap:8px}
+.cl-bgs button{width:26px;height:26px;border-radius:50%;border:1px solid var(--line);padding:0}
+.cl-bgs button.on{box-shadow:0 0 0 2px var(--panel-solid,#fff),0 0 0 4px var(--accent)}
+.cl-save{display:grid;gap:6px;padding-top:6px;border-top:1px solid var(--line)}
+.cl-save small{font-size:11px;color:var(--faint)}
+.cl-clear{justify-self:start;font-size:11.5px;color:var(--faint);text-decoration:underline}
+@media (max-width:860px){
+  .cl-grid{grid-template-columns:minmax(0,1fr)}
+  .cl-stage{padding:10px}
+}
