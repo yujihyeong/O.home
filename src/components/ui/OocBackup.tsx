@@ -1,10 +1,12 @@
 'use client';
 // OOC 백업 (사용자 요청 — 마이페이지, 프롬프트 백업과 같은 방식) — AI 채팅에서 쓰는 OOC를 모아 두고 회원끼리 함께 본다.
-//  · 분류는 자유롭게 적고, 위 탭(전체 + 적어 둔 분류)으로 골라 본다
+//  · 분류는 정해 둔 목록(기본: 일상 · AU · 귀여움 · 정신아픔이 · 19금)에서 고른다 — 관리자가 더하고 뺄 수 있다
+//    (사이트 설정 ohome.oocCats.v1). 목록에 없는 분류로 저장된 것은 「기타」 탭에 모인다
 //  · OOC 글은 옆 버튼 한 번으로 복사 · 「예시 보기」를 누르면 그 OOC로 돌렸을 때 나온 답(글·캡처 그림)이 펼쳐진다
 //  · 저장은 프롬프트 백업과 같은 표(my_prompts)에 kind 'ooc'로 — 설치 SQL을 다시 돌리지 않아도 된다.
 //    회원 공개(member) · 고치기·삭제는 올린 사람과 관리자만
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { getSetting, setSetting, onSettingChange } from '@/lib/settingStore';
 import { useAuth } from '@/lib/auth';
 import { useLocalList, newId } from '@/lib/postStore';
 import { putBlob, useBlobUrl } from '@/lib/blobStore';
@@ -29,6 +31,23 @@ export interface OocNote {
   date: string;
 }
 const ALL = '전체';
+const ETC = '기타';
+const CATS_KEY = 'ohome.oocCats.v1';
+const DEFAULT_CATS = ['일상', 'AU', '귀여움', '정신아픔이', '19금'];
+
+/** 분류 목록 — 사이트 설정에서 읽고, 다른 화면에서 바꾸면 따라간다 */
+function useOocCats(): [string[], (next: string[]) => void] {
+  const [cats, setCats] = useState<string[]>(DEFAULT_CATS);
+  useEffect(() => {
+    const read = () => {
+      const v = getSetting<unknown>(CATS_KEY, DEFAULT_CATS);
+      setCats(Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string' && !!x.trim()) : DEFAULT_CATS);
+    };
+    read();
+    return onSettingChange(k => { if (k === CATS_KEY) read(); });
+  }, []);
+  return [cats, (next: string[]) => { setCats(next); setSetting(CATS_KEY, next); }];
+}
 const EMPTY = { cat: '', title: '', ooc: '', example: '', img: null as string | null, memo: '' };
 
 /** 긴 글은 다섯 줄까지만 — 눌러서 펼친다 */
@@ -64,8 +83,13 @@ export function OocBackup() {
   const [all, setAll] = useLocalList<OocNote>(MYPROMPT_KEY, []);
   const notes = useMemo(() => all.filter(n => n.kind === 'ooc')
     .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0)), [all]);
-  const cats = useMemo(() => [...new Set(notes.map(n => n.cat || '기타'))], [notes]);
+  const [cats, setCats] = useOocCats();
+  const catOf = (n: OocNote) => (cats.includes(n.cat) ? n.cat : ETC);
+  const hasEtc = notes.some(n => !cats.includes(n.cat));
+  const tabs = [ALL, ...cats, ...(hasEtc ? [ETC] : [])];
   const [cat, setCat] = useState(ALL);
+  const [catEdit, setCatEdit] = useState<string[] | null>(null);
+  const [newCat, setNewCat] = useState('');
   const [q, setQ] = useState('');
   const [edit, setEdit] = useState<(typeof EMPTY & { id?: string }) | null>(null);
   const [upBusy, setUpBusy] = useState(false);
@@ -76,9 +100,9 @@ export function OocBackup() {
   const canEdit = (n: OocNote) => isAdmin || n.authorId === user?.id;
   const toggle = (id: string) => setOpenIds(s => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
 
-  const curCat = cat === ALL || cats.includes(cat) ? cat : ALL;
+  const curCat = tabs.includes(cat) ? cat : ALL;
   const query = q.trim().toLowerCase();
-  const shown = notes.filter(n => (curCat === ALL || (n.cat || '기타') === curCat)
+  const shown = notes.filter(n => (curCat === ALL || catOf(n) === curCat)
     && (!query || [n.title, n.cat, n.ooc, n.example, n.memo].join('\n').toLowerCase().includes(query)));
 
   const pickImg = async (f?: File) => {
@@ -92,6 +116,7 @@ export function OocBackup() {
   const save = () => {
     if (!edit || !user) return;
     if (!edit.ooc.trim()) { toast('OOC를 적어 주세요'); return; }
+    if (!edit.cat) { toast('분류를 골라 주세요'); return; }
     const prev = edit.id ? notes.find(n => n.id === edit.id) : undefined;
     const item: OocNote = {
       id: edit.id ?? newId(), kind: 'ooc', visibility: 'member',
@@ -109,16 +134,17 @@ export function OocBackup() {
     <div className="panel" style={{ padding: 24 }}>
       <div className="pb-head">
         <h4>OOC BACKUP</h4>
-        <button type="button" className="btn btn-dark pb-add" onClick={() => setEdit({ ...EMPTY, cat: curCat === ALL ? '' : curCat })}>＋ 새 OOC</button>
+        {isAdmin && <button type="button" className="pb-mini oc-catedit" onClick={() => { setCatEdit([...cats]); setNewCat(''); }}>분류 편집</button>}
+        <button type="button" className="btn btn-dark pb-add" onClick={() => setEdit({ ...EMPTY, cat: cats.includes(curCat) ? curCat : (cats[0] ?? '') })}>＋ 새 OOC</button>
+      </div>
+      <div className="pb-tabs oc-tabs" role="tablist">
+        {tabs.map(c => (
+          <button key={c} type="button" role="tab" aria-selected={curCat === c} className={curCat === c ? 'on' : ''} onClick={() => setCat(c)}>
+            {c}<i>{c === ALL ? notes.length : notes.filter(n => catOf(n) === c).length}</i>
+          </button>
+        ))}
       </div>
       {notes.length > 0 && (<>
-        <div className="pb-tabs oc-tabs" role="tablist">
-          {[ALL, ...cats].map(c => (
-            <button key={c} type="button" role="tab" aria-selected={curCat === c} className={curCat === c ? 'on' : ''} onClick={() => setCat(c)}>
-              {c}<i>{c === ALL ? notes.length : notes.filter(n => (n.cat || '기타') === c).length}</i>
-            </button>
-          ))}
-        </div>
         <input className="pb-search" value={q} onChange={e => setQ(e.target.value)} placeholder="제목·내용으로 찾기" aria-label="OOC 찾기" />
       </>)}
 
@@ -133,7 +159,7 @@ export function OocBackup() {
             <div key={n.id} className="pb-card">
               <div className="pb-top">
                 <b>{n.title}</b>
-                {n.cat && <span className="oc-cat">{n.cat}</span>}
+                {curCat === ALL && <span className="oc-cat">{catOf(n)}</span>}
                 {canEdit(n) && (<>
                   <button type="button" className="pb-mini" onClick={() => setEdit({ id: n.id, cat: n.cat, title: n.title, ooc: n.ooc, example: n.example, img: n.img, memo: n.memo })}>고치기</button>
                   <button type="button" className="pb-mini danger" onClick={() => setDel(n)}>삭제</button>
@@ -168,13 +194,13 @@ export function OocBackup() {
         </>}>
         {edit && (
           <div className="pb-form">
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <KInput value={edit.cat} onChange={e => setEdit({ ...edit, cat: e.target.value })} placeholder="분류 (예: 문체, 전개)" maxLength={20}
-                list="oc-cats" style={{ flex: '1 1 140px' }} aria-label="분류" />
-              <datalist id="oc-cats">{cats.filter(c => c !== '기타').map(c => <option key={c} value={c} />)}</datalist>
-              <KInput value={edit.title} onChange={e => setEdit({ ...edit, title: e.target.value })} placeholder="제목" maxLength={60}
-                style={{ flex: '2 1 200px' }} aria-label="제목" />
+            <div className="mini-seg oc-catpick" role="radiogroup" aria-label="분류">
+              {cats.map(c => (
+                <button key={c} type="button" role="radio" aria-checked={edit.cat === c} className={edit.cat === c ? 'on' : ''} onClick={() => setEdit({ ...edit, cat: c })}>{c}</button>
+              ))}
+              {!cats.includes(edit.cat) && <button type="button" className="on" disabled>{edit.cat ? `${edit.cat} (예전 분류)` : '분류 없음'}</button>}
             </div>
+            <KInput value={edit.title} onChange={e => setEdit({ ...edit, title: e.target.value })} placeholder="제목" maxLength={60} aria-label="제목" />
             <label className="pb-flabel">OOC</label>
             <KTextarea value={edit.ooc} onChange={e => setEdit({ ...edit, ooc: fixEncoded(e.target.value) })}
               placeholder="(OOC: 지금부터 대사는 짧게, 묘사는 감각 위주로 길게 써 줘.)" style={{ minHeight: 110 }} aria-label="OOC" />
@@ -191,6 +217,37 @@ export function OocBackup() {
               <input ref={picRef} type="file" accept="image/*" hidden onChange={e => { void pickImg(e.target.files?.[0]); e.target.value = ''; }} />
             </div>
             <KInput value={edit.memo} onChange={e => setEdit({ ...edit, memo: e.target.value })} placeholder="메모 (선택 — 어떤 모델에서 잘 됐는지 등)" maxLength={120} aria-label="메모" />
+          </div>
+        )}
+      </Modal>
+
+      {/* 분류 편집 — 관리자만 (사이트 설정) */}
+      <Modal open={!!catEdit} onClose={() => setCatEdit(null)} small title="OOC 분류 편집"
+        actions={<>
+          <button className="btn btn-ghost" onClick={() => setCatEdit(null)}>CANCEL</button>
+          <button className="btn btn-dark" onClick={() => {
+            if (!catEdit) return;
+            const next = [...new Set(catEdit.map(c => c.trim()).filter(Boolean))];
+            if (!next.length) { toast('분류를 하나 이상 남겨 주세요'); return; }
+            setCats(next); setCatEdit(null); toast('분류를 바꿨어요');
+          }}>SAVE</button>
+        </>}>
+        {catEdit && (
+          <div className="oc-catlist">
+            {catEdit.map((c, i) => (
+              <div key={i} className="oc-catrow">
+                <KInput value={c} maxLength={12} onChange={e => setCatEdit(catEdit.map((x, j) => (j === i ? e.target.value : x)))} aria-label={`분류 ${i + 1}`} />
+                <button type="button" disabled={i === 0} onClick={() => { const a = [...catEdit]; [a[i - 1], a[i]] = [a[i], a[i - 1]]; setCatEdit(a); }} aria-label="위로">↑</button>
+                <button type="button" disabled={i === catEdit.length - 1} onClick={() => { const a = [...catEdit]; [a[i + 1], a[i]] = [a[i], a[i + 1]]; setCatEdit(a); }} aria-label="아래로">↓</button>
+                <button type="button" className="danger" onClick={() => setCatEdit(catEdit.filter((_, j) => j !== i))} aria-label="빼기">✕</button>
+              </div>
+            ))}
+            <div className="oc-catrow">
+              <KInput value={newCat} maxLength={12} placeholder="새 분류 이름" onChange={e => setNewCat(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter' && newCat.trim()) { setCatEdit([...catEdit, newCat.trim()]); setNewCat(''); } }} aria-label="새 분류" />
+              <button type="button" className="add" disabled={!newCat.trim()} onClick={() => { setCatEdit([...catEdit, newCat.trim()]); setNewCat(''); }}>더하기</button>
+            </div>
+            <p className="hint" style={{ margin: 0 }}>분류를 빼거나 이름을 바꾸면 그 분류로 저장된 OOC는 「기타」 탭으로 가요 (지워지지 않아요)</p>
           </div>
         )}
       </Modal>
