@@ -122,7 +122,7 @@ function Thumb({ src, open, onToggle, onZoom }: { src: string; open: boolean; on
         aria-label={open ? '태그 접기' : '눌러서 태그 보기'}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         {url ? <img src={url} alt="" /> : <span />}
-        <span className="pb-img-hint">{open ? '접기 ▲' : '태그 ▼'}</span>
+        {open && <span className="pb-img-hint">접기 ▲</span>}
       </button>
       <button type="button" className="pb-zoom" onClick={onZoom} aria-label="예시 그림 크게 보기" data-tip="크게 보기">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden><path d="M15 4h5v5M9 20H4v-5M20 4l-6 6M4 20l6-6" /></svg>
