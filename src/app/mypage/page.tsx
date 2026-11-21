@@ -22,6 +22,7 @@ import { PushSettings } from '@/components/shell/PushSettings';
 import { FreeExcerpt } from '@/components/ui/FreeExcerpt';
 import { MetaStrip } from '@/components/ui/MetaStrip';
 import { PromptBackup } from '@/components/ui/PromptBackup';
+import { OocBackup } from '@/components/ui/OocBackup';
 
 export default function MyPage() {
   const router = useRouter();
@@ -189,6 +190,9 @@ export default function MyPage() {
 
         {/* 프롬프트 백업 (사용자 요청) — NovelAI 태그를 작태·구도·의상으로, 나만 보기 */}
         <PromptBackup />
+
+        {/* OOC 백업 (사용자 요청) — AI 채팅 OOC와 그 예시 결과, 회원 모두 함께 */}
+        <OocBackup />
 
         {/* 메타데이터 지우기 (사용자 요청) — 여러 장 한꺼번에, 브라우저 안에서만 */}
         <MetaStrip />
