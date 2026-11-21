@@ -3756,8 +3756,10 @@ html[data-scene="night"] .lcs-widget{--lcs-a:#e0444f;--lcs-b:#9b1f3a;--lcs-c:#1f
 .pb-card.thumb:not(.open) .pb-foot{font-size:10.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pb-card.thumb:not(.open) .pb-zoom{width:26px;height:26px;top:6px;right:6px}
 .pb-card.thumb:not(.open) .pb-img-hint{bottom:8px;padding:4px 10px;font-size:11px}
-.pb-card.thumb.open .pb-body{grid-template-columns:150px minmax(0,1fr);align-items:start}
-@media (max-width:560px){.pb-card.thumb.open .pb-body{grid-template-columns:minmax(0,1fr)}.pb-card.thumb.open .pb-img{width:130px}.pb-list{gap:8px}}
+/* 펼치면 그림 전체(자르지 않음)가 보이고 그 밑으로 태그 (사용자 요청) */
+.pb-card.thumb.open .pb-img{background:color-mix(in srgb,var(--ink) 4%,transparent)}
+.pb-card.thumb.open .pb-img-btn img{aspect-ratio:auto;width:auto;max-width:100%;height:auto;max-height:min(72vh,560px);margin:0 auto;object-fit:contain;filter:none}
+@media (max-width:560px){.pb-list{gap:8px}}
 .pb-img-hint{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);padding:5px 12px;border-radius:99px;font-size:11.5px;font-weight:600;
   color:#fff;background:rgba(20,22,26,.55);backdrop-filter:blur(6px);white-space:nowrap;pointer-events:none}
 .pb-zoom{position:absolute;top:8px;right:8px;width:30px;height:30px;border-radius:50%;display:grid;place-items:center;color:#fff;background:rgba(20,22,26,.45);backdrop-filter:blur(6px)}
