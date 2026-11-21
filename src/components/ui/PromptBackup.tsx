@@ -131,7 +131,7 @@ export function PromptBackup() {
   return (
     <div className="panel" style={{ padding: 24 }}>
       <div className="pb-head">
-        <h4>PROMPT BACKUP <small>회원 모두 함께 보는 태그</small></h4>
+        <h4>PROMPT BACKUP</h4>
         <button type="button" className="btn btn-dark pb-add" onClick={() => setEdit({ ...EMPTY, cat })}>＋ 새 프롬프트</button>
       </div>
       <div className="pb-tabs" role="tablist">
