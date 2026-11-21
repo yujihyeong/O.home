@@ -8,6 +8,13 @@
 //   · GIF : 주석(Comment) 확장·XMP 등 응용 확장 제거 — 반복 재생 정보(NETSCAPE2.0)는 남긴다(안 그러면 움짤이 멈춘다)
 // 색 정보(ICC)는 남긴다 — 개인정보가 아니고, 지우면 색이 달라 보인다.
 // 다른 형식이거나 읽다가 이상하면 원본을 그대로 돌려준다(올리기를 막지 않는다).
+//
+// (고침) 「아무것도 안 지워진다」는 신고 — 덩어리 잘라 내기만으로는 빠지는 게 있었다:
+//   · NovelAI 등은 생성 정보를 픽셀 자체(투명도·색의 맨 끝 비트)에 한 번 더 숨긴다(stealth).
+//     파일 덩어리를 아무리 잘라도 그림 속에 남으므로, PNG·WebP는 그 비트를 지우고 다시 저장한다.
+//   · 아이폰 사진은 JPEG 끝(EOI) 뒤에 작은 사진(MPF)을 하나 더 붙이고 거기에도 위치·기기 정보가 있다 → 끝에서 자른다.
+//   · 모르는 덩어리(C2PA·APP2~15·caBX 등)를 남겨 두던 것 → 꼭 필요한 것만 남기는 방식으로 바꿈.
+//   · 파일 형식을 이름표(type)가 아니라 파일 머리로 알아본다(이름표가 비어 있거나 틀린 파일도 지운다).
 
 const u16be = (b: Uint8Array, i: number) => (b[i] << 8) | b[i + 1];
 const u32be = (b: Uint8Array, i: number) => ((b[i] << 24) >>> 0) + (b[i + 1] << 16) + (b[i + 2] << 8) + b[i + 3];
@@ -63,14 +70,33 @@ function stripJpeg(b: Uint8Array): Uint8Array | null {
   while (i + 4 <= b.length) {
     if (b[i] !== 0xff) return null;
     const m = b[i + 1];
-    if (m === 0xda) { keep.push(b.slice(i)); break; }          // 화상 데이터 시작 — 나머지는 그대로
+    if (m === 0xff) { i += 1; continue; }                       // 채움 바이트
+    if (m === 0xda) {
+      // 화상 데이터 — 첫 EOI(FFD9)까지만. 그 뒤에 붙은 것(아이폰 MPF 둘째 사진·덧붙인 자료)은 버린다
+      let e = i + 2;
+      while (e + 1 < b.length && !(b[e] === 0xff && b[e + 1] === 0xd9)) e++;
+      keep.push(b.slice(i, Math.min(e + 2, b.length)));
+      break;
+    }
     if (m === 0xd8 || (m >= 0xd0 && m <= 0xd7) || m === 0x01) { keep.push(b.slice(i, i + 2)); i += 2; continue; }
     const len = u16be(b, i + 2);
-    const seg = b.slice(i, i + 2 + len);
-    const isApp1 = m === 0xe1;
-    if (isApp1) orientation = Math.max(orientation, exifOrientation(b.slice(i + 4, i + 2 + len)));
-    // 버린다: APP1(EXIF·XMP) · APP13(IPTC) · COM — 나머지(JFIF·ICC·Adobe·양자화표 등)는 그대로
-    if (!(isApp1 || m === 0xed || m === 0xfe)) keep.push(seg);
+    const body = b.slice(i + 4, i + 2 + len);
+    const tag = String.fromCharCode(...body.slice(0, 12));
+    if (m === 0xe1) orientation = Math.max(orientation, exifOrientation(body));
+    // 남기는 것: 양자화표·허프만표·프레임 정보 같은 그림 자체(APPn·COM이 아닌 것),
+    // JFIF(APP0, 미리보기 그림 없는 것만), 색 정보(APP2 ICC_PROFILE), Adobe 색 변환(APP14). 나머지 APPn·COM은 모두 버린다
+    const isApp = m >= 0xe0 && m <= 0xef;
+    const ok = !isApp && m !== 0xfe
+      || (m === 0xe0 && tag.startsWith('JFIF\0'))
+      || (m === 0xe2 && tag.startsWith('ICC_PROFILE'))
+      || (m === 0xee && tag.startsWith('Adobe'));
+    if (ok) {
+      if (m === 0xe0 && len >= 16) {
+        // JFIF 안의 작은 미리보기 그림은 지운다 (가로·세로 0)
+        const j = new Uint8Array([0xff, 0xe0, 0x00, 0x10, ...b.slice(i + 4, i + 4 + 12), 0x00, 0x00]);
+        keep.push(j);
+      } else keep.push(b.slice(i, i + 2 + len));
+    }
     i += 2 + len;
   }
   if (orientation !== 1) keep.splice(1, 0, orientationApp1(orientation));
@@ -80,7 +106,8 @@ function stripJpeg(b: Uint8Array): Uint8Array | null {
 function stripPng(b: Uint8Array): Uint8Array | null {
   const sig = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
   if (!sig.every((v, k) => b[k] === v)) return null;
-  const drop = new Set(['tEXt', 'zTXt', 'iTXt', 'eXIf', 'tIME']);
+  // 그림에 꼭 필요한 덩어리만 남긴다 — 글(tEXt·zTXt·iTXt)·eXIf·tIME·C2PA(caBX) 등 나머지는 모두 버린다
+  const allow = new Set(['IHDR', 'PLTE', 'IDAT', 'IEND', 'tRNS', 'cHRM', 'gAMA', 'iCCP', 'sBIT', 'sRGB', 'pHYs', 'cICP', 'acTL', 'fcTL', 'fdAT']);
   const keep: Uint8Array[] = [b.slice(0, 8)];
   let i = 8;
   while (i + 12 <= b.length) {
@@ -88,7 +115,7 @@ function stripPng(b: Uint8Array): Uint8Array | null {
     const type = String.fromCharCode(b[i + 4], b[i + 5], b[i + 6], b[i + 7]);
     const end = i + 12 + len;
     if (end > b.length) return null;
-    if (!drop.has(type)) keep.push(b.slice(i, end));
+    if (allow.has(type)) keep.push(b.slice(i, end));
     i = end;
     if (type === 'IEND') break;
   }
@@ -104,7 +131,7 @@ function stripWebp(b: Uint8Array): Uint8Array | null {
     const len = u32le(b, i + 4);
     const end = i + 8 + len + (len & 1);
     if (end > b.length + 1) return null;
-    if (type !== 'EXIF' && type !== 'XMP ') {
+    if (['VP8 ', 'VP8L', 'VP8X', 'ALPH', 'ANIM', 'ANMF', 'ICCP'].includes(type)) {
       const chunk = b.slice(i, Math.min(end, b.length));
       if (type === 'VP8X' && chunk.length > 8) chunk[8] &= ~(0x08 | 0x04);   // EXIF·XMP 있음 표시 끄기
       keep.push(chunk);
@@ -155,34 +182,105 @@ function stripGif(b: Uint8Array): Uint8Array | null {
   return null;
 }
 
+/** 파일 머리로 형식 알아보기 */
+function sniff(b: Uint8Array): 'jpeg' | 'png' | 'webp' | 'gif' | null {
+  if (b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return 'jpeg';
+  if (b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47) return 'png';
+  if (b.length > 12 && String.fromCharCode(...b.slice(0, 4)) === 'RIFF' && String.fromCharCode(...b.slice(8, 12)) === 'WEBP') return 'webp';
+  if (String.fromCharCode(...b.slice(0, 4)) === 'GIF8') return 'gif';
+  return null;
+}
+
+/** 움직이는 PNG(APNG)·WebP — 다시 그리면 첫 장만 남으므로 픽셀 지우기는 건너뛴다 */
+function animated(b: Uint8Array, kind: string): boolean {
+  const s = String.fromCharCode(...b.slice(0, Math.min(b.length, 4096)));
+  return kind === 'png' ? s.includes('acTL') : kind === 'webp' ? s.includes('ANIM') : false;
+}
+
+/** 픽셀 맨 끝 비트를 세로줄 순서(위→아래, 왼→오)로 읽어 글자로 — NovelAI 숨은 정보 머리 찾기 */
+function lsbText(d: Uint8ClampedArray, w: number, h: number, chans: number[], nBytes: number): string {
+  const bits: number[] = [];
+  const need = nBytes * 8;
+  for (let x = 0; x < w && bits.length < need; x++) {
+    for (let y = 0; y < h && bits.length < need; y++) {
+      const p = (y * w + x) * 4;
+      for (const c of chans) { if (bits.length < need) bits.push(d[p + c] & 1); }
+    }
+  }
+  let out = '';
+  for (let k = 0; k + 8 <= bits.length; k += 8) out += String.fromCharCode(bits.slice(k, k + 8).reduce((a, v) => (a << 1) | v, 0));
+  return out;
+}
+
+/** 그림 속(픽셀)에 숨긴 정보 지우기 — 브라우저에서만. 지울 게 없으면 null */
+async function scrubPixels(blob: Blob, kind: 'png' | 'webp'): Promise<Blob | null> {
+  if (typeof document === 'undefined' || typeof createImageBitmap === 'undefined') return null;
+  let bmp: ImageBitmap;
+  try { bmp = await createImageBitmap(blob, { premultiplyAlpha: 'none', colorSpaceConversion: 'none' }); }
+  catch { return null; }
+  const w = bmp.width, h = bmp.height;
+  if (!w || !h || w * h > 40_000_000) { bmp.close(); return null; }
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  const ctx = c.getContext('2d', { willReadFrequently: true });
+  if (!ctx) { bmp.close(); return null; }
+  ctx.drawImage(bmp, 0, 0);
+  bmp.close();
+  const img = ctx.getImageData(0, 0, w, h);
+  const d = img.data;
+  let alphaUsed = false;
+  for (let i = 3; i < d.length; i += 4) if (d[i] !== 255) { alphaUsed = true; break; }
+  const rgbStealth = lsbText(d, w, h, [0, 1, 2], 15).startsWith('stealth_');
+  if (!alphaUsed && !rgbStealth) return null;
+  for (let i = 0; i < d.length; i += 4) {
+    if (rgbStealth) { d[i] &= 0xfe; d[i + 1] &= 0xfe; d[i + 2] &= 0xfe; }
+    const a = d[i + 3];
+    // 거의 불투명(250~254) → 완전 불투명. 반투명은 맨 끝 비트를 1로 맞춰 숨긴 글자를 없앤다(눈으로는 차이 없음)
+    if (alphaUsed) d[i + 3] = a >= 250 ? 255 : a === 0 ? 0 : a | 1;
+  }
+  ctx.putImageData(img, 0, 0);
+  const type = kind === 'webp' ? 'image/webp' : 'image/png';
+  const out = await new Promise<Blob | null>(r => c.toBlob(r, type, 1));
+  return out && out.type === type ? out : null;
+}
+
 /** 메타데이터를 지운 이미지 — 이미지가 아니거나 모르는 형식이면 그대로 */
 export async function stripImageMeta<T extends Blob>(blob: T): Promise<T | Blob> {
   return (await stripImageMetaInfo(blob)).blob;
 }
 
-/* 자르기 창(ImageCropper)을 거친 사진은 그림을 다시 그려 저장하므로 메타데이터가 이미 사라진 채로 온다.
-   그래도 「지웠어요」 알림을 띄울 수 있게, 원본에 메타데이터가 있었던 결과물을 표시해 둔다 */
+/* 자르기 창(ImageCropper)을 거친 사진은 그림을 다시 그려 저장하므로 덩어리 정보는 이미 사라진 채로 온다.
+   그래도 「지웠어요」 알림을 띄울 수 있게, 원본에 메타데이터가 있었던 결과물을 표시해 둔다
+   (픽셀 속 정보는 다시 그려도 남을 수 있어 표시가 있어도 끝까지 지운다) */
 const hadMeta = new WeakSet<Blob>();
 export function markHadMeta(b: Blob) { hadMeta.add(b); }
 
 /** 지우고, 실제로 지운 게 있었는지도 알려 준다 — 글쓰기에서 「메타데이터를 지웠어요」 알림용 (사용자 요청) */
 export async function stripImageMetaInfo<T extends Blob>(blob: T): Promise<{ blob: T | Blob; removed: boolean }> {
-  if (hadMeta.has(blob)) return { blob, removed: true };
-  if (!/^image\/(jpeg|jpg|png|webp|gif)$/i.test(blob.type)) return { blob, removed: false };
+  const marked = hadMeta.has(blob);
+  if (blob.type && !blob.type.startsWith('image/') && blob.type !== 'application/octet-stream') return { blob, removed: marked };
   try {
     const b = new Uint8Array(await blob.arrayBuffer());
-    const t = blob.type.toLowerCase();
-    const out = t.includes('png') ? stripPng(b) : t.includes('webp') ? stripWebp(b) : t.includes('gif') ? stripGif(b) : stripJpeg(b);
-    if (!out || out.length === b.length) return { blob, removed: false };
-    const clean = new Blob([out as BlobPart], { type: blob.type });
+    const kind = sniff(b);
+    if (!kind) return { blob, removed: marked };
+    const type = `image/${kind}`;
+    const out = kind === 'png' ? stripPng(b) : kind === 'webp' ? stripWebp(b) : kind === 'gif' ? stripGif(b) : stripJpeg(b);
+    let clean: Blob = blob;
+    let removed = marked || (!!out && out.length !== b.length);
+    if (out && (out.length !== b.length || blob.type !== type)) clean = new Blob([out as BlobPart], { type });
+    if ((kind === 'png' || kind === 'webp') && !animated(b, kind)) {
+      const px = await scrubPixels(clean, kind);
+      if (px) { clean = px; removed = true; }
+    }
+    if (clean === blob) return { blob, removed };
     // 파일이면 이름을 지킨다 (원본 파일명 표시 등)
     return {
       blob: typeof File !== 'undefined' && blob instanceof File
-        ? new File([clean], blob.name, { type: blob.type, lastModified: 0 })
+        ? new File([clean], blob.name, { type: clean.type || type, lastModified: 0 })
         : clean,
-      removed: true,
+      removed,
     };
   } catch {
-    return { blob, removed: false };
+    return { blob, removed: marked };
   }
 }
