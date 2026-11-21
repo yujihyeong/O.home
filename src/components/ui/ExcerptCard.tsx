@@ -1200,6 +1200,56 @@ export function ExcerptCard({ paras: plain, source, fileName, title = '' }: { pa
     }
   };
 
+  /* HTML로 복사 (사용자 요청 — 티스토리 등에 붙여 넣어 백업) — 발췌 이미지를 그대로 <img>에 담은 HTML 코드.
+     이미지는 글 안에 들어 있어(data URL) 따로 올릴 필요가 없고, 그림 속 글은 alt에도 넣어 검색·접근성용으로 남긴다.
+     복사가 막히면 아래 칸에 코드를 띄워 직접 복사하게 한다 */
+  const [htmlBusy, setHtmlBusy] = useState(false);
+  const [htmlCode, setHtmlCode] = useState('');
+  const buildHtml = async () => {
+    const esc = (t: string) => t.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const imgs: string[] = [];
+    for (let k = 0; k < pages.length; k++) {
+      const c = document.createElement('canvas');
+      await draw(c, pages[k].paras, source, styleOf(k), family, 1, pages[k].talk, title);
+      // 블로그에 넣기 좋게 1배(가로 1080px) JPEG — 2배 PNG는 코드가 너무 길어진다
+      const flat = document.createElement('canvas');
+      flat.width = c.width; flat.height = c.height;
+      const fx = flat.getContext('2d')!;
+      fx.fillStyle = '#ffffff'; fx.fillRect(0, 0, flat.width, flat.height);
+      fx.drawImage(c, 0, 0);
+      const url = flat.toDataURL('image/jpeg', 0.9);
+      const alt = esc([...pages[k].paras.map(p => p.map(r => r.t).join('')), source].filter(Boolean).join(' / ').replace(/\s+/g, ' ').trim());
+      imgs.push(`<p style="margin:0 0 12px;text-align:center"><img src="${url}" alt="${alt}" width="${c.width}" height="${c.height}" style="display:block;width:100%;max-width:720px;height:auto;margin:0 auto" /></p>`);
+    }
+    return `<!-- ${esc(fileName).replace(/-{2,}/g, "—")} -->\n<div class="ohome-excerpt" style="margin:24px auto;max-width:720px">\n${imgs.join('\n')}\n</div>`;
+  };
+  const copyHtml = async () => {
+    setHtmlBusy(true); setHtmlCode('');
+    const job = buildHtml();
+    let done = false;
+    try {
+      // 1) 코드(글)와 HTML 둘 다 — HTML 편집 칸엔 코드가, 일반 편집기엔 그림이 붙는다.
+      //    약속(promise)을 그대로 넘겨야 그리는 동안에도 사파리가 '누른 순간'으로 인정한다
+      const CI = (window as unknown as { ClipboardItem?: typeof ClipboardItem }).ClipboardItem;
+      if (CI && navigator.clipboard?.write) {
+        await navigator.clipboard.write([new CI({
+          'text/plain': job.then(h => new Blob([h], { type: 'text/plain' })),
+          'text/html': job.then(h => new Blob([h], { type: 'text/html' })),
+        })]);
+        done = true;
+      }
+    } catch { /* 아래로 */ }
+    let code = '';
+    try { code = await job; } catch (e) {
+      toast(`만들지 못했습니다 — ${e instanceof Error ? e.message : String(e)}`);
+      setHtmlBusy(false); return;
+    }
+    if (!done) { try { await navigator.clipboard.writeText(code); done = true; } catch { /* 아래로 */ } }
+    if (done) toast(pages.length > 1 ? `이미지 ${pages.length}장을 HTML로 복사했어요 — 블로그 HTML 칸에 붙여 넣으세요` : 'HTML로 복사했어요 — 블로그 HTML 칸에 붙여 넣으세요');
+    else { setHtmlCode(code); toast('자동 복사가 막혀 있어요 — 아래 칸의 코드를 직접 복사해 주세요'); }
+    setHtmlBusy(false);
+  };
+
   const save = async () => {
     setBusy(true);
     try {
@@ -1638,7 +1688,20 @@ export function ExcerptCard({ paras: plain, source, fileName, title = '' }: { pa
         <button className="btn btn-dark" disabled={busy} onClick={() => { void save(); }}>
           {busy ? '만드는 중…' : pages.length > 1 ? `🖼 이미지 ${pages.length}장 저장` : '🖼 이미지로 저장'}
         </button>
+        <button className="btn btn-ghost" disabled={htmlBusy} onClick={() => { void copyHtml(); }}
+          data-tip="발췌 이미지를 담은 HTML 코드 — 티스토리 등 블로그의 HTML 칸에 붙여 넣어 백업">
+          {htmlBusy ? '만드는 중…' : '</> HTML로 복사'}
+        </button>
       </div>
+      {htmlCode && (
+        <div className="exc-htmlcode">
+          <div className="exc-htmlcode-h">
+            <span>아래 코드를 모두 선택해 복사해 주세요 ({Math.round(htmlCode.length / 1024)}KB)</span>
+            <button type="button" className="ghost" onClick={() => setHtmlCode('')}>닫기</button>
+          </div>
+          <textarea readOnly value={htmlCode} onFocus={e => e.currentTarget.select()} aria-label="HTML 코드" />
+        </div>
+      )}
     </div>
   );
 }
