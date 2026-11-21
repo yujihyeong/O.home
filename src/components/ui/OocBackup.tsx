@@ -2,7 +2,7 @@
 // OOC 백업 (사용자 요청 — 마이페이지, 프롬프트 백업과 같은 방식) — AI 채팅에서 쓰는 OOC를 모아 두고 회원끼리 함께 본다.
 //  · 분류는 정해 둔 목록(기본: 일상 · AU · 귀여움 · 정신아픔이 · 19금)에서 고른다 — 관리자가 더하고 뺄 수 있다
 //    (사이트 설정 ohome.oocCats.v1). 목록에 없는 분류로 저장된 것은 「기타」 탭에 모인다
-//  · OOC 글은 옆 버튼 한 번으로 복사 · 「예시 보기」를 누르면 그 OOC로 돌렸을 때 나온 답(글·캡처 그림)이 펼쳐진다
+//  · OOC 글은 옆 버튼 한 번으로 복사 · 「예시」를 누르면 그 OOC로 돌렸을 때 나온 답(글·캡처 그림)이 펼쳐진다
 //  · 저장은 프롬프트 백업과 같은 표(my_prompts)에 kind 'ooc'로 — 설치 SQL을 다시 돌리지 않아도 된다.
 //    회원 공개(member) · 고치기·삭제는 올린 사람과 관리자만
 import React, { useEffect, useMemo, useRef, useState } from 'react';
@@ -175,14 +175,15 @@ export function OocBackup() {
               </div>
               {hasEx && (
                 <button type="button" className={`oc-extog ${open ? 'on' : ''}`} onClick={() => toggle(n.id)} aria-expanded={open}>
-                  {open ? '예시 접기 ▲' : '이 OOC로 돌린 예시 보기 ▼'}
+                  {open ? '예시 ▲' : '예시 ▼'}
                 </button>
               )}
               {hasEx && open && (
                 <div className="oc-ex">
                   <div className="oc-ex-lbl">예시 결과</div>
                   {n.img && <ExImg src={n.img} onZoom={() => setView(n.img)} />}
-                  {n.example && <LongText text={n.example} className="oc-bubble" />}
+                  {/* 예시는 누르면 한 번에 전부 (사용자 요청 — 두 번 누르게 하지 않는다) */}
+                  {n.example && <div className="oc-bubble">{n.example}</div>}
                 </div>
               )}
               <div className="pb-foot">{n.authorName ? `${n.authorName} · ` : ''}{fmt(n.date)}{n.memo ? ` · 메모: ${n.memo}` : ''}</div>

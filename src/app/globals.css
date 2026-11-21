@@ -3744,7 +3744,20 @@ html[data-scene="night"] .lcs-widget{--lcs-a:#e0444f;--lcs-b:#9b1f3a;--lcs-c:#1f
 .pb-img-btn{display:block;width:100%;padding:0;border:0;position:relative}
 .pb-img-btn img{width:100%;height:130px;object-fit:cover;display:block;transition:transform .3s,filter .3s}
 .pb-img-btn:hover img{transform:scale(1.02)}
-.pb-img.open .pb-img-btn img{height:90px;filter:brightness(.92)}
+.pb-img.open .pb-img-btn img{filter:brightness(.92)}
+/* 그림 카드 — 세로 미리보기로 한 줄에 셋, 펼치면 한 줄 전체(왼쪽 그림 · 오른쪽 태그) (사용자 요청) */
+.pb-list{grid-template-columns:repeat(3,minmax(0,1fr));grid-auto-flow:row dense}
+.pb-list>*{grid-column:1/-1}
+.pb-list>.pb-card.thumb:not(.open){grid-column:auto;padding:8px}
+.pb-card.thumb .pb-img-btn img{height:auto;aspect-ratio:3/4}
+.pb-card.thumb:not(.open) .pb-top{margin-bottom:6px}
+.pb-card.thumb:not(.open) .pb-top b{font-size:12.5px}
+.pb-card.thumb:not(.open) .pb-mini{display:none}
+.pb-card.thumb:not(.open) .pb-foot{font-size:10.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pb-card.thumb:not(.open) .pb-zoom{width:26px;height:26px;top:6px;right:6px}
+.pb-card.thumb:not(.open) .pb-img-hint{bottom:8px;padding:4px 10px;font-size:11px}
+.pb-card.thumb.open .pb-body{grid-template-columns:150px minmax(0,1fr);align-items:start}
+@media (max-width:560px){.pb-card.thumb.open .pb-body{grid-template-columns:minmax(0,1fr)}.pb-card.thumb.open .pb-img{width:130px}.pb-list{gap:8px}}
 .pb-img-hint{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);padding:5px 12px;border-radius:99px;font-size:11.5px;font-weight:600;
   color:#fff;background:rgba(20,22,26,.55);backdrop-filter:blur(6px);white-space:nowrap;pointer-events:none}
 .pb-zoom{position:absolute;top:8px;right:8px;width:30px;height:30px;border-radius:50%;display:grid;place-items:center;color:#fff;background:rgba(20,22,26,.45);backdrop-filter:blur(6px)}
