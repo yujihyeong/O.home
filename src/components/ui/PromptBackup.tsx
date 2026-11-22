@@ -16,8 +16,15 @@ import { useToast } from '@/components/ui/Toast';
 const PAGE = 3;   // 처음에 보여 줄 카드 수
 
 export const MYPROMPT_KEY = 'ohome.myprompts.v1';
-export type PromptCat = 'pose' | 'comp' | 'outfit' | 'char';
-const CATS: [PromptCat, string][] = [['pose', '작태'], ['comp', '구도'], ['outfit', '의상'], ['char', '캐릭터']];   // 캐릭터 (사용자 요청)
+export type PromptCat = 'pose' | 'comp' | 'outfit' | 'sina' | 'young';
+// 캐릭터 대신 시나네 · 영이네 (사용자 요청) — 둘은 남 | 여로 한 번 더 나눈다
+const CATS: [PromptCat, string][] = [['pose', '작태'], ['comp', '구도'], ['outfit', '의상'], ['sina', '시나네'], ['young', '영이네']];
+export type PromptSub = 'm' | 'f';
+const SUBS: [PromptSub, string][] = [['m', '남'], ['f', '여']];
+const hasSub = (c: PromptCat) => c === 'sina' || c === 'young';
+/** 예전 「캐릭터」(char)로 저장한 것은 시나네로 보여 준다 */
+const catOf = (p: { cat: string }): PromptCat => (p.cat === 'char' ? 'sina' : (p.cat as PromptCat));
+const subOf = (p: { sub?: PromptSub }): PromptSub => p.sub ?? 'm';
 
 export interface MyPrompt {
   id: string;
@@ -25,6 +32,7 @@ export interface MyPrompt {
   visibility: 'member' | 'private';   // 예전(나만 보기) 저장분은 private — 올린 사람이 열면 member로 바꾼다
   authorName?: string;    // 올린 사람 닉네임 (올릴 때 그대로)
   cat: PromptCat;
+  sub?: PromptSub;        // 시나네·영이네의 남 | 여
   title: string;
   prompt: string;
   negative: string;
@@ -132,7 +140,7 @@ function Thumb({ src, open, onToggle, onZoom }: { src: string; open: boolean; on
 }
 
 export const fmt = (iso: string) => { const d = new Date(iso); return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`; };
-const EMPTY = { cat: 'pose' as PromptCat, title: '', prompt: '', negative: '', memo: '', img: null as string | null };
+const EMPTY = { cat: 'pose' as PromptCat, sub: 'm' as PromptSub, title: '', prompt: '', negative: '', memo: '', img: null as string | null };
 
 export function PromptBackup() {
   const { user, isAdmin } = useAuth();
@@ -153,9 +161,10 @@ export function PromptBackup() {
     }
   }, [loaded, all, user, setAll]);
   const [cat, setCat] = useState<PromptCat>('pose');
+  const [sub, setSub] = useState<PromptSub>('m');
   const [q, setQ] = useState('');
   const [limit, setLimit] = useState(PAGE);
-  useEffect(() => { setLimit(PAGE); }, [cat, q]);   // 탭·찾기를 바꾸면 처음 몇 개만 다시
+  useEffect(() => { setLimit(PAGE); }, [cat, sub, q]);   // 탭·찾기를 바꾸면 처음 몇 개만 다시
   const [edit, setEdit] = useState<(typeof EMPTY & { id?: string }) | null>(null);
   const [upBusy, setUpBusy] = useState(false);
   const [view, setView] = useState<string | null>(null);
@@ -164,8 +173,9 @@ export function PromptBackup() {
   const [del, setDel] = useState<MyPrompt | null>(null);
   const picRef = useRef<HTMLInputElement>(null);
 
-  const count = (c: PromptCat) => mine.filter(p => p.cat === c).length;
-  const shown = mine.filter(p => p.cat === cat && (!q.trim()
+  const count = (c: PromptCat) => mine.filter(p => catOf(p) === c).length;
+  const subCount = (x: PromptSub) => mine.filter(p => catOf(p) === cat && subOf(p) === x).length;
+  const shown = mine.filter(p => catOf(p) === cat && (!hasSub(cat) || subOf(p) === sub) && (!q.trim()
     || [p.title, fixEncoded(p.prompt), fixEncoded(p.negative), p.memo].join('\n').toLowerCase().includes(q.trim().toLowerCase())));
 
   const pickImg = async (f?: File) => {
@@ -188,11 +198,12 @@ export function PromptBackup() {
     const item: MyPrompt = {
       // 관리자가 남의 것을 고쳐도 올린 사람은 그대로
       id: edit.id ?? newId(), authorId: prev?.authorId ?? user.id, authorName: prev?.authorName ?? user.nickname, visibility: 'member',
-      cat: edit.cat, title: edit.title.trim() || '제목 없음', prompt: edit.prompt.trim(), negative: edit.negative.trim(),
+      cat: edit.cat, ...(hasSub(edit.cat) ? { sub: edit.sub } : {}), title: edit.title.trim() || '제목 없음', prompt: edit.prompt.trim(), negative: edit.negative.trim(),
       memo: edit.memo.trim(), img: edit.img, date: now,
     };
     setAll(edit.id ? all.map(p => (p.id === edit.id ? item : p)) : [item, ...all]);
     setCat(item.cat);
+    if (item.sub) setSub(item.sub);
     setEdit(null);
     toast(edit.id ? '고쳤어요' : '저장했어요');
   };
@@ -201,22 +212,31 @@ export function PromptBackup() {
     <div className="panel" style={{ padding: 24 }}>
       <div className="pb-head">
         <h4>PROMPT BACKUP</h4>
-        <button type="button" className="btn btn-dark pb-add" onClick={() => setEdit({ ...EMPTY, cat })}>＋ 새 프롬프트</button>
+        <button type="button" className="btn btn-dark pb-add" onClick={() => setEdit({ ...EMPTY, cat, sub })}>＋ 새 프롬프트</button>
       </div>
-      <div className="pb-tabs" role="tablist">
+      <div className="pb-tabs tight" role="tablist">
         {CATS.map(([k, l]) => (
           <button key={k} type="button" role="tab" aria-selected={cat === k} className={cat === k ? 'on' : ''} onClick={() => setCat(k)}>
             {l}<i>{count(k)}</i>
           </button>
         ))}
       </div>
+      {hasSub(cat) && (
+        <div className="pb-subtabs" role="tablist" aria-label="남 · 여">
+          {SUBS.map(([k, l]) => (
+            <button key={k} type="button" role="tab" aria-selected={sub === k} className={sub === k ? 'on' : ''} onClick={() => setSub(k)}>
+              {l}<i>{subCount(k)}</i>
+            </button>
+          ))}
+        </div>
+      )}
       {mine.length > 0 && (
         <input className="pb-search" value={q} onChange={e => setQ(e.target.value)} placeholder="제목·태그로 찾기" aria-label="프롬프트 찾기" />
       )}
 
       <div className="pb-list">
         {shown.length === 0 && (
-          <p className="hint pb-empty">{q ? '찾는 프롬프트가 없어요' : `아직 ${CATS.find(c => c[0] === cat)![1]} 프롬프트가 없어요 — ＋ 새 프롬프트로 백업해 보세요`}</p>
+          <p className="hint pb-empty">{q ? '찾는 프롬프트가 없어요' : `아직 ${CATS.find(c => c[0] === cat)![1]}${hasSub(cat) ? ` ${SUBS.find(x => x[0] === sub)![1]}` : ''} 프롬프트가 없어요 — ＋ 새 프롬프트로 백업해 보세요`}</p>
         )}
         {shown.slice(0, limit).map(p => (
           // 그림 있는 카드는 세로 미리보기로 한 줄에 셋 (사용자 요청) — 눌러 펼치면 한 줄을 다 쓴다
@@ -224,7 +244,7 @@ export function PromptBackup() {
             <div className="pb-top">
               <b>{p.title}</b>
               {canEdit(p) && (<>
-                <button type="button" className="pb-mini" onClick={() => setEdit({ id: p.id, cat: p.cat, title: p.title, prompt: fixEncoded(p.prompt), negative: fixEncoded(p.negative), memo: p.memo, img: p.img })}>고치기</button>
+                <button type="button" className="pb-mini" onClick={() => setEdit({ id: p.id, cat: catOf(p), sub: subOf(p), title: p.title, prompt: fixEncoded(p.prompt), negative: fixEncoded(p.negative), memo: p.memo, img: p.img })}>고치기</button>
                 <button type="button" className="pb-mini danger" onClick={() => setDel(p)}>삭제</button>
               </>)}
             </div>
@@ -262,6 +282,11 @@ export function PromptBackup() {
             <div className="mini-seg">
               {CATS.map(([k, l]) => <button key={k} type="button" className={edit.cat === k ? 'on' : ''} onClick={() => setEdit({ ...edit, cat: k })}>{l}</button>)}
             </div>
+            {hasSub(edit.cat) && (
+              <div className="mini-seg">
+                {SUBS.map(([k, l]) => <button key={k} type="button" className={edit.sub === k ? 'on' : ''} onClick={() => setEdit({ ...edit, sub: k })}>{l}</button>)}
+              </div>
+            )}
             <KInput value={edit.title} onChange={e => setEdit({ ...edit, title: e.target.value })} placeholder="제목 (예: 앉아서 턱 괴기)" maxLength={60} />
             <label className="pb-flabel">PROMPT</label>
             <KTextarea value={edit.prompt} onChange={e => setEdit({ ...edit, prompt: fixEncoded(e.target.value) })} spellCheck={false}

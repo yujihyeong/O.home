@@ -3728,6 +3728,16 @@ html[data-scene="night"] .lcs-widget{--lcs-a:#e0444f;--lcs-b:#9b1f3a;--lcs-c:#1f
 .pb-tabs button{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 14px;border-radius:99px;font-size:12.5px;font-weight:600;color:var(--sub);background:color-mix(in srgb,var(--ink) 6%,transparent);transition:background .15s,color .15s}
 .pb-tabs button i{font-style:normal;font-size:11px;opacity:.65}
 .pb-tabs button.on{background:var(--btn-dark,var(--ink));color:var(--btn-dark-fg,#fff)}
+/* 프롬프트 백업 분류 — 다섯 칸이 휴대폰에서도 한 줄에 (사용자 요청) */
+.pb-tabs.tight{gap:4px}
+.pb-tabs.tight button{flex:1 1 0;min-width:0;justify-content:center;gap:4px;height:30px;padding:0 4px;font-size:12px;white-space:nowrap}
+.pb-tabs.tight button i{font-size:10px}
+@media (max-width:420px){.pb-tabs.tight{gap:3px}.pb-tabs.tight button{font-size:11.5px;gap:3px;padding:0 2px}.pb-tabs.tight button i{font-size:9.5px}}
+@media (max-width:350px){.pb-tabs.tight button i{display:none}.pb-head .pb-add{white-space:nowrap}}
+.pb-subtabs{display:flex;gap:4px;margin:-2px 0 10px}
+.pb-subtabs button{display:inline-flex;align-items:center;gap:5px;height:26px;padding:0 14px;border-radius:99px;font-size:12px;font-weight:600;color:var(--sub);border:1px solid var(--line);transition:background .15s,color .15s,border-color .15s}
+.pb-subtabs button i{font-style:normal;font-size:10px;opacity:.65}
+.pb-subtabs button.on{color:var(--ink);border-color:var(--ink);background:color-mix(in srgb,var(--ink) 5%,transparent)}
 .pb-search{width:100%;height:34px;border:1px solid var(--line);border-radius:9px;padding:0 12px;font:inherit;font-size:12.5px;background:var(--panel-solid,#fff);color:var(--ink);margin-bottom:10px;outline:none}
 .pb-search:focus{border-color:var(--accent)}
 .pb-list{display:grid;gap:10px}
