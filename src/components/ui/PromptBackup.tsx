@@ -16,8 +16,8 @@ import { useToast } from '@/components/ui/Toast';
 const PAGE = 3;   // 처음에 보여 줄 카드 수
 
 export const MYPROMPT_KEY = 'ohome.myprompts.v1';
-export type PromptCat = 'pose' | 'comp' | 'outfit';
-const CATS: [PromptCat, string][] = [['pose', '작태'], ['comp', '구도'], ['outfit', '의상']];
+export type PromptCat = 'pose' | 'comp' | 'outfit' | 'char';
+const CATS: [PromptCat, string][] = [['pose', '작태'], ['comp', '구도'], ['outfit', '의상'], ['char', '캐릭터']];   // 캐릭터 (사용자 요청)
 
 export interface MyPrompt {
   id: string;
