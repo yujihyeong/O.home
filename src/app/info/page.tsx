@@ -3,8 +3,8 @@
  * 인포 페이지 (사용자 요청) — 목록 없이 **자기소개 글 하나**만 보이는 페이지.
  *
  * 글은 정해진 템플릿이다 — 편집 화면에서 고른다 (사용자 요청):
- *  · 기본: 닉네임 · 아이디 · 플랫폼 · 공지 · LIST(접기) · PLAYING · NG · 페어 · ETC.
- *  · 카드 블록: 프로필(이미지 · 닉네임 · 아이디) · INFO · NOTICE · NG · ACCOUNT · DREAM · LIST(접기) · ETC.
+ *  · 기본: 닉네임 · 아이디 · 플랫폼 · LIST(접기) · 공지 · PLAYING · NG · 페어 · ETC.
+ *  · 카드 블록: 프로필(이미지 · 닉네임 · 아이디) · INFO · LIST(접기) · NOTICE · NG · ACCOUNT · DREAM · ETC.
  * 내용(칸)은 둘이 함께 쓴다 — 템플릿을 바꿔도 적어 둔 것은 그대로.
  * 관리자는 EDIT을 누르면 **같은 카드 모양 그대로** 칸이 입력창으로 바뀌어, 칸만 채우고 저장한다.
  * 카드 색은 홈의 낮/밤 장면을 따라 저절로 바뀐다.
@@ -220,16 +220,6 @@ function ClassicCard({ doc, editing, set }: { doc: InfoDoc; editing: boolean; se
         </section>
       )}
 
-      {(editing || doc.notice.trim()) && (
-        <section className="if-sec">
-          <div className="if-sh"><b>NOTICE</b></div>
-          {editing
-            ? <textarea className="if-in if-notice" value={doc.notice} rows={4} placeholder={'공지를 적어 주세요 — 줄을 바꾸면 그대로 줄바꿈돼요'}
-              onChange={e => set({ notice: e.target.value })} />
-            : <div className="if-notice">{doc.notice}</div>}
-        </section>
-      )}
-
       {/* LIST — 접어 둔 항목, 누르면 펼쳐진다 (사용자 요청) · 장르 | 캐릭터 */}
       {(editing || list.length > 0 || doc.listNote.trim()) && (
         <section className="if-sec">
@@ -268,6 +258,16 @@ function ClassicCard({ doc, editing, set }: { doc: InfoDoc; editing: boolean; se
               </div>
             </details>
           )}
+        </section>
+      )}
+
+      {(editing || doc.notice.trim()) && (
+        <section className="if-sec">
+          <div className="if-sh"><b>NOTICE</b></div>
+          {editing
+            ? <textarea className="if-in if-notice" value={doc.notice} rows={4} placeholder={'공지를 적어 주세요 — 줄을 바꾸면 그대로 줄바꿈돼요'}
+              onChange={e => set({ notice: e.target.value })} />
+            : <div className="if-notice">{doc.notice}</div>}
         </section>
       )}
 
@@ -519,6 +519,49 @@ function BlockCard({ doc, editing, set }: { doc: InfoDoc; editing: boolean; set:
         </Sec>
       )}
 
+      {/* LIST — INFO 밑 · NOTICE 위 (사용자 요청) · 보는 사람에게는 늘 접힌 채 · 장르 | 캐릭터 */}
+      {(editing || list.length > 0 || doc.listNote.trim()) && (
+        <section className="if-sec">
+          {editing ? (<>
+            <div className="if-sh"><b>LIST</b><small>보는 사람에게는 접힌 채로 보여요</small></div>
+            <BoldArea value={doc.listNote} onChange={v => set({ listNote: v })} />
+            <div className="if-play">
+              {doc.list.map((a, i) => (
+                <div key={i} className="if-prow edit if-lrow">
+                  <input className="if-in if-lgenre" value={a.genre} placeholder="장르"
+                    onChange={e => { const n = [...doc.list]; n[i] = { ...a, genre: e.target.value }; set({ list: n }); }} />
+                  <span className="if-lbar" aria-hidden />
+                  <input className="if-in if-pchar" value={a.char} placeholder="캐릭터"
+                    onChange={e => { const n = [...doc.list]; n[i] = { ...a, char: e.target.value }; set({ list: n }); }} />
+                  <span className="if-move">
+                    <button type="button" aria-label="위로" disabled={i === 0} onClick={() => set({ list: moveRow(doc.list, i, -1) })}>▲</button>
+                    <button type="button" aria-label="아래로" disabled={i === doc.list.length - 1} onClick={() => set({ list: moveRow(doc.list, i, 1) })}>▼</button>
+                  </span>
+                  <button type="button" aria-label="빼기" onClick={() => set({ list: doc.list.filter((_, j) => j !== i) })}>−</button>
+                </div>
+              ))}
+              <button type="button" className="if-ng-add" onClick={() => set({ list: [...doc.list, { genre: '', char: '' }] })}>＋ 추가</button>
+            </div>
+          </>) : (
+            <details className="if-fold ib-fold">
+              <summary className="if-sh"><b>LIST</b><span className="if-fold-ic" aria-hidden>▾</span><small className="ib-fold-hint">눌러서 펼치기</small></summary>
+              <div className="ib-fold-bd">
+                {doc.listNote.trim() && <div className="if-notice if-lnote"><BoldText text={doc.listNote} /></div>}
+                <div className="if-play">
+                  {list.map((a, i) => (
+                    <div key={i} className="if-prow if-lrow">
+                      <span className="if-lgenre">{a.genre}</span>
+                      <span className="if-lbar" aria-hidden />
+                      <span className="if-pchar">{a.char}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </details>
+          )}
+        </section>
+      )}
+
       {(editing || notice.length > 0) && (
         <Sec title="NOTICE">
           {editing
@@ -576,49 +619,6 @@ function BlockCard({ doc, editing, set }: { doc: InfoDoc; editing: boolean; set:
         </div>,
         // 페이지 쪽 transform 안에 있으면 화면 전체를 덮지 못한다 — body에 바로 띄운다
         document.body,
-      )}
-
-      {/* LIST — 보는 사람에게는 늘 접힌 채 (사용자 요청) · 장르 | 캐릭터 */}
-      {(editing || list.length > 0 || doc.listNote.trim()) && (
-        <section className="if-sec">
-          {editing ? (<>
-            <div className="if-sh"><b>LIST</b><small>보는 사람에게는 접힌 채로 보여요</small></div>
-            <BoldArea value={doc.listNote} onChange={v => set({ listNote: v })} />
-            <div className="if-play">
-              {doc.list.map((a, i) => (
-                <div key={i} className="if-prow edit if-lrow">
-                  <input className="if-in if-lgenre" value={a.genre} placeholder="장르"
-                    onChange={e => { const n = [...doc.list]; n[i] = { ...a, genre: e.target.value }; set({ list: n }); }} />
-                  <span className="if-lbar" aria-hidden />
-                  <input className="if-in if-pchar" value={a.char} placeholder="캐릭터"
-                    onChange={e => { const n = [...doc.list]; n[i] = { ...a, char: e.target.value }; set({ list: n }); }} />
-                  <span className="if-move">
-                    <button type="button" aria-label="위로" disabled={i === 0} onClick={() => set({ list: moveRow(doc.list, i, -1) })}>▲</button>
-                    <button type="button" aria-label="아래로" disabled={i === doc.list.length - 1} onClick={() => set({ list: moveRow(doc.list, i, 1) })}>▼</button>
-                  </span>
-                  <button type="button" aria-label="빼기" onClick={() => set({ list: doc.list.filter((_, j) => j !== i) })}>−</button>
-                </div>
-              ))}
-              <button type="button" className="if-ng-add" onClick={() => set({ list: [...doc.list, { genre: '', char: '' }] })}>＋ 추가</button>
-            </div>
-          </>) : (
-            <details className="if-fold ib-fold">
-              <summary className="if-sh"><b>LIST</b><span className="if-fold-ic" aria-hidden>▾</span><small className="ib-fold-hint">눌러서 펼치기</small></summary>
-              <div className="ib-fold-bd">
-                {doc.listNote.trim() && <div className="if-notice if-lnote"><BoldText text={doc.listNote} /></div>}
-                <div className="if-play">
-                  {list.map((a, i) => (
-                    <div key={i} className="if-prow if-lrow">
-                      <span className="if-lgenre">{a.genre}</span>
-                      <span className="if-lbar" aria-hidden />
-                      <span className="if-pchar">{a.char}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </details>
-          )}
-        </section>
       )}
 
       {(editing || etc.length > 0) && (
