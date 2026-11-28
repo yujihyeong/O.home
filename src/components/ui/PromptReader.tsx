@@ -32,11 +32,12 @@ export function PromptReader() {
     setBusy(false);
   };
 
+  // 지금 보고 있는 탭만 담는다 (사용자 요청) — 베이스 탭이면 베이스·네거티브, 캐릭터 탭이면 그 캐릭터의 긍정·부정
   const toBackup = () => {
     if (!info) return;
-    const chars = info.chars.map((c, i) => `캐릭터 ${i + 1}: ${c.pos}${c.neg ? ` (부정: ${c.neg})` : ''}`);
+    const c = tab > 0 ? info.chars[tab - 1] : null;
     window.dispatchEvent(new CustomEvent(PB_PREFILL_EVT, {
-      detail: { prompt: [info.base, ...chars].filter(Boolean).join('\n\n'), negative: info.negative, file: file ?? undefined },
+      detail: { prompt: c ? c.pos : info.base, negative: c ? c.neg : info.negative, file: file ?? undefined },
     }));
   };
 
@@ -105,7 +106,7 @@ export function PromptReader() {
           </div>
         )}
         <div className="pr-actions">
-          <button type="button" className="btn btn-ghost" onClick={toBackup}>백업에 담기</button>
+          <button type="button" className="btn btn-ghost" onClick={toBackup}>{tab > 0 ? `캐릭터 ${tab}` : '베이스'} 백업에 담기</button>
           <span className="pr-all"><CopyBtn text={promptInfoText(info)} label="프롬프트 전부" caption="전부 복사" /></span>
         </div>
       </>)}
