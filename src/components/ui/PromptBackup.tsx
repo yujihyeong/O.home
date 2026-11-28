@@ -16,6 +16,8 @@ import { useToast } from '@/components/ui/Toast';
 const PAGE = 3;   // 처음에 보여 줄 카드 수
 
 export const MYPROMPT_KEY = 'ohome.myprompts.v1';
+/** 다른 곳(프롬프트 읽기)에서 새 프롬프트 창을 채워 여는 신호 */
+export const PB_PREFILL_EVT = 'ohome-pb-prefill';
 export type PromptCat = 'pose' | 'comp' | 'outfit' | 'sina' | 'young';
 // 캐릭터 대신 시나네 · 영이네 (사용자 요청) — 둘은 남 | 여로 한 번 더 나눈다
 const CATS: [PromptCat, string][] = [['pose', '작태'], ['comp', '구도'], ['outfit', '의상'], ['sina', '시나네'], ['young', '영이네']];
@@ -63,7 +65,7 @@ async function copyText(text: string): Promise<boolean> {
   } catch { return false; }
 }
 
-export function CopyBtn({ text, label }: { text: string; label: string }) {
+export function CopyBtn({ text, label, caption }: { text: string; label: string; caption?: string }) {
   const toast = useToast();
   const [done, setDone] = useState(false);
   useEffect(() => { if (!done) return; const t = setTimeout(() => setDone(false), 1400); return () => clearTimeout(t); }, [done]);
@@ -74,13 +76,13 @@ export function CopyBtn({ text, label }: { text: string; label: string }) {
         {done ? <path d="M5 12.5l4.5 4.5L19 7.5" />
           : <><rect x="9" y="9" width="11" height="11" rx="2.5" /><path d="M15 9V6.5A2.5 2.5 0 0 0 12.5 4h-6A2.5 2.5 0 0 0 4 6.5v6A2.5 2.5 0 0 0 6.5 15H9" /></>}
       </svg>
-      <span>{done ? '복사됨' : '복사'}</span>
+      <span>{done ? '복사됨' : (caption ?? '복사')}</span>
     </button>
   );
 }
 
 /** 태그 글을 보기 좋게 — 쉼표는 흐리게, 가중치(0.7:: … ::)와 {강조}·[약화]는 색으로 */
-function Tags({ text }: { text: string }) {
+export function Tags({ text }: { text: string }) {
   const parts = text.split(/(,\s*)/);
   return (
     <>
@@ -105,15 +107,15 @@ function Tags({ text }: { text: string }) {
 }
 
 /** 긴 프롬프트는 네 줄까지만 — 눌러서 펼친다 */
-function PromptBlock({ label, text, neg }: { label: string; text: string; neg?: boolean }) {
+export function PromptBlock({ label, text, neg, full, copyLabel }: { label: string; text: string; neg?: boolean; full?: boolean; copyLabel?: string }) {
   const [open, setOpen] = useState(false);
   const n = text.split(',').map(t => t.trim()).filter(Boolean).length;
-  const long = text.length > 180;
+  const long = !full && text.length > 180;
   return (
     <div className={`pb-block ${neg ? 'neg' : ''}`}>
       <div className="pb-lbl">
         <span>{label}</span><small>태그 {n}개</small>
-        <CopyBtn text={text} label={neg ? '네거티브' : '프롬프트'} />
+        <CopyBtn text={text} label={copyLabel ?? (neg ? '네거티브' : '프롬프트')} />
       </div>
       <div className={`pb-txt ${long && !open ? 'clamp' : ''}`}><Tags text={text} /></div>
       {long && <button type="button" className="pb-more" onClick={() => setOpen(v => !v)}>{open ? '접기' : '전체 보기'}</button>}
@@ -172,6 +174,23 @@ export function PromptBackup() {
   const toggleOpen = (id: string) => setOpenIds(s0 => { const n = new Set(s0); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   const [del, setDel] = useState<MyPrompt | null>(null);
   const picRef = useRef<HTMLInputElement>(null);
+
+  // 「프롬프트 읽기」에서 꺼낸 것을 그대로 새 프롬프트로 (사용자 요청) — 그림도 함께(메타데이터는 지워서 올린다)
+  useEffect(() => {
+    const h = (e: Event) => {
+      const d = (e as CustomEvent<{ prompt: string; negative: string; file?: File }>).detail;
+      setEdit({ ...EMPTY, cat, sub, prompt: d.prompt, negative: d.negative });
+      if (d.file) {
+        setUpBusy(true);
+        putBlob(d.file)
+          .then(id => setEdit(x => (x ? { ...x, img: id } : x)))
+          .catch(() => toast('그림은 올리지 못했어요 — 직접 골라 주세요'))
+          .finally(() => setUpBusy(false));
+      }
+    };
+    window.addEventListener(PB_PREFILL_EVT, h);
+    return () => window.removeEventListener(PB_PREFILL_EVT, h);
+  }, [cat, sub, toast]);
 
   const count = (c: PromptCat) => mine.filter(p => catOf(p) === c).length;
   const subCount = (x: PromptSub) => mine.filter(p => catOf(p) === cat && subOf(p) === x).length;

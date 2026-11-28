@@ -3834,3 +3834,31 @@ html[data-scene="night"] .lcs-widget{--lcs-a:#e0444f;--lcs-b:#9b1f3a;--lcs-c:#1f
 .pb-pager button{height:34px;padding:0 18px;border-radius:99px;border:1px solid var(--line);background:var(--panel-solid,#fff);font-size:12.5px;font-weight:600;color:var(--sub)}
 .pb-pager button:hover{color:var(--ink);border-color:color-mix(in srgb,var(--ink) 30%,transparent)}
 .pb-pager button i{font-style:normal;font-weight:400;color:var(--faint);margin-left:4px}
+
+/* 프롬프트 읽기 (마이페이지 · 사용자 요청 시안 B안) */
+.pr-drop{margin-bottom:12px}
+.pr-drop.has{padding:10px;font-size:12px}
+.pr-top{display:flex;gap:12px;align-items:stretch;margin-bottom:12px}
+.pr-img{width:92px;aspect-ratio:3/4;object-fit:cover;border-radius:10px;flex:none;background:color-mix(in srgb,var(--ink) 5%,transparent)}
+.pr-meta{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px}
+.pr-meta>b{font-size:13px}
+.pr-chips{display:flex;flex-wrap:wrap;gap:4px}
+.pr-chips i{font-style:normal;font-size:10.5px;color:var(--sub);background:color-mix(in srgb,var(--ink) 6%,transparent);border-radius:6px;padding:3px 7px}
+.pr-dedup{margin-top:auto;font-size:11.5px;color:#5c7a3f;background:color-mix(in srgb,#7a9a52 13%,transparent);border-radius:8px;padding:6px 9px}
+.pr-dedup.none{color:var(--faint);background:color-mix(in srgb,var(--ink) 4%,transparent)}
+.pr-dedup button{font-size:11.5px;text-decoration:underline;color:var(--sub);padding:0 2px}
+.pr-none{margin:0;font-size:12px;line-height:1.7;color:var(--sub)}
+.pr-tabs{display:flex;gap:4px;margin:0 0 8px}
+.pr-tabs button{flex:1 1 0;min-width:0;height:32px;border-radius:99px;font-size:12px;font-weight:600;color:var(--sub);background:color-mix(in srgb,var(--ink) 6%,transparent);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pr-tabs button.on{background:var(--btn-dark,var(--ink));color:var(--btn-dark-fg,#fff)}
+.pr-body{display:grid;gap:8px}
+.pr-where{margin:0;font-size:11.5px;color:var(--faint)}
+.pr-empty{margin:0;font-size:12px}
+.pr-dups{margin-top:10px}
+.pr-dups small{font-size:11px;color:var(--faint)}
+.pr-dups div{display:flex;flex-wrap:wrap;gap:4px 8px;margin-top:4px;font-size:11.5px}
+.pr-dups s{color:#c08f8b}
+.pr-actions{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:14px}
+.pr-actions .btn{height:40px;width:100%}
+.pr-all .pb-copy{width:100%;height:40px;justify-content:center;border-radius:10px;font-size:12.5px;font-weight:700;border:0;background:var(--btn-dark,var(--ink));color:var(--btn-dark-fg,#fff)}
+.pr-all .pb-copy svg{width:15px;height:15px}

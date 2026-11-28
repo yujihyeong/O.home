@@ -22,6 +22,7 @@ import { PushSettings } from '@/components/shell/PushSettings';
 import { FreeExcerpt } from '@/components/ui/FreeExcerpt';
 import { MetaStrip } from '@/components/ui/MetaStrip';
 import { PromptBackup } from '@/components/ui/PromptBackup';
+import { PromptReader } from '@/components/ui/PromptReader';
 import { OocBackup } from '@/components/ui/OocBackup';
 
 export default function MyPage() {
@@ -187,6 +188,9 @@ export default function MyPage() {
 
         {/* 직접 쓰는 발췌기 — 관리자·일반 회원 모두 (사용자 요청) */}
         <FreeExcerpt />
+
+        {/* 프롬프트 읽기 (사용자 요청) — 생성 그림 속 프롬프트를 꺼내 복사 · 백업에 담기 */}
+        <PromptReader />
 
         {/* 프롬프트 백업 (사용자 요청) — NovelAI 태그를 작태·구도·의상·시나네·영이네로, 나만 보기 */}
         <PromptBackup />
